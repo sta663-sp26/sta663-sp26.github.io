@@ -1,7 +1,7 @@
 baseurl: "/"
 title: "Statistical Computing and Computation"
 author: "Colin Rundel"
-copyright: "&copy; 2025. All rights reserved."
+copyright: "&copy; 2026. All rights reserved."
 ignoreFiles: ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
 publishDir: "docs"
 
@@ -26,7 +26,7 @@ menu:
     url: https://rstudio.stat.duke.edu
 
 params:
-  subtitle: "(Spring 2025)"
+  subtitle: "(Spring 2026)"
   course: "Sta 663"
   highlightjs: androidstudio
   highlightjs_extra_languages:
