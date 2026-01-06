@@ -1,0 +1,965 @@
+---
+title: "scikit-learn<br/>Cross-validation &<br/>Classification"
+subtitle: "Lecture 11"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2025"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+---
+
+```{python setup}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
+import sklearn
+sklearn.set_config(display="text")
+
+
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=90,
+  precision = 5, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+books = pd.read_csv("data/daag_books.csv")
+
+
+from sklearn.metrics import mean_squared_error, root_mean_squared_error, classification_report
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+```
+
+```{r r_setup}
+#| include: false
+knitr::opts_chunk$set(
+  fig.align="center",
+  cache=FALSE
+)
+
+local({
+  hook_err_old <- knitr::knit_hooks$get("error")  # save the old hook
+  knitr::knit_hooks$set(error = function(x, options) {
+    # now do whatever you want to do with x, and pass
+    # the new x to the old hook
+    x = sub("## \n## Detailed traceback:\n.*$", "", x)
+    x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
+    hook_err_old(x, options)
+  })
+  
+  hook_warn_old <- knitr::knit_hooks$get("warning")  # save the old hook
+  knitr::knit_hooks$set(warning = function(x, options) {
+    x = sub("<string>:1: ", "", x)
+    hook_warn_old(x, options)
+  })
+})
+```
+
+
+# Cross validation &<br/>hyper parameter tuning
+
+## Ridge regression
+
+One way to expand on the idea of least squares regression is to modify the loss function. One such approach is known as Ridge regression, which adds a scaled penalty for the sum of the squared $\beta$s to the least squares loss. 
+
+::: {.small}
+$$ \underset{\boldsymbol{\beta}}{\text{argmin}} \; \lVert \boldsymbol{y} - \boldsymbol{X} \boldsymbol{\beta} \rVert^2 + \lambda (\boldsymbol{\beta}^T\boldsymbol{\beta}) $$
+:::
+
+::: {.xsmall}
+```{python}
+d = pd.read_csv("data/ridge.csv"); d
+```
+:::
+
+## dummy coding
+
+::: {.small}
+```{python}
+d = pd.get_dummies(d); d
+```
+:::
+
+
+## Fitting a ridge regession model
+
+The `linear_model` submodule also contains the `Ridge` model which can be used to fit a ridge regression. Usage is identical other than `Ridge()` takes the parameter `alpha` to specify the regularization parameter.
+
+::: {.xsmall}
+```{python}
+from sklearn.linear_model import Ridge, LinearRegression
+
+X, y = d.drop(["y"], axis=1), d.y
+
+lm = LinearRegression(fit_intercept=False).fit(X, y)
+rg = Ridge(fit_intercept=False, alpha=10).fit(X, y)
+```
+:::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+lm.coef_
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+root_mean_squared_error(y, lm.predict(X))
+```
+:::
+::::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+rg.coef_
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+root_mean_squared_error(y, rg.predict(X))
+```
+:::
+::::
+
+
+::: {.aside}
+Generally for a Ridge (or Lasso) model it is important to scale the features before fitting (i.e. `StandardScaler()`) - in this case this is not necessary as $x_1,\ldots,x_4$ all have mean of ~0 and std dev of ~1 
+:::
+
+
+## Test-Train split
+
+The most basic form of CV is to split the data into a testing and training set, this can be achieved using `train_test_split` from the `model_selection` submodule.
+
+::: {.xsmall}
+```{python}
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+  X, y, test_size=0.2, random_state=1234
+)
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+X.shape
+X_train.shape
+X_test.shape
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+y.shape
+y_train.shape
+y_test.shape
+```
+:::
+::::
+
+
+## Train vs Test rmse
+
+::: {.xsmall}
+```{python}
+#| output-location: column
+alpha = np.logspace(-2,1, 100)
+train_rmse = []
+test_rmse = []
+
+for a in alpha:
+    rg = Ridge(alpha=a).fit(
+      X_train, y_train
+    )
+    train_rmse.append( 
+     root_mean_squared_error(
+        y_train, rg.predict(X_train)
+      ) 
+    )
+    test_rmse.append( 
+      root_mean_squared_error(
+        y_test, rg.predict(X_test)
+      ) 
+    )
+
+res = pd.DataFrame(
+  data = {"alpha": alpha, 
+          "train": train_rmse, 
+          "test": test_rmse}
+)
+res
+```
+:::
+
+##
+
+::: {.xsmall}
+```{python}
+g = sns.relplot(
+  x="alpha", y="rmse", hue="variable", data = pd.melt(res, id_vars=["alpha"],value_name="rmse")
+).set(
+  xscale="log"
+)
+```
+:::
+
+
+## Best alpha?
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+min_i = np.argmin(res.train)
+min_i
+
+res.iloc[[min_i],:]
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+min_i = np.argmin(res.test)
+min_i
+
+res.iloc[[min_i],:]
+```
+:::
+::::
+
+
+## k-fold cross validation
+
+The previous approach was relatively straight forward, but it required a fair bit of bookkeeping  to implement and we only examined a single test/train split. If we would like to perform k-fold cross validation we can use `cross_val_score` from the `model_selection` submodule. 
+
+::: {.small}
+```{python}
+from sklearn.model_selection import cross_val_score
+
+cross_val_score(
+  Ridge(alpha=0.59, fit_intercept=False), 
+  X, y,
+  cv=5, 
+  scoring="neg_root_mean_squared_error"
+)
+```
+:::
+
+
+::: {.aside}
+🚩🚩🚩 Note that the default k-fold cross validation used here does not shuffle the data which can be massively problematic if the data is ordered 🚩🚩🚩 
+:::
+
+## Controlling k-fold behavior
+
+Rather than providing `cv` as an integer, it is better to specify a cross-validation scheme directly (with additional options). Here we will use the `KFold` class from the `model_selection` submodule. 
+
+::: {.small}
+```{python}
+from sklearn.model_selection import KFold
+
+cross_val_score(
+  Ridge(alpha=0.59, fit_intercept=False), 
+  X, y, 
+  cv = KFold(n_splits=5, shuffle=True, random_state=1234), 
+  scoring="neg_root_mean_squared_error"
+)
+```
+:::
+
+
+## KFold object
+
+`KFold()` returns a class object which provides the method `split()` which in turn is a generator that returns a tuple with the indexes of the training and testing selects for each fold given a model matrix `X`,
+
+::: {.xsmall}
+```{python}
+ex = pd.DataFrame(data = list(range(10)), columns=["x"])
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+cv = KFold(5)
+for train, test in cv.split(ex):
+  print(f'Train: {train} | test: {test}')
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+cv = KFold(5, shuffle=True, random_state=1234)
+for train, test in cv.split(ex):
+  print(f'Train: {train} | test: {test}')
+```
+:::
+::::
+
+## `scoring`
+
+For most of the cross validation functions we pass in a string instead of a scoring function from the metrics submodule - if you are interested in seeing the names of the possible metrics, these are available via `sklearn.metrics.get_scorer_names()`,
+
+::: {.xsmall}
+```{python}
+np.array( sklearn.metrics.get_scorer_names() )
+```
+:::
+
+
+## Train vs Test rmse (again)
+
+::: {.small}
+```{python}
+alpha = np.logspace(-2,1, 30)
+test_mean_rmse = []
+test_rmse = []
+cv = KFold(n_splits=5, shuffle=True, random_state=1234)
+
+for a in alpha:
+    rg = Ridge(fit_intercept=False, alpha=a)
+    
+    scores = -1 * cross_val_score(
+      rg, X_train, y_train, 
+      cv = cv, 
+      scoring="neg_root_mean_squared_error"
+    )
+    test_mean_rmse.append(np.mean(scores))
+    test_rmse.append(scores)
+
+res = pd.DataFrame(
+    data = np.c_[alpha, test_mean_rmse, test_rmse],
+    columns = ["alpha", "mean_rmse"] + ["fold" + str(i) for i in range(1,6) ]
+)
+```
+:::
+
+##
+
+::: {.xsmall}
+```{python}
+res
+```
+:::
+
+##
+
+::: {.small}
+```{python}
+g = sns.relplot(
+  x="alpha", y="rmse", hue="variable", data=res.melt(id_vars=["alpha"], value_name="rmse"), 
+  marker="o", kind="line"
+).set(
+  xscale="log"
+)
+```
+:::
+
+
+## Grid Search
+
+We can further reduce the amount of code needed if there is a specific set of parameter values we would like to explore using cross validation. This is done using the `GridSearchCV` function from the `model_selection` submodule.
+
+::: {.small}
+```{python}
+#| code-line-numbers: "|4|5|6|7"
+from sklearn.model_selection import GridSearchCV
+
+gs = GridSearchCV(
+  Ridge(fit_intercept=False),
+  {"alpha": np.logspace(-2, 1, 30)},
+  cv = KFold(5, shuffle=True, random_state=1234),
+  scoring = "neg_root_mean_squared_error"
+).fit(
+  X, y
+)
+```
+:::
+
+## `best_*` attributes
+
+`GridSearchCV()`'s return object contains attributes with details on the "best" model based on the chosen scoring metric.
+
+```{python}
+gs.best_index_
+gs.best_params_
+gs.best_score_
+```
+
+## `best_estimator_` attribute
+
+If `refit = True` (default) with `GridSearchCV()` then the `best_estimator_` attribute will be available which gives direct access to the "best" model or pipeline object. This model is constructed by using the parameter(s) that achieved the minimum score and refitting the model to the complete data set.
+
+::: {.xsmall}
+```{python}
+gs.best_estimator_
+
+gs.best_estimator_.coef_
+
+gs.best_estimator_.predict(X)
+```
+:::
+
+
+## `cv_results_` attribute
+
+Other useful details about the grid search process are stored as a dictionary in the `cv_results_` attribute which includes things like average test scores, fold level test scores, test ranks, test runtimes, etc.
+
+::: {.xsmall}
+```{python}
+gs.cv_results_.keys()
+```
+
+```{python}
+gs.cv_results_["mean_test_score"]
+gs.cv_results_["param_alpha"]
+```
+:::
+
+##
+
+::: {.small}
+```{python}
+#| output-location: slide
+#| code-line-numbers: "|1|2|3|4|7,9-14"
+alpha = np.array(gs.cv_results_["param_alpha"], dtype="float64")
+score = -gs.cv_results_["mean_test_score"]
+score_std = gs.cv_results_["std_test_score"]
+n_folds = gs.cv.get_n_splits()
+
+plt.figure(layout="constrained")
+ax = sns.lineplot(x=alpha, y=score)
+ax.set_xscale("log")
+plt.fill_between(
+  x = alpha,
+  y1 = score + 1.96*score_std / np.sqrt(n_folds),
+  y2 = score - 1.96*score_std / np.sqrt(n_folds),
+  alpha = 0.2
+)
+plt.show()
+```
+:::
+
+
+## Ridge traceplot
+
+::: {.xsmall}
+```{python}
+alpha = np.logspace(-1,5, 100)
+betas = []
+
+for a in alpha:
+    rg = Ridge(alpha=a, fit_intercept=False).fit(X, y)
+    betas.append(rg.coef_)
+
+res = pd.DataFrame(
+  data = betas, columns = rg.feature_names_in_
+).assign(
+  alpha = alpha  
+)
+```
+:::
+
+##
+
+::: {.xsmall}
+```{python}
+g = sns.relplot(
+  data = res.melt(id_vars="alpha", value_name="coef values", var_name="feature"),
+  x = "alpha", y = "coef values", hue = "feature",
+  kind = "line", aspect=2
+).set(
+  xscale="log"
+)
+```
+:::
+
+
+# Classification
+
+## OpenIntro - Spam
+
+We will start by looking at a data set on spam emails from the [OpenIntro project](https://www.openintro.org/). A full data dictionary can be found [here](https://www.openintro.org/data/index.php?data=email). To keep things simple this week we will restrict our exploration to including only the following columns: `spam`, `exclaim_mess`, `format`, `num_char`,  `line_breaks`, and `number`.
+
+* `spam` - Indicator for whether the email was spam.
+* `exclaim_mess` - The number of exclamation points in the email message.
+* `format` - Indicates whether the email was written using HTML (e.g. may have included bolding or active links).
+* `num_char` - The number of characters in the email, in thousands.
+* `line_breaks` - The number of line breaks in the email (does not count text wrapping).
+* `number` - Factor variable saying whether there was no number, a small number (under 1 million), or a big number.
+
+##
+
+As `number` is categorical, we will take care of the necessary dummy coding via `pd.get_dummies()`,
+
+::: {.xsmall}
+```{python}
+email = pd.read_csv('data/email.csv')[ 
+  ['spam', 'exclaim_mess', 'format', 'num_char', 'line_breaks', 'number'] 
+]
+email_dc = pd.get_dummies(email)
+email_dc
+```
+:::
+
+
+##
+
+::: {.xsmall}
+```{python}
+#| out-width: 75%
+g = sns.pairplot(email, hue='spam', corner=True, aspect=1.25)
+```
+:::
+
+## Model fitting
+
+::: {.xsmall}
+```{python}
+from sklearn.linear_model import LogisticRegression
+
+y = email_dc.spam
+X = email_dc.drop('spam', axis=1)
+
+m = LogisticRegression(fit_intercept = False).fit(X, y)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+m.feature_names_in_
+m.coef_
+```
+:::
+
+## A quick comparison
+
+```{r include=FALSE} 
+d = read.csv("data/email.csv") |>
+  dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
+```
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+*R output*
+
+```{r}
+glm(spam~.-1, data=d, family=binomial) |>
+  coef()
+```
+:::
+
+::: {.column width='50%'}
+*sklearn output*
+
+```{python}
+m.feature_names_in_
+m.coef_
+```
+:::
+::::
+
+
+## `sklearn.linear_model.LogisticRegression`
+
+From the documentations,
+
+> This class implements regularized logistic regression using the ‘liblinear’ library, ‘newton-cg’, ‘sag’, ‘saga’ and ‘lbfgs’ solvers. **Note that regularization is applied by default.** It can handle both dense and sparse input. Use C-ordered arrays or CSR matrices containing 64-bit floats for optimal performance; any other input format will be converted (and copied).
+
+
+## Penalty parameter
+
+🚩🚩🚩 
+
+`LogisticRegression()` has a parameter called penalty that applies a `"l1"` (lasso), `"l2"` (ridge), `"elasticnet"` or `None` with `"l2"` being the default. To make matters worse, the regularization is controlled by the parameter `C` which defaults to 1 (not 0) - also `C` is the inverse regularization strength (e.g. different from `alpha` for ridge and lasso models). 
+
+🚩🚩🚩
+
+$$
+\min_{w, c} \frac{1 - \rho}{2}w^T w + \rho |w|_1 + C \sum_{i=1}^n \log(\exp(- y_i (X_i^T w + c)) + 1),
+$$
+
+
+## Another quick comparison
+
+```{r include=FALSE}
+d = read.csv("data/email.csv") |>
+  dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
+```
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+*R output*
+
+```{r}
+glm(spam~.-1, data = d, family=binomial) |>
+  coef()
+```
+:::
+
+::: {.column width='50%'}
+*sklearn output (penalty `None`)*
+
+```{python}
+m = LogisticRegression(
+  fit_intercept = False, penalty=None
+).fit(
+  X, y
+)
+m.feature_names_in_
+m.coef_
+```
+:::
+::::
+
+
+## Solver parameter
+
+It is also possible specify the solver to use when fitting a logistic regression model, to complicate matters somewhat the choice of the algorithm depends on the penalty chosen: 
+
+* `newton-cg` - [`"l2"`, `None`]
+* `lbfgs` - [`"l2"`, `None`]
+* `liblinear` - [`"l1"`, `"l2"`]
+* `sag` - [`"l2"`, `None`]
+* `saga` - [`"elasticnet"`, `"l1"`, `"l2"`, `None`]
+
+Also there can be issues with feature scales for some of these solvers:
+
+> **Note:** ‘sag’ and ‘saga’ fast convergence is only guaranteed on features with approximately the same scale. You can preprocess the data with a scaler from sklearn.preprocessing.
+
+
+## Prediction
+
+Classification models have multiple prediction methods depending on what type of output you would like,
+
+::: {.xsmall}
+```{python}
+m.predict(X)
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+m.predict_proba(X)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+m.predict_log_proba(X)
+```
+:::
+::::
+
+## Scoring
+
+Classification models also include a `score()` method which returns the model's *accuracy*,
+
+::: {.xsmall}
+```{python}
+m.score(X, y)
+```
+:::
+
+. . .
+
+Other scoring options are available via the [metrics](https://scikit-learn.org/stable/modules/classes.html#classification-metrics) submodule
+
+::: {.xsmall}
+```{python}
+from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, confusion_matrix
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+accuracy_score(y, m.predict(X))
+roc_auc_score(y, m.predict_proba(X)[:,1])
+f1_score(y, m.predict(X))
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+confusion_matrix(y, m.predict(X), labels=m.classes_)
+```
+:::
+::::
+
+## Scoring visualizations - confusion matrix
+
+::: {.small}
+```{python}
+from sklearn.metrics import ConfusionMatrixDisplay
+cm = confusion_matrix(y, m.predict(X), labels=m.classes_)
+
+disp = ConfusionMatrixDisplay(cm).plot()
+plt.show()
+```
+:::
+
+
+## Scoring visualizations - ROC curve {.smaller}
+
+::: {.small}
+```{python}
+from sklearn.metrics import auc, roc_curve, RocCurveDisplay
+
+fpr, tpr, thresholds = roc_curve(y, m.predict_proba(X)[:,1])
+roc_auc = auc(fpr, tpr)
+disp = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc,
+                       estimator_name='Logistic Regression').plot()
+plt.show()
+```
+:::
+
+
+## Scoring visualizations - Precision Recall {.smaller}
+
+::: {.small}
+```{python}
+from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
+
+precision, recall, _ = precision_recall_curve(y, m.predict_proba(X)[:,1])
+disp = PrecisionRecallDisplay(precision=precision, recall=recall).plot()
+plt.show()
+```
+:::
+
+
+# MNIST
+
+## MNIST handwritten digits
+
+::: {.xsmall}
+```{python}
+from sklearn.datasets import load_digits
+digits = load_digits(as_frame=True)
+```
+:::
+
+
+:::: {.columns .xsmall}
+::: {.column width='70%'}
+```{python}
+X = digits.data
+X
+```
+:::
+
+::: {.column width='30%'} 
+```{python}
+y = digits.target
+y
+```
+:::
+::::
+
+
+## Example digits
+
+::: {.xsmall}
+```{python}
+#| echo: false
+fig, axes = plt.subplots(nrows=5, ncols=10, figsize=(10, 6), layout="constrained")
+axes2 = [ax for row in axes for ax in row]
+
+for ax, image, label in zip(axes2, digits.images, digits.target):
+    ax.set_axis_off()
+    img = ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
+    txt = ax.set_title(f"{label}")
+    
+plt.show()
+```
+:::
+
+
+## Doing things properly - train/test split
+
+To properly assess our modeling we will create a training and testing set of these data, only the training data will be used to learn model coefficients or hyperparameters, test data will only be used for final model scoring.
+
+::: {.small}
+```{python}
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, shuffle=True, random_state=1234
+)
+```
+:::
+
+
+## Multiclass logistic regression
+
+Fitting a multiclass logistic regression model will involve selecting a value for the `multi_class` parameter, which can be either `multinomial` for multinomial regression or `ovr` for one-vs-rest where `k` binary models are fit.
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: |3
+mc_log_cv = GridSearchCV(
+  LogisticRegression(penalty=None, max_iter = 5000),
+  param_grid = {"multi_class": ["multinomial", "ovr"]},
+  cv = KFold(10, shuffle=True, random_state=12345)
+).fit(
+  X_train, y_train
+)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+mc_log_cv.best_estimator_
+mc_log_cv.best_score_
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+for param, score in  zip(mc_log_cv.cv_results_["params"], mc_log_cv.cv_results_["mean_test_score"]):
+  f"{param=}, {score=}"
+```
+:::
+
+
+## Model coefficients
+
+::: {.xsmall}
+```{python}
+pd.DataFrame(
+  mc_log_cv.best_estimator_.coef_
+)
+
+mc_log_cv.best_estimator_.coef_.shape
+
+mc_log_cv.best_estimator_.intercept_
+```
+:::
+
+## Confusion Matrix
+
+```{python}
+#| include: false
+np.set_printoptions(
+  linewidth=60
+)
+```
+
+
+:::: {.columns .tiny}
+::: {.column width='50%'}
+**Within sample**
+```{python}
+accuracy_score(
+  y_train, 
+  mc_log_cv.best_estimator_.predict(X_train)
+)
+confusion_matrix(
+  y_train, 
+  mc_log_cv.best_estimator_.predict(X_train)
+)
+```
+:::
+
+::: {.column width='50%'}
+**Out of sample**
+```{python}
+accuracy_score(
+  y_test, 
+  mc_log_cv.best_estimator_.predict(X_test)
+)
+confusion_matrix(
+  y_test, 
+  mc_log_cv.best_estimator_.predict(X_test),
+  labels = digits.target_names
+)
+```
+:::
+::::
+
+## Report
+
+::: {.xsmall}
+```{python}
+print( classification_report(
+  y_test, 
+  mc_log_cv.best_estimator_.predict(X_test)
+) )
+```
+:::
+
+## Prediction
+
+:::: {.columns .tiny}
+::: {.column width='50%'}
+```{python}
+mc_log_cv.best_estimator_.predict(X_test)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+mc_log_cv.best_estimator_.predict_proba(X_test),
+```
+:::
+::::
+
+## Examining the coefs
+
+::: {.xsmall}
+```{python}
+#| out-width: 66%
+coef_img = mc_log_cv.best_estimator_.coef_.reshape(10,8,8)
+
+fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(10, 5), layout="constrained")
+axes2 = [ax for row in axes for ax in row]
+
+for ax, image, label in zip(axes2, coef_img, range(10)):
+    ax.set_axis_off()
+    img = ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
+    txt = ax.set_title(f"{label}")
+    
+plt.show()
+```
+:::
+
+## Example 1 - DecisionTreeClassifier
+
+Using these data we will now fit a `DecisionTreeClassifier` to these data, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+
+::: {.small}
+```{python}
+from sklearn.datasets import load_digits
+digits = load_digits(as_frame=True)
+
+
+X, y = digits.data, digits.target
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, shuffle=True, random_state=1234
+)
+```
+:::
+
+# Example 2 - GridSearchCV w/ Multiple models <br/> (Trees vs Forests)

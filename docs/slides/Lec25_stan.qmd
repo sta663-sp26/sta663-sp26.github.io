@@ -1,0 +1,387 @@
+---
+title: "MCMC - Performance"
+subtitle: "Lecture 25"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2025"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+---
+
+```{python setup}
+#| include: false
+
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import patsy
+
+import pymc as pm
+import arviz as az
+
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=200,
+  precision = 5, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 150)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+
+# Stan
+
+## Stan in Python & R
+
+At the moment both Python & R offer two variants of Stan:
+
+* `pystan` & `RStan` - native language interface to the underlying Stan C++ libraries
+
+  * Former does not play nicely with Jupyter (or quarto or positron) - see [here](https://pystan.readthedocs.io/en/latest/faq.html#how-can-i-use-pystan-with-jupyter-notebook-or-jupyterlab) for a fix
+
+* `CmdStanPy` & `CmdStanR` - are wrappers around the `CmdStan` command line interface
+  
+  * Interface is through files (e.g. `model.stan`)
+
+Any of the above tools will require a modern C++ toolchain (C++17 support required).
+
+
+## Stan process
+
+![](imgs/stan.png){fig-align="center" width=75%}
+
+::: {.aside}
+From Charles Margossian's [Fundamentals of Stan](https://github.com/charlesm93/stanTutorial/tree/main/StanCon2023)
+:::
+
+## Stan file basics
+
+Stan code is divided up into specific blocks depending on usage - all of the following blocks are optional but the ordering has to match what is given below.  
+
+::: {.xsmall}
+```stan
+functions {
+  // user-defined functions
+}
+data {
+  // declares the required data for the model
+}
+transformed data {
+   // allows the definition of constants and transforms of the data
+}
+parameters {
+   // declares the model’s parameters
+}
+transformed parameters {
+   // allows variables to be defined in terms of data and parameters
+}
+model {
+   // defines the log probability function
+}
+generated quantities {
+   // allows derived quantities based on parameters, data, and random number generation
+}
+```
+:::
+
+## A basic example
+
+::: {.xsmall}
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/bernoulli.stan`
+:::
+```stan
+{{< include Lec25/bernoulli.stan >}}
+```
+
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/bernoulli.json`
+:::
+```json
+{{< include Lec25/bernoulli.json >}}
+```
+:::
+
+## Build & fit the model
+
+::: {.xsmall}
+```{python}
+from cmdstanpy import CmdStanModel
+model = CmdStanModel(stan_file='Lec25/bernoulli.stan')
+```
+
+```{python}
+fit = model.sample(data='Lec25/bernoulli.json', show_progress=False)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+
+```{python}
+type(fit)
+```
+
+```{python}
+fit
+```
+:::
+
+## Posterior samples
+
+::: {.small}
+```{python}
+fit.stan_variables()
+```
+
+```{python}
+np.mean( fit.stan_variables()["theta"] )
+```
+:::
+
+
+
+## Summary & trace plots
+
+::: {.small}
+```{python}
+fit.summary()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(fit, compact=False)
+plt.show()
+```
+:::
+
+## Diagnostics
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+fit.divergences
+```
+:::
+::: {.column}
+```{python}
+fit.max_treedepths
+```
+:::
+:::
+
+::: {.xsmall}
+
+```{python}
+fit.method_variables().keys()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+print(fit.diagnose())
+```
+:::
+
+# Gaussian process Example
+
+## GP model
+
+::: {.xsmall}
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/gp.stan`
+:::
+```stan
+{{< include Lec25/gp.stan >}}
+```
+:::
+
+
+## Fit
+
+::: {.xsmall}
+```{python}
+d = pd.read_csv("data/gp2.csv").to_dict('list')
+d["N"] = len(d["x"])
+```
+```{python}
+#| warning: true
+gp = CmdStanModel(stan_file='Lec25/gp.stan')
+gp_fit = gp.sample(data=d, show_progress=False)
+```
+:::
+
+
+## Summary
+
+::: {.small}
+```{python}
+gp_fit.summary()
+```
+:::
+
+
+
+
+
+
+## Trace plots
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(gp_fit, compact=False)
+plt.show()
+```
+:::
+
+## Diagnostics
+
+::: {.xsmall}
+```{python}
+gp_fit.divergences
+```
+```{python}
+gp_fit.max_treedepths
+```
+
+```{python}
+gp_fit.method_variables().keys()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+print(gp_fit.diagnose())
+```
+:::
+
+
+## nutpie & stan
+
+The `nutpie` package can also be used to compile and run stan models, it uses a package called `bridgestan` to interface with stan.
+
+::: {.small}
+```{python}
+import nutpie
+m = nutpie.compile_stan_model(filename="Lec25/gp.stan")
+m = m.with_data(x=d["x"],y=d["y"],N=len(d["x"]))
+gp_fit_nutpie = nutpie.sample(m, chains=4)
+```
+:::
+
+## 
+
+::: {.xsmall}
+```{python}
+az.summary(gp_fit_nutpie)
+```
+:::
+
+::: {.xsmall}
+```{python}
+#| echo: false
+ax = az.plot_trace(gp_fit_nutpie, compact=False)
+plt.show()
+```
+:::
+
+
+## Performance
+
+::: {.small}
+``` {python}
+%%timeit -r 3
+gp_fit = gp.sample(data=d, show_progress=False)
+```
+:::
+
+::: {.small}
+``` {python}
+%%timeit -r 3
+gp_fit_nutpie = nutpie.sample(m, chains=4, progress_bar=False)
+```
+:::
+
+## Posterior predictive model
+
+::: {.xxsmall}
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/gp2.stan`
+:::
+```stan
+{{< include Lec25/gp2.stan >}}
+```
+:::
+
+## Posterior predictive fit
+
+::: {.xsmall}
+```{python}
+d2 = pd.read_csv("data/gp2.csv").to_dict('list')
+d2["N"] = len(d2["x"])
+d2["xp"] = np.linspace(0, 1.2, 121)
+d2["Np"] = 121
+```
+```{python}
+#| warning: true
+gp2 = CmdStanModel(stan_file='Lec25/gp2.stan')
+gp2_fit = gp2.sample(data=d2, show_progress=False)
+```
+:::
+
+## Summary
+
+::: {.small}
+```{python}
+gp2_fit.summary()
+```
+:::
+
+## Draws
+
+::: {.xsmall}
+```{python}
+gp2_fit.stan_variable("f").shape
+```
+
+```{python}
+np.mean(gp2_fit.stan_variable("f"), axis=0)
+```
+:::
+
+## Plot
+
+```{python}
+#| echo: false
+fig = plt.figure(figsize=(12, 5))
+ax = sns.scatterplot(x="x", y="y", data=d2)
+for y in gp2_fit.stan_variable("f")[::40]:
+  ax = plt.plot(d2["xp"], y, color='grey', alpha=0.1)
+ax = plt.plot(
+  d2["xp"], 
+  np.mean(gp2_fit.stan_variable("f"), axis=0),
+  color='red', label="post mean"
+)
+l = plt.legend()
+plt.show()
+```

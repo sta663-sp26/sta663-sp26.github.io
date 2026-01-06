@@ -1,0 +1,43 @@
+---
+title: "More PyMC"
+subtitle: "Lecture 20"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2025"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+---
+
+```{python setup}
+#| include: false
+
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import patsy
+
+import pymc as pm
+import arviz as az
+
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=200,
+  precision = 5, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 150)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+

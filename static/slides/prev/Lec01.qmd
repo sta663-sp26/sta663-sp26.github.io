@@ -1,0 +1,216 @@
+---
+title: "Welcome & Syllabus"
+subtitle: "Lecture 01"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2025"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+options(
+  htmltools.dir.version = FALSE, # for blogdown
+  width=80
+)
+
+```
+
+
+# Course Details
+
+
+## Course Team
+
+
+### Instructor
+
+* Dr. Colin Rundel - colin.rundel@duke.edu / rundel@gmail.com 
+
+<br/>
+
+### TAs
+
+* Holly (Yifan) Cui
+* Sam Rosen
+
+## Course website(s)
+
+* GitHub page - [sta663-sp25.github.io](https://sta663-sp25.github.io)
+  - HTML, PDF, and qmds of Slides
+  - Lecture screencasts (youtube)
+  - Readings
+  - Links to course tools
+
+* Canvas - <https://canvas.duke.edu/courses/50346>
+  - Announcements
+  - Gradebook
+
+
+## Course Timetable
+
+* Lectures (weekly) 
+  - Wednesdays, 10:05 - 11:20 am - Old Chemistry 116
+  - Fridays, 10:05 - 11:20 am - Old Chemistry 116
+  
+<br/>
+  
+* Labs (weekly)
+  - Tuesdays, 1:25 to 2:40 pm - Old Chemistry 116
+
+
+## Labs
+
+- Attendance is expected
+
+- Opportunity to work on course assignments with TA support
+
+- Labs will begin in Week 2 (January 21st) - no lab Week 0 or 1
+
+
+
+## Announcements
+
+* Posted on Canvas (via Announcements tool) 
+
+* and sent via email, 
+
+* Check both regularly.
+
+
+## Grading
+
+This course is assessed 100% on your coursework (there is no exam). 
+
+We will be assessing you based on the following assignments,
+
+<br/><br/>
+
+|Assignment|Type      |Value  | n   |Assigned             |
+|:---------|:---------|:------|:---:|---------------------|
+|Homeworks |Team      |50%    | 5/6 | ~ Every other week  |
+|Midterms  |Individual|40%    | 2   | ~ Week 6 and 14     |
+|Project   |Team      |10%    | 1   | ~ Week 10           | 
+
+
+## Teams
+
+* Team assignments
+  + Roughly biweekly homework assignments
+  + Open ended
+  + 5 - 20 hours of work
+  + Peer evaluation after completion
+  + Later assignments (maybe) will belanguage agnostic
+
+* Expectations and roles
+    + Everyone is expected to contribute equal *effort*
+    + Everyone is expected to understand *all* code turned in
+    + Individual contribution evaluated by peer evaluation, commits, etc.
+
+
+## Collaboration policy
+
+- Only work that is clearly assigned as team work should be completed collaboratively (Homeworks + Project). 
+
+- Individual assignments (Midterms) must be completed individually, you may not directly share or discuss answers / code with anyone other than the myself and the TAs.
+
+- On Homeworks you should not directly share answers / code with other teams in this class, however you are welcome to discuss the problems in general and ask for advice.
+
+
+
+## Sharing / reusing code policy
+
+- We are aware that a huge volume of code is available on the web, and many tasks may have solutions posted.
+
+- Unless explicitly stated otherwise, this course's policy is that you may make use of any online resources (e.g. Google, StackOverflow, etc.) but you must explicitly cite where you obtained any code you directly use or use as inspiration in your solution(s). 
+
+- Any recycled code that is discovered and is not explicitly cited will be treated as plagiarism, regardless of source.
+
+- The same applies to the use of LLM like ChatGPT, Claude, or GitHub Copilot - you are welcome to make use of these tools as the basis for your solutions but you must cite the tool when using it for significant amounts of code generation.
+
+
+
+## Academic integrity
+
+> To uphold the Duke Community Standard:
+>
+> - I will not lie, cheat, or steal in my academic endeavors;
+> - I will conduct myself honorably in all my endeavors; and
+> - I will act if the Standard is compromised.
+
+
+# Course Tools
+
+## Dept RStudio Workbench
+
+<br/>
+
+::: {.center .xlarge}
+[rstu<!---->dio.stat.duke.edu](https://rstudio.stat.duke.edu)
+:::
+
+- Browser based + consistent in hardware and software environments
+
+- Local RStudio / Jupyter / VSCode / Positron installations are fine but we will not guarantee support
+
+- Common issues:
+
+  - If `This site can’t be reached` make sure you are on a Duke network and are not use an alternative DNS service.
+
+
+## Local Python + other environment
+
+If working locally you should make sure that your environment meets the following requirements:
+
+* Latest R (4.4.2)
+
+* Recent Python (3.12 or newer) with working pip (or equivalent)
+
+* working git installation 
+
+* ability to create ssh keys (for GitHub authentication)
+
+* All packages should be updated to their latest version (assignments will include `requirements.txt` when needed)
+
+
+## GitHub
+
+- We will be using an organization specifically to this course <br/> https://github.com/sta663-sp25
+
+- All assignments will be distributed and collected via GitHub
+
+- All of your work and your membership (enrollment) in the organization is private
+
+- We will be distributing a survey this weekend to collection your account names 
+
+    - Next week you will be invited to the course organization.
+
+
+## Username advice
+
+Some brief advice about selecting your account names (particularly for GitHub),
+
+- Incorporate your actual name! People like to know who they’re dealing with. Also makes your username easier for people to guess or remember.
+
+- Reuse your username from other contexts, e.g., Twitter or Slack.
+
+- Pick a username you will be comfortable revealing to your future boss.
+
+- Shorter is better than longer, but be as unique as possible.
+
+- Make it timeless. Avoid highlighting your current university, employer, <br/>or place of residence.
+
+
+## Before next Wednesday
+
+* Create a GitHub account if you don't have one
+
+* Complete the course survey (you will receive before next Wednesday)
+
+* make sure you can login in to the Department's RStudio server
+  - https://rstudio.stat.duke.edu
+
+
