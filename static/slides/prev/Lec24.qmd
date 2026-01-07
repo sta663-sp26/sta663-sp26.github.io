@@ -2,7 +2,7 @@
 title: "PyMC - Samplers"
 subtitle: "Lecture 24"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss

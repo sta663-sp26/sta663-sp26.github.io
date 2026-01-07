@@ -2,7 +2,7 @@
 title: "Basic linux<br/>& Docker"
 subtitle: "Lecture 20"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss

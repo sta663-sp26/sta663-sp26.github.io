@@ -2,7 +2,7 @@
 title: "scikit-learn"
 subtitle: "Lecture 10"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss
@@ -609,7 +609,7 @@ The data can be read into pandas with,
 ```{python}
 #| eval: false
 books = pd.read_csv(
-  "https://sta663-sp25.github.io/slides/data/daag_books.csv"
+  "https://sta663-sp26.github.io/slides/data/daag_books.csv"
 )
 ```
 

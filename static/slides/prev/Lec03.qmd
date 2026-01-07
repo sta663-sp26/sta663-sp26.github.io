@@ -2,7 +2,7 @@
 title: "Control flow, list<br/>comprehensions, and functions"
 subtitle: "Lecture 03"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss

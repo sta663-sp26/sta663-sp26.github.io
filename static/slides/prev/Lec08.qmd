@@ -2,7 +2,7 @@
 title: "pandas / polars"
 subtitle: "Lecture 09"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss
@@ -317,7 +317,7 @@ d %>%
 
 ::: {.small}
 ```{python}
-cereal = pd.read_csv("https://sta663-sp25.github.io/slides/data/cereal.csv")
+cereal = pd.read_csv("https://sta663-sp26.github.io/slides/data/cereal.csv")
 cereal
 ```
 :::

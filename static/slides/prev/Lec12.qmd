@@ -2,7 +2,7 @@
 title: "custom transformers + <br/> patsy & statsmodels"
 subtitle: "Lecture 12"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss
