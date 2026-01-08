@@ -166,13 +166,15 @@ If working locally you should make sure that your environment meets the followin
 
 * Latest R (4.5.2)
 
-* Recent Python (3.12 or newer) with working pip (or equivalent) - strongly recommend using uv
+* Recent Python (3.12 or newer) with working pip (or equivalent) - strongly recommend to use uv
+
+* Working Positron or VS Code install
 
 * working git installation 
 
 * ability to create ssh keys (for GitHub authentication)
 
-* All packages should be updated to their latest version (assignments will include `requirements.txt` when needed)
+* All packages should be updated to their latest version (assignments will include `requirements.txt` / `pyproject.toml`)
 
 
 ## GitHub
@@ -194,7 +196,16 @@ If working locally you should make sure that your environment meets the followin
 
 * Complete the course survey (you will receive before next Wednesday)
 
-* make sure you can login in to the Department's RStudio server
-  - https://rstudio.stat.duke.edu
+* Make sure you can login in to the Department's RStudio server ([rstudio.stat.duke.edu](https://rstudio.stat.duke.edu))
 
+* Launch and play around with Positron
 
+  * Make sure you are able to launch a Python interpreter session
+
+  * Quick `uv` python setup, in terminal run:
+
+    ```
+    uv python install 3.14
+    uv python pin 3.14
+    uv python update-shell
+    ```

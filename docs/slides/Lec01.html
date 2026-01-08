@@ -1180,10 +1180,11 @@ Dr. Colin Rundel
 <p>If working locally you should make sure that your environment meets the following requirements:</p>
 <ul>
 <li><p>Latest R (4.5.2)</p></li>
-<li><p>Recent Python (3.12 or newer) with working pip (or equivalent) - strongly recommend using uv</p></li>
+<li><p>Recent Python (3.12 or newer) with working pip (or equivalent) - strongly recommend to use uv</p></li>
+<li><p>Working Positron or VS Code install</p></li>
 <li><p>working git installation</p></li>
 <li><p>ability to create ssh keys (for GitHub authentication)</p></li>
-<li><p>All packages should be updated to their latest version (assignments will include <code>requirements.txt</code> when needed)</p></li>
+<li><p>All packages should be updated to their latest version (assignments will include <code>requirements.txt</code> / <code>pyproject.toml</code>)</p></li>
 </ul>
 </section>
 <section id="github" class="slide level2">
@@ -1203,9 +1204,14 @@ Dr. Colin Rundel
 <ul>
 <li><p>Create a GitHub account if you don’t have one</p></li>
 <li><p>Complete the course survey (you will receive before next Wednesday)</p></li>
-<li><p>make sure you can login in to the Department’s RStudio server</p>
+<li><p>Make sure you can login in to the Department’s RStudio server (<a href="https://rstudio.stat.duke.edu">rstudio.stat.duke.edu</a>)</p></li>
+<li><p>Launch and play around with Positron</p>
 <ul>
-<li>https://rstudio.stat.duke.edu</li>
+<li><p>Make sure you are able to launch a Python interpreter session</p></li>
+<li><p>Quick <code>uv</code> python setup, in terminal run:</p>
+<pre><code>uv python install 3.14
+uv python pin 3.14
+uv python update-shell</code></pre></li>
 </ul></li>
 </ul>
 

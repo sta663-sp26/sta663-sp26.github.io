@@ -10,6 +10,8 @@ schedule:
   readings: 
   - text: ssh config for GitHub
     link: https://github.com/DukeStatSci/github_auth_guide
+  - text: Positron welcome guide
+    link: https://positron.posit.co/welcome.html
   notes:
 
 - week: 0
