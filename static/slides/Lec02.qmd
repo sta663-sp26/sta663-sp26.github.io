@@ -35,7 +35,7 @@ local({
 
 ## Type system basics
 
-Like R, Python is a dynamically typed language but the implementation details are very different as it makes extensive use of an object oriented class system for implementation
+Like R, Python is a dynamically typed language but the implementation details are very different as it makes extensive use of a traditional object oriented class system for implementation
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -63,7 +63,7 @@ type("string")
 Note - all of these types are exclusively *scalar* values, more on vector types to come.
 :::
 
-## Dynamic types
+## Dynamic types and coercion
 
 As a dynamically typed langiage most basic operations will attempt to coerce object to a consistent type appropriate for the operation.
 
@@ -121,7 +121,7 @@ Note that the default numeric type in python is an *integer* rather than a *doub
 
 ## Coercion errors
 
-Python is not quite as liberal as R when it comes to type coercion,
+Python is not quite as liberal as R when it comes to type coercion, but there are some idiosyncratic overloads
 
 ::: {.small}
 ```{python error=TRUE}
@@ -183,8 +183,8 @@ str(True)
 
 When using Python it is important to think of variable assignment as the process of attaching a name to an object (literal, data structure, etc.)
 
-:::: {.columns}
-::: {.column width='50%'}
+:::: {.columns .small}
+::: {.column width='33%'}
 ```{python}
 x = 100
 x
@@ -197,17 +197,22 @@ x
 ```
 :::
 
-::: {.column width='50%' .fragment}
+::: {.column width='33%' .fragment}
 ```{python}
 a = b = 5
+a
+b
+```
+:::
+
+::: {.column width='33%' .fragment}
 ```{python}
+a = 3
 a
 b
 ```
 :::
 ::::
-
-. . .
 
 ::: {.aside}
 Python variable names can be of any length, and must only contain letters, numbers and underscores. They may not begin with a number nor conflict with language keywords. Python 3 supports a subset of unicode for variable names.
@@ -250,9 +255,9 @@ not line two \
 not line three"
 ```
 
-## f strings
+## f-strings
 
-As of Python 3.6 you can use f strings for string interpolation formatting (as opposed to `%`-formatting and the `format()` method).
+As of Python 3.6 you can use f-strings for string interpolation formatting (as opposed to `%`-formatting and the `format()` method).
 
 ```{python}
 x = [0,1,2,3,4]
@@ -263,7 +268,7 @@ f"{x} has {len(x)} elements"
 ```
 
 ::: {.aside}
-See [PEP 498](https://peps.python.org/pep-0498/) for more details
+See [PEP 498](https://peps.python.org/pep-0498/) for more details. Python 3.14 added t-strings which expand on this functionality for templating
 :::
 
 
@@ -294,7 +299,7 @@ print(r"ab\tcd")
 ## Special values
 
 ::: {.medium}
-Base Python does not support missing values. Non-finite floating point values are available but somewhat awkward to use. There is also a `None` type which is similar in usage and functionality to `NULL` in R.
+Base Python does not support missing values. Non-finite floating point values are available but somewhat awkward to use.
 :::
 
 :::: {.columns .small}
@@ -318,6 +323,8 @@ float("-inf")
 ::::
 
 . . .
+
+There is also a `None` type which is similar in usage and functionality to `NULL` in R.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -425,7 +432,7 @@ x[:3]
 When using a slice the default values are `0:length(x):1`
 :::
 
-## slice with a step
+## slice steps
 
 ::: {}
 ```{python}
@@ -473,7 +480,7 @@ d = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 ## mutability
 
-Since lists are mutable the stored values can be changed,
+Since lists are mutable the stored values can be changed, removed, or added to.
 
 ```{python}
 x = [1,2,3,4,5]
@@ -584,6 +591,10 @@ y
 z
 ```
 :::
+
+. . .
+
+The copy method(s) in Python are generally *shallow* by default.
 
 
 ## Value unpacking
@@ -715,7 +726,7 @@ list(tuple(x)) == x
 
 ## Ranges
 
-These are the last common sequence type and are a bit special - ranges are a *homogenous*, *ordered*, *immutable* "containers" of **integers**.
+These are the last common sequence type and are a bit special - ranges are a *homogenous*, *ordered*, *immutable* "container" of **integers**.
 
 :::: {.columns}
 ::: {.column width='50%'}
@@ -744,7 +755,7 @@ What makes ranges special is that `range(1000000)` does not store 1 million inte
 
 ## Strings as sequences
 
-In most of the ways that count we can think about Python strings as being *ordered* *immutable* containers of unicode characters and so much of the sequence type functionality we just saw can be applied to them.
+In most of the ways that count we can think about Python strings as being *ordered* *immutable* containers of unicode characters and so, much of the sequence type functionality we just saw can be applied to them.
 
 ::: {.small}
 ```{python}
@@ -782,7 +793,9 @@ x[2] = "c"
 
 ## String Methods
 
-Because string processing is a common and important programming task, the `str` class implements a number of additional methods for these specific tasks. See [here](https://docs.python.org/3/library/stdtypes.html#string-methods) a list of methods.
+Because string processing is a common and important programming task, the `str` class implements a number of additional methods for to support these tasks. 
+
+See [here](https://docs.python.org/3/library/stdtypes.html#string-methods) a list of methods.
 
 ```{python}
 x = "Hello world! 1234"
@@ -814,7 +827,7 @@ x.split(" ")
 
 ## Exercise 2
 
-String processing - take the string given below and apply the necessary methods to create the target string.
+Take the string given below and apply the necessary methods to create the target string.
 
 **Source:**
 ```{python eval=FALSE}
@@ -831,8 +844,8 @@ Hardcoding w/ magic numbers is perfectly acceptable here.
 :::
 
 
-## Set and Mapping types
+## Sets and Mapping types
 
-We will discuss sets (`set`) and dictionaries (`dict`) in more detail next week.
+We will discuss sets (`set`) and dictionaries (`dict`) in more detail on Thursday.
 
 Specifically we will discuss the underlying data structure behind these types (as well as lists and tuples) and when it is most appropriate to use each.
