@@ -95,7 +95,7 @@ not (0+1j)
 
 
 
-:::: {.columns}
+:::: {.columns .medium}
 ::: {.column width='50%'}
 ```{python}
 1 + 5
@@ -117,11 +117,11 @@ True * 5
 :::
 ::::
 
-Note that the default numeric type in python is an *integer* rather than a *double*, but floats will generally take precedence over integers.
+The *default* numeric type in python is an *integer* rather than a *double*, but floats generally take precedence over integers when combined.
 
 ## Coercion errors
 
-Python is not quite as liberal as R when it comes to type coercion, but there are some idiosyncratic overloads
+Python is not quite as liberal as R when it comes to type coercion - so operator coercion errors are more common. Do be aware that Python has a number of useful / idiosyncratic overloads for some of the basic operators.
 
 ::: {.small}
 ```{python error=TRUE}
@@ -324,7 +324,7 @@ float("-inf")
 
 . . .
 
-There is also a `None` type which is similar in usage and functionality to `NULL` in R.
+There is also a `None` type/class which is similar in usage and functionality to `NULL` in R.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -346,7 +346,7 @@ type(None)
 
 ## lists
 
-Python lists are   *heterogenous*, *ordered*, *mutable* containers of objects (they are very similarly to lists in R).
+Python lists are   *heterogenous*, *ordered*, *mutable* containers of objects (very similarly to lists in R).
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -566,12 +566,13 @@ y
 
 Now lets look at happens when we have a list inside a list and make a change at either level.
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 x = [0, [1,2], [3,4]]
 y = x
 z = x.copy()
-
+```
+```{python}
 x[0] = -1
 x[1][0] = 5
 ```
@@ -584,7 +585,7 @@ What are the values of `x`, `y`, and `z` now?
 . . . 
 
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 x
 y
@@ -601,7 +602,7 @@ The copy method(s) in Python are generally *shallow* by default.
 
 lists (and other sequence types) can be unpacking into multiple variables when doing assignment,
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
 x, y = [1,2]
@@ -633,8 +634,7 @@ y
 ```{python}
 x1
 y1
-x2
-y2
+x2,y2
 ```
 :::
 ::::
