@@ -65,7 +65,7 @@ Note - all of these types are exclusively *scalar* values, more on vector types 
 
 ## Dynamic types and coercion
 
-As a dynamically typed langiage most basic operations will attempt to coerce object to a consistent type appropriate for the operation.
+As a dynamically typed language, most basic operations will attempt to coerce object to a consistent type appropriate for the operation.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -346,7 +346,7 @@ type(None)
 
 ## lists
 
-Python lists are   *heterogenous*, *ordered*, *mutable* containers of objects (very similarly to lists in R).
+Python lists are *heterogenous*, *ordered*, *mutable* containers of objects (very similarly to lists in R).
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -600,7 +600,7 @@ The copy method(s) in Python are generally *shallow* by default.
 
 ## Value unpacking
 
-lists (and other sequence types) can be unpacking into multiple variables when doing assignment,
+lists (and other sequence types) can be unpacked into multiple variables when doing assignment,
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
@@ -793,7 +793,7 @@ x[2] = "c"
 
 ## String Methods
 
-Because string processing is a common and important programming task, the `str` class implements a number of additional methods for to support these tasks. 
+Because string processing is a common and important programming task, the `str` class implements a number of additional methods to support these tasks. 
 
 See [here](https://docs.python.org/3/library/stdtypes.html#string-methods) a list of methods.
 
