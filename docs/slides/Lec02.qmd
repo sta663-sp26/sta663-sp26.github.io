@@ -91,9 +91,11 @@ not (0+1j)
 :::
 ::::
 
+::: {.aside}
+`and` and `or` have special behavior - they evaluate based on truthy and falsy values and use short circuit evaluation
+:::
+
 ## Mathematical operations
-
-
 
 :::: {.columns .medium}
 ::: {.column width='50%'}
