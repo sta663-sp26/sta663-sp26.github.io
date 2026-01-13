@@ -595,7 +595,44 @@ z
 
 . . .
 
-The copy method(s) in Python are generally *shallow* by default.
+The copy method(s) in Python are generally *shallow* by default. `deepcopy()` is available via the `copy` module - more on this later.
+
+
+## Identity vs equality
+
+To check if two names point to the same object in memory use `is`, to check if they have the same value use `==`. The `id()` function returns the memory address of an object.
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x = [1, 2, 3]
+y = x
+z = x.copy()
+```
+```{python}
+x is y
+x is z
+```
+```{python}
+x == y
+x == z
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+id(x)
+id(y)
+id(z)
+```
+```{python}
+id(x) == id(y)
+id(x) == id(z)
+```
+:::
+::::
+
+
 
 
 ## Value unpacking
