@@ -2098,7 +2098,7 @@ world! : 6</code></pre>
 </section>
 <section id="loops-and-else" class="slide level2">
 <h2>loops and <code>else</code></h2>
-<p>Both <code>for</code> and <code>while</code> loops can also include an <code>else</code> clause which execute when the loop is completes by either fully iterating (<code>for</code>) or meetings the <code>while</code> condition, i.e. when <code>break</code> is not used.</p>
+<p>Both <code>for</code> and <code>while</code> loops can also include an <code>else</code> clause which executes when the loop completes by either fully iterating (<code>for</code>) or meeting the <code>while</code> condition, i.e. when <code>break</code> is not used.</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href></a><span class="cf">for</span> n <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>, <span class="dv">10</span>):</span>
@@ -2145,7 +2145,7 @@ world! : 6</code></pre>
 </section>
 <section id="basics" class="slide level2">
 <h2>Basics</h2>
-<p>List comprehensions provides a concise syntax for generating lists (or other sequences) via iteration over another list (or sequence).</p>
+<p>List comprehensions provide a concise syntax for generating lists (or other sequences) via iteration over another list (or sequence).</p>
 <div class="columns small">
 <div class="column" style="width:50%;">
 <div class="cell">
@@ -2214,7 +2214,7 @@ world! : 6</code></pre>
 </section>
 <section id="multiple-for-keywords" class="slide level2">
 <h2>Multiple <code>for</code> keywords</h2>
-<p>Similarly, the comprehension can also contain multiple <code>for</code> statements which is equivalent to nested <code>for</code> loops,</p>
+<p>Similarly, the comprehension can also contain multiple <code>for</code> statements which are equivalent to nested <code>for</code> loops,</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href></a>res <span class="op">=</span> []</span>
 <span id="cb46-2"><a href></a><span class="cf">for</span> x <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">3</span>):</span>
@@ -2237,7 +2237,7 @@ world! : 6</code></pre>
 </section>
 <section id="zip" class="slide level2">
 <h2><code>zip</code></h2>
-<p>Is a useful function for “joining” the elements of multiple sequences (so they can be jointly iterated over),</p>
+<p><code>zip</code> is a useful function for “joining” the elements of multiple sequences (so they can be jointly iterated over),</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href></a>x <span class="op">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</span>
@@ -2245,7 +2245,7 @@ world! : 6</code></pre>
 <span id="cb50-3"><a href></a>z <span class="op">=</span> <span class="bu">zip</span>(x, y)</span>
 <span id="cb50-4"><a href></a>z</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>&lt;zip object at 0x12d64fb80&gt;</code></pre>
+<pre><code>&lt;zip object at 0x137dc59c0&gt;</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb52"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href></a><span class="bu">list</span>(z)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2293,18 +2293,21 @@ world! : 6</code></pre>
 <pre><code>[(1, 0, &#39;A&#39;), (2, 1, &#39;B&#39;), (3, 2, &#39;C&#39;)]</code></pre>
 </div>
 </div>
-</section>
+
+<aside><div>
+<p>See <a href="https://docs.python.org/3/library/itertools.html#itertools.zip_longest"><code>itertools.zip_longest()</code></a> if you want to iterate until the longest sequence is exhausted, filling missing values with a specified default.</p>
+</div></aside></section>
 <section id="exercise-1" class="slide level2">
 <h2>Exercise 1</h2>
 <p>Using list comprehensions, complete the following tasks:</p>
 <ul>
 <li><p>Create a list containing tuples of x and y coordinates of all points of a regular grid for <span class="math inline">\(x \in [0, 10]\)</span> and <span class="math inline">\(y \in [0, 10]\)</span>.</p></li>
 <li><p>Count the number of points where <span class="math inline">\(y &gt; x\)</span>.</p></li>
-<li><p>Count the number of points <span class="math inline">\(x\)</span> or <span class="math inline">\(y\)</span> is prime.</p></li>
+<li><p>Count the number of points where <span class="math inline">\(x\)</span> or <span class="math inline">\(y\)</span> is prime.</p></li>
 </ul>
 <div class="cell">
 <div class="cell-output-display">
-<countdown-timer class="countdown" id="timer_69a4f842" minutes="5" seconds="0" update-every="1" tabindex="0" style="right:0;bottom:0;"></countdown-timer>
+<countdown-timer class="countdown" id="timer_89259e73" minutes="5" seconds="0" update-every="1" tabindex="0" style="right:0;bottom:0;"></countdown-timer>
 </div>
 </div>
 </section></section>
@@ -2315,7 +2318,7 @@ world! : 6</code></pre>
 </section>
 <section id="basic-functions" class="slide level2">
 <h2>Basic functions</h2>
-<p>Functions are defined using <code>def</code>, arguments can optionally have a default values. (Arguments with defaults <em>must</em> must follow the arguments without defaults)</p>
+<p>Functions are defined using <code>def</code>, arguments can optionally have default values. (Arguments with defaults <em>must</em> must follow the arguments without defaults)</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href></a><span class="kw">def</span> f(x, y<span class="op">=</span><span class="dv">2</span>, z<span class="op">=</span><span class="dv">3</span>):</span>
 <span id="cb65-2"><a href></a>    <span class="bu">print</span>(<span class="ss">f&quot;x=</span><span class="sc">{</span>x<span class="sc">}</span><span class="ss">, y=</span><span class="sc">{</span>y<span class="sc">}</span><span class="ss">, z=</span><span class="sc">{</span>z<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -2448,7 +2451,7 @@ world! : 6</code></pre>
 </section>
 <section id="docstrings" class="slide level2">
 <h2>Docstrings</h2>
-<p>A common practice in Python is to document functions (and other objects) using a doc string - this is a short concise summary of the objects purpose. Docstrings are specified by supplying a string as the first line in the function definition.</p>
+<p>A common practice in Python is to document functions (and other objects) using a doc string - this is a short concise summary of the object’s purpose. Docstrings are specified by supplying a string as the first line in the function definition.</p>
 <div class="columns small">
 <div class="column" style="width:50%;">
 <div class="cell">
@@ -2646,7 +2649,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </section>
 <section id="anonymous-functions" class="slide level2">
 <h2>Anonymous functions</h2>
-<p>are defined using the <code>lambda</code> keyword, they are intended to be used for very short functions (syntactically limited to a single expression, and do not need a return statement)</p>
+<p>Anonymous functions are defined using the <code>lambda</code> keyword. They are intended for very short functions (syntactically limited to a single expression, and do not need a return statement)</p>
 <div class="columns small">
 <div class="column" style="width:50%;">
 <div class="cell">
@@ -2680,7 +2683,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </section>
 <section id="function-annotations-type-hinting" class="slide level2">
 <h2>Function annotations (type hinting)</h2>
-<p>Python nows supports syntax for providing metadata around the expected type of arguments and the return value of a function.</p>
+<p>Python now supports syntax for providing metadata around the expected type of arguments and the return value of a function.</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb144"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb144-1"><a href></a><span class="kw">def</span> f(x: <span class="bu">str</span>, y: <span class="bu">str</span>, z: <span class="bu">str</span>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
@@ -2719,7 +2722,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 <section id="exercise-2" class="slide level2">
 <h2>Exercise 2</h2>
 <ol type="1">
-<li>Write a function, <code>kg_to_lb</code>, that converts a list of weights in kilograms to a list of weights in pounds (there a 1 kg = 2.20462 lbs). Include a doc string and function annotations.</li>
+<li>Write a function, <code>kg_to_lb</code>, that converts a list of weights in kilograms to a list of weights in pounds (1 kg = 2.20462 lbs). Include a doc string and function annotations.</li>
 </ol>
 <p><br></p>
 <ol start="2" type="1">
@@ -2727,7 +2730,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </ol>
 <div class="cell">
 <div class="cell-output-display">
-<countdown-timer class="countdown" id="timer_b33081b3" minutes="5" seconds="0" update-every="1" tabindex="0" style="right:0;bottom:0;"></countdown-timer>
+<countdown-timer class="countdown" id="timer_32cbfd11" minutes="5" seconds="0" update-every="1" tabindex="0" style="right:0;bottom:0;"></countdown-timer>
 </div>
 </div>
 </section></section>
@@ -2738,7 +2741,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </section>
 <section id="basic-syntax" class="slide level2">
 <h2>Basic syntax</h2>
-<p>These are the basic component of Python’s object oriented system - we’ve been using them regularly all over the place and will now look at how they are defined and used.</p>
+<p>These are the basic components of Python’s object oriented system - we’ve been using them regularly all over the place and will now look at how they are defined and used.</p>
 <div class="columns xsmall">
 <div class="column" style="width:50%;">
 <div class="cell">
@@ -2841,7 +2844,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </section>
 <section id="method-chaining" class="slide level2">
 <h2>Method chaining</h2>
-<p>We’ve seen a number of objects (i.e. Pandas DataFrames) that allow for method chaining to construct a pipeline of operations. We can achieve the same by having our class methods return itself via <code>self</code>.</p>
+<p>We’ve seen a number of objects (e.g., Pandas DataFrames) that allow for method chaining to construct a pipeline of operations. We can achieve the same by having our class methods return itself via <code>self</code>.</p>
 <div class="columns xsmall">
 <div class="column" style="width:50%;">
 <div class="cell">
@@ -2895,14 +2898,14 @@ errors defaults to &#39;strict&#39;.</code></pre>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb179"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb179-1"><a href></a><span class="bu">print</span>(rect())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>&lt;__main__.rect object at 0x12d654440&gt;</code></pre>
+<pre><code>&lt;__main__.rect object at 0x137da3fb0&gt;</code></pre>
 </div>
 </div>
 </div><div class="column" style="width:50%;">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb181"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb181-1"><a href></a><span class="bu">str</span>(rect())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>&#39;&lt;__main__.rect object at 0x12d656540&gt;&#39;</code></pre>
+<pre><code>&#39;&lt;__main__.rect object at 0x137dccc80&gt;&#39;</code></pre>
 </div>
 </div>
 </div></div>
@@ -2922,7 +2925,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb184"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb184-1"><a href></a>rect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>&lt;__main__.rect object at 0x12d6547d0&gt;</code></pre>
+<pre><code>&lt;__main__.rect object at 0x137ded850&gt;</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb186"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb186-1"><a href></a><span class="bu">print</span>(rect())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2938,7 +2941,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </section>
 <section id="class-representation" class="slide level2">
 <h2>Class representation</h2>
-<p>There is another special method which is responsible for the printing the object (see <code>rect()</code> above) called <code>__repr__()</code> which is responsible for printing the classes representation. If possible this is meant to be a valid Python expression capable of recreating the object.</p>
+<p>There is another special method which is responsible for printing the object (see <code>rect()</code> above) called <code>__repr__()</code> which is responsible for printing the classes representation. If possible this is meant to be a valid Python expression capable of recreating the object.</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb190"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb190-1"><a href></a><span class="kw">def</span> rect_repr(<span class="va">self</span>):</span>
@@ -2964,7 +2967,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </section>
 <section id="inheritance" class="slide level2">
 <h2>Inheritance</h2>
-<p>Part of the object oriented system is that classes can inherit from other classes, meaning they gain access to all of their parents attributes and methods. We will not go too in depth on this topic beyond showing the basic functionality.</p>
+<p>Part of the object oriented system is that classes can inherit from other classes, meaning they gain access to all of their parent’s attributes and methods. We will not go too in depth on this topic beyond showing the basic functionality.</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb195"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb195-1"><a href></a><span class="kw">class</span> square(rect):</span>
@@ -2998,7 +3001,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb202"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb202-1"><a href></a><span class="kw">class</span> square(rect):</span>
 <span id="cb202-2"><a href></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, p1<span class="op">=</span>(<span class="dv">0</span>,<span class="dv">0</span>), l<span class="op">=</span><span class="dv">1</span>):</span>
 <span id="cb202-3"><a href></a>      <span class="cf">assert</span> <span class="bu">isinstance</span>(l, (<span class="bu">float</span>, <span class="bu">int</span>)), <span class="op">\</span></span>
-<span id="cb202-4"><a href></a>             <span class="st">&quot;l must be a numnber&quot;</span></span>
+<span id="cb202-4"><a href></a>             <span class="st">&quot;l must be a number&quot;</span></span>
 <span id="cb202-5"><a href></a>      </span>
 <span id="cb202-6"><a href></a>      p2 <span class="op">=</span> (p1[<span class="dv">0</span>]<span class="op">+</span>l, p1[<span class="dv">1</span>]<span class="op">+</span>l)</span>
 <span id="cb202-7"><a href></a>      </span>
@@ -3015,7 +3018,7 @@ errors defaults to &#39;strict&#39;.</code></pre>
 <span id="cb202-18"><a href></a>    </span>
 <span id="cb202-19"><a href></a>    <span class="kw">def</span> set_l(<span class="va">self</span>, l):</span>
 <span id="cb202-20"><a href></a>      <span class="cf">assert</span> <span class="bu">isinstance</span>(l, (<span class="bu">float</span>, <span class="bu">int</span>)), <span class="op">\</span></span>
-<span id="cb202-21"><a href></a>             <span class="st">&quot;l must be a numnber&quot;</span></span>
+<span id="cb202-21"><a href></a>             <span class="st">&quot;l must be a number&quot;</span></span>
 <span id="cb202-22"><a href></a>      </span>
 <span id="cb202-23"><a href></a>      <span class="va">self</span>.l  <span class="op">=</span> l</span>
 <span id="cb202-24"><a href></a>      <span class="va">self</span>.p2 <span class="op">=</span> (<span class="va">self</span>.p1[<span class="dv">0</span>]<span class="op">+</span>l, <span class="va">self</span>.p1[<span class="dv">1</span>]<span class="op">+</span>l)</span>
@@ -3044,11 +3047,11 @@ errors defaults to &#39;strict&#39;.</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb211"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb211-1"><a href></a>square((<span class="dv">0</span>,<span class="dv">0</span>), (<span class="dv">1</span>,<span class="dv">1</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>AssertionError: l must be a numnber</code></pre>
+<pre><code>AssertionError: l must be a number</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb213"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb213-1"><a href></a>square().set_l((<span class="dv">0</span>,<span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>AssertionError: l must be a numnber</code></pre>
+<pre><code>AssertionError: l must be a number</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb215"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb215-1"><a href></a>square().set_p2((<span class="dv">0</span>,<span class="dv">0</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">

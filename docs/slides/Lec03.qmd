@@ -185,7 +185,7 @@ for i in range(1,10):
 
 ## loops and `else`
 
-Both `for` and `while` loops can also include an `else` clause which execute when the loop is completes by either fully iterating (`for`) or meetings the `while` condition, i.e. when `break` is not used.
+Both `for` and `while` loops can also include an `else` clause which executes when the loop completes by either fully iterating (`for`) or meeting the `while` condition, i.e. when `break` is not used.
 
 ::: {.small}
 ```{python}
@@ -224,7 +224,7 @@ elif x % 2 == 1:
 
 ## Basics
 
-List comprehensions provides a concise syntax for generating lists (or other sequences) via iteration over another list (or sequence).
+List comprehensions provide a concise syntax for generating lists (or other sequences) via iteration over another list (or sequence).
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -281,7 +281,7 @@ The comprehension can include multiple `if` statements (equivalent to using `and
 
 ## Multiple `for` keywords
 
-Similarly, the comprehension can also contain multiple `for` statements which is equivalent to nested `for` loops,
+Similarly, the comprehension can also contain multiple `for` statements which are equivalent to nested `for` loops,
 
 ```{python}
 res = []
@@ -302,7 +302,7 @@ res
 
 ## `zip`
 
-Is a useful function for "joining" the elements of multiple sequences (so they can be jointly iterated over),
+`zip` is a useful function for "joining" the elements of multiple sequences (so they can be jointly iterated over),
 
 ::: {.small}
 ```{python}
@@ -344,6 +344,9 @@ list(zip(x,z))
 list(zip(x,y,z))
 ```
 
+::: {.aside}
+See [`itertools.zip_longest()`](https://docs.python.org/3/library/itertools.html#itertools.zip_longest) if you want to iterate until the longest sequence is exhausted, filling missing values with a specified default.
+:::
 
 
 ## Exercise 1
@@ -354,7 +357,7 @@ Using list comprehensions, complete the following tasks:
 
 * Count the number of points where $y > x$.
 
-* Count the number of points $x$ or $y$ is prime.
+* Count the number of points where $x$ or $y$ is prime.
 
 
 ```{r}
@@ -366,7 +369,7 @@ countdown::countdown(5)
 
 ## Basic functions
 
-Functions are defined using `def`, arguments can optionally have a default values. (Arguments with defaults *must* must follow the arguments without defaults)
+Functions are defined using `def`, arguments can optionally have default values. (Arguments with defaults *must* must follow the arguments without defaults)
 
 ```{python}
 def f(x, y=2, z=3):
@@ -478,7 +481,7 @@ i()
 
 ## Docstrings
 
-A common practice in Python is to document functions (and other objects) using a doc string - this is a short concise summary of the objects purpose. Docstrings are specified by supplying a string as the first line in the function definition.
+A common practice in Python is to document functions (and other objects) using a doc string - this is a short concise summary of the object's purpose. Docstrings are specified by supplying a string as the first line in the function definition.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -635,7 +638,7 @@ paste("1","2","3",sep=",")
 
 ## Anonymous functions
 
-are defined using the `lambda` keyword, they are intended to be used for very short functions (syntactically limited to a single expression, and do not need a return statement)
+Anonymous functions are defined using the `lambda` keyword. They are intended for very short functions (syntactically limited to a single expression, and do not need a return statement)
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -662,7 +665,7 @@ type(g)
 
 ## Function annotations (type hinting)
 
-Python nows supports syntax for providing metadata around the expected type of arguments and the return value of a function. 
+Python now supports syntax for providing metadata around the expected type of arguments and the return value of a function. 
 
 ::: {.small}
 ```{python}
@@ -699,7 +702,7 @@ f(1,2,3)
 
 ## Exercise 2
 
-1. Write a function, `kg_to_lb`, that converts a list of weights in kilograms to a list of weights in pounds (there a 1 kg = 2.20462 lbs). Include a doc string and function annotations.
+1. Write a function, `kg_to_lb`, that converts a list of weights in kilograms to a list of weights in pounds (1 kg = 2.20462 lbs). Include a doc string and function annotations.
 
 <br/>
 
@@ -715,7 +718,7 @@ countdown::countdown(5)
 
 ## Basic syntax
 
-These are the basic component of Python's object oriented system - we've been using them regularly all over the place and will now look at how they are defined and used.
+These are the basic components of Python's object oriented system - we've been using them regularly all over the place and will now look at how they are defined and used.
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
@@ -807,7 +810,7 @@ z.p2
 
 ## Method chaining
 
-We've seen a number of objects (i.e. Pandas DataFrames) that allow for method chaining to construct a pipeline of operations. We can achieve the same by having our class methods return itself via `self`.
+We've seen a number of objects (e.g., Pandas DataFrames) that allow for method chaining to construct a pipeline of operations. We can achieve the same by having our class methods return itself via `self`.
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
@@ -894,7 +897,7 @@ str(rect())
 
 ## Class representation
 
-There is another special method which is responsible for the printing the object (see `rect()` above) called `__repr__()` which is responsible for printing the classes representation. If possible this is meant to be a valid Python expression capable of recreating the object.
+There is another special method which is responsible for printing the object (see `rect()` above) called `__repr__()` which is responsible for printing the classes representation. If possible this is meant to be a valid Python expression capable of recreating the object.
 
 ::: {.small}
 ```{python}
@@ -917,7 +920,7 @@ repr(rect())
 
 ## Inheritance
 
-Part of the object oriented system is that classes can inherit from other classes, meaning they gain access to all of their parents attributes and methods. We will not go too in depth on this topic beyond showing the basic functionality.
+Part of the object oriented system is that classes can inherit from other classes, meaning they gain access to all of their parent's attributes and methods. We will not go too in depth on this topic beyond showing the basic functionality.
 
 ::: {.small}
 ```{python}
@@ -945,7 +948,7 @@ square().set_p1((-1,-1)).area()
 class square(rect):
     def __init__(self, p1=(0,0), l=1):
       assert isinstance(l, (float, int)), \
-             "l must be a numnber"
+             "l must be a number"
       
       p2 = (p1[0]+l, p1[1]+l)
       
@@ -962,7 +965,7 @@ class square(rect):
     
     def set_l(self, l):
       assert isinstance(l, (float, int)), \
-             "l must be a numnber"
+             "l must be a number"
       
       self.l  = l
       self.p2 = (self.p1[0]+l, self.p1[1]+l)
