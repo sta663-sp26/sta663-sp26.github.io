@@ -32,7 +32,7 @@ schedule:
 
 - week: 1
   day: 4
-  lecture: "Python - Control flow, list comprehensions and functions"
+  lecture: "Python - Control flow, list comprehensions, and functions"
   slides: Lec03
   screencast: 
   readings:
@@ -46,10 +46,6 @@ schedule:
 
 - week: 2
   day: 2
-  lecture: "uv"
-
-- week: 2
-  day: 4
   lecture: "Data structures"
   slides: Lec04
   screencast: 
@@ -59,7 +55,12 @@ schedule:
   - text: Time complexity
     link: https://wiki.python.org/moin/TimeComplexity
   notes:
-  
+
+- week: 2
+  day: 4
+  lecture: "uv"
+
+
 - week: 3
   day: 2
   lecture: "NumPy"

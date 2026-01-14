@@ -1,8 +1,8 @@
 ---
-title: "Control flow, list<br/>comprehensions, and functions"
+title: "Control flow, <br/>list comprehensions,<br/> and functions"
 subtitle: "Lecture 03"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2025"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss
@@ -478,7 +478,7 @@ i()
 
 ## Docstrings
 
-A common practice in Python is to document functions (and other objects) using a doc string - this is a short concise summary of the objects purpose. Docstrings are specified by supplying a string as the very line in the function definition.
+A common practice in Python is to document functions (and other objects) using a doc string - this is a short concise summary of the objects purpose. Docstrings are specified by supplying a string as the first line in the function definition.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -510,7 +510,7 @@ g.__doc__
 
 ## Using docstrings
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 print(max.__doc__)
 print(str.__doc__)
@@ -809,7 +809,7 @@ z.p2
 
 We've seen a number of objects (i.e. Pandas DataFrames) that allow for method chaining to construct a pipeline of operations. We can achieve the same by having our class methods return itself via `self`.
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
 class rect:
@@ -855,7 +855,7 @@ rect().set_p1((-1,-1)).area()
 
 All class objects have a default print method / string conversion method, but the default behavior is not very useful,
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
 print(rect())
@@ -873,7 +873,7 @@ str(rect())
 
 Both of the above are handled by the `__str__()` method which is implicitly created for our class - we can override this,
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 def rect_str(self):
   return f"Rect[{self.p1}, {self.p2}] => area={self.area()}"
@@ -884,7 +884,7 @@ rect.__str__ = rect_str
 
 . . .
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 rect()
 print(rect())
@@ -940,7 +940,7 @@ square().set_p1((-1,-1)).area()
 ## Overriding methods
 
 :::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.column width='60%'}
 ```{python}
 class square(rect):
     def __init__(self, p1=(0,0), l=1):
@@ -973,7 +973,7 @@ class square(rect):
 ```
 :::
 
-::: {.column width='50%' .fragment}
+::: {.column width='40%' .fragment}
 ```{python error=TRUE}
 square()
 square().area()
@@ -992,11 +992,13 @@ square().set_p2((0,0))
 
 We can examine all of a classes' methods and attributes using `dir()`,
 
+::: {.small}
 ```{python}
 [
   dir(rect)
 ]
 ```
+:::
 
 . . .
 
@@ -1008,8 +1010,10 @@ Where did `p1` and `p2` go?
 
 ##
 
+::: {.small}
 ```{python}
 [
   dir(rect())
 ]
 ```
+:::
