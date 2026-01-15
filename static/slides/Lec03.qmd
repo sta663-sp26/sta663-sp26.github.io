@@ -19,11 +19,19 @@ options(
 )
 
 local({
-  hook_old <- knitr::knit_hooks$get("error")  # save the old hook
+  hook_err_old <- knitr::knit_hooks$get("error")  # save the old hook
   knitr::knit_hooks$set(error = function(x, options) {
+    # now do whatever you want to do with x, and pass
+    # the new x to the old hook
     x = sub("## \n## Detailed traceback:\n.*$", "", x)
     x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
-    hook_old(x, options)
+    hook_err_old(x, options)
+  })
+  
+  hook_warn_old <- knitr::knit_hooks$get("warning")  # save the old hook
+  knitr::knit_hooks$set(warning = function(x, options) {
+    x = sub("<string>:1: ", "", x)
+    hook_warn_old(x, options)
   })
 })
 ```
@@ -92,7 +100,6 @@ s
 
 if True:
     s = 3
-
 s
 ```
 
@@ -210,7 +217,6 @@ is a placeholder expression that does nothing, it can be used when an expression
 
 ```{python}
 x = -3
-
 if x < 0:
     pass
 elif x % 2 == 0:
@@ -345,7 +351,7 @@ list(zip(x,y,z))
 ```
 
 ::: {.aside}
-See [`itertools.zip_longest()`](https://docs.python.org/3/library/itertools.html#itertools.zip_longest) if you want to iterate until the longest sequence is exhausted, filling missing values with a specified default.
+See [`itertools.zip_longest()`](https://docs.python.org/3/library/itertools.html#itertools.zip_longest) if you want to iterate until the longest sequence is exhausted
 :::
 
 
@@ -413,7 +419,6 @@ type(f(2))
 ```{python}
 def g(x):
     return x**2
-  
 g(2)
 type(g(2))
 ```
@@ -429,7 +434,8 @@ Functions can contain multiple `return` statements
 def is_odd(x):
     if x % 2 == 0: return False
     else:          return True
-    
+```
+```{python}
 is_odd(2)
 is_odd(3)
 ```
@@ -463,7 +469,6 @@ If multiple values are present and not in a sequence, then it will default to a 
 ```{python}
 def h():
     return 1,2,3
-
 h()
 ```
 :::
@@ -472,7 +477,6 @@ h()
 ```{python}
 def i():
     return 1, [2, 3]
-
 i()
 ```
 :::
@@ -566,7 +570,7 @@ f(1,2,z=3)
 
 ## Positional vs keyword arguments
 
-::: {.small}
+::: {.xsmall}
 ```
 def f(pos1, pos2, /, pos_or_kwd, *, kwd1, kwd2):
       -----------    ----------     ----------
