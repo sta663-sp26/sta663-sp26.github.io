@@ -1,0 +1,819 @@
+---
+title: "Modules, Packages,<br/>and uv"
+subtitle: "Lecture 05"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute:
+  echo: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+
+# Modules
+
+## What is a module?
+
+In Python, a *module* is simply a file containing Python code (`.py` extension). 
+
+Modules provide:
+
+* A way to organize related code into separate files
+* A namespace to avoid naming conflicts
+* Reusability of code across projects
+
+. . .
+
+Any Python file can be imported as a module,
+
+::: {.code-file .sourceCode .cell-code}
+`r fontawesome::fa("file")` &nbsp; `Lec05_module.py`
+:::
+::: {.small}
+```{python}
+#| eval: false
+#| file: "Lec05_module.py"
+```
+:::
+
+## Importing modules
+
+The `import` statement loads a module (i.e. runs the code) and creates a namespace for its contents,
+
+::: {.small}
+```{python}
+import Lec05_module
+```
+:::
+
+. . .
+
+Contents are then accessed via the namespace using dot notation,
+
+::: {.small}
+```{python}
+Lec05_module.greet("Jane")
+Lec05_module.pi
+```
+:::
+
+## Import variations
+
+There are several additional ways to import modules or their contents:
+
+::: {.small}
+```{python}
+import Lec05_module                       # import the module
+from Lec05_module import pi               # import specific objects
+from Lec05_module import greet as hello   # import with alias
+import Lec05_module as module             # import module with alias
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+pi
+hello("John")
+module.pi
+```
+:::
+
+. . .
+
+The `from module import *` pattern imports all public names but is considered bad practice as it can lead to namespace pollution and naming conflicts.
+
+
+## Module search path
+
+When you import a module, Python searches for it in the following order:
+
+1. The current working directory directory
+2. Directories in the `PYTHONPATH` environment variable
+3. Standard library directories
+4. Site-packages (installed third-party packages)
+
+. . .
+
+You can inspect the search path via `sys.path`,
+
+::: {.xsmall}
+```{python}
+#| eval: false
+import sys
+sys.path
+```
+```{python}
+import sys
+print("[", ",\n  ".join([x for x in sys.path if x]), "]")
+```
+:::
+
+
+## Module attributes
+
+Modules have several built-in attributes that provide useful metadata,
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+module.__name__
+module.__file__
+print(module.__doc__)
+```
+:::
+::: {.column}
+```{python}
+import json
+json.__name__
+json.__file__
+print(json.__doc__[:200], "...")
+```
+:::
+:::
+
+
+
+
+## `dir()` function
+
+The `dir()` function lists all names defined in a module (or any object),
+
+::: {.xsmall}
+```{python}
+dir(module)
+dir(json)
+```
+:::
+
+## `__name__` and `"__main__"`
+
+Every module has a `__name__` attribute. When a module is run directly, `__name__` is set to `"__main__"`. When imported, it's set to the module's name.
+
+::: {.code-file .sourceCode .cell-code}
+`r fontawesome::fa("file")` &nbsp; `Lec05_app.py`
+:::
+::: {.small}
+```{python}
+#| eval: false
+#| file: Lec05_app.py
+```
+:::
+
+. . .
+
+::: {.columns .small} 
+::: {.column}
+```{bash}
+uv run Lec05_app.py
+```
+:::
+::: {.column}
+```{python}
+from Lec05_app import  main
+main()
+```
+:::
+:::
+
+
+
+# Packages
+
+## What is a package?
+
+A *package* is a way to organize related modules into a hierarchal structure using directories. A package is a directory containing:
+
+* An `__init__.py` file (can be empty)
+* One or more module files (`.py`)
+* Optionally, sub-packages (subdirectories with their own `__init__.py`)
+
+. . .
+
+```
+data_tools/
+    __init__.py
+    io/
+        __init__.py
+        csv_reader.py
+        json_reader.py
+    analysis/
+        __init__.py
+        statistics.py
+        visualization.py
+    utils.py
+```
+
+## `__init__.py`
+
+The `__init__.py` file:
+
+* Marks a directory as a Python package
+* Runs when the package is imported
+* Can be empty or contain initialization code
+* Can define `__all__` to control `from package import *`
+
+. . .
+
+::: {.code-file .sourceCode .cell-code}
+`r fontawesome::fa("file")` &nbsp; `data_tools/__init__.py`
+:::
+::: {.small}
+```{python}
+#| eval: false
+from .utils import helper_func
+from .io.csv_reader import read_csv
+
+__all__ = ["helper_func", "read_csv"]
+```
+:::
+
+::: {.aside}
+As of Python 3.3, `__init__.py` is technically optional for "namespace packages", but it's still recommended for regular packages.
+:::
+
+
+## httpx - `__init__.py` example
+
+::: {.xsmall}
+```{python}
+#| eval: false
+from .__version__ import __version__
+
+from ._api import delete, get, head, options, patch, post, put, request, stream
+from ._auth import BasicAuth, DigestAuth, NetRCAuth
+from ._client import AsyncClient, Client
+from ._config import Limits, Proxy, Timeout, create_ssl_context
+from ._exceptions import (ConnectError, ConnectTimeout, HTTPError, HTTPStatusError, ...)
+from ._models import Cookies, Headers, Request, Response
+from ._transports import AsyncHTTPTransport, HTTPTransport, MockTransport
+from ._urls import URL, QueryParams
+
+__all__ = [
+    "__version__",
+    "AsyncClient", "Client",
+    "delete", "get", "head", "options", "patch", "post", "put", "request",
+    "BasicAuth", "DigestAuth", "NetRCAuth",
+    "Limits", "Proxy", "Timeout",
+    "HTTPError", "ConnectError", "TimeoutException",
+    "Request", "Response", "Headers", "Cookies", "URL",
+    ...
+]
+```
+:::
+
+::: {.aside}
+Adapted from [encode/httpx/](https://github.com/encode/httpx/blob/master/httpx/__init__.py)
+:::
+
+
+## Importing from packages
+
+Packages allow for hierarchical imports,
+
+::: {.small}
+```{python}
+from collections import Counter
+Counter("mississippi")
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+from urllib.parse import urlparse
+urlparse("https://example.com/path?query=1")
+```
+:::
+
+
+## The standard library
+
+Python comes with a large collection of built-in packages called the *standard library* - these are available without installing anything extra.
+
+. . .
+
+Some useful examples:
+
+:::: {.columns .small}
+::: {.column width='50%'}
+* `json` - JSON encoding/decoding
+* `pathlib` - filesystem paths
+* `os` - operating system interface
+* `sys` - system-specific parameters
+* `re` - regular expressions
+* `datetime` - dates and times
+:::
+
+::: {.column width='50%'}
+* `collections` - specialized containers
+* `itertools` - iteration utilities
+* `functools` - higher-order functions
+* `math` - mathematical functions
+* `random` - random number generation
+* `typing` - type hints
+:::
+::::
+
+::: {.aside}
+See the full list: [Python Standard Library](https://docs.python.org/3/library/index.html)
+:::
+
+
+## Exercise 1
+
+Given the following package structure:
+
+```
+analytics/
+    __init__.py
+    data/
+        __init__.py
+        loader.py      # contains: load_csv(), load_json()
+        cleaner.py     # contains: remove_nulls(), normalize()
+    models/
+        __init__.py
+        regression.py  # contains: LinearModel class
+```
+
+Write import statements to:
+
+1. Import `load_csv` from `loader.py`
+2. Import both functions from `cleaner.py`
+3. Import `LinearModel` with the alias `lm`
+4. From within `regression.py`, import `remove_nulls` using a relative import
+
+
+# Package Management <br/>with uv
+
+## Python packaging landscape
+
+Python's packaging ecosystem has historically been fragmented:
+
+* Multiple tools: `pip`, `virtualenv`, `venv`, `conda`, `poetry`, `pipenv`, etc.
+* Multiple config files: `requirements.txt`, `setup.py`, `pyproject.toml`, etc.
+* Version management often handled separately (`pyenv`)
+
+. . .
+
+**uv** is a modern tool that aims to unify these concerns with a fast, Rust-based implementation.
+
+
+## What is uv?
+
+**uv** is a Python package and project manager developed by [Astral](https://astral.sh) (creators of `ruff`).
+
+<br/>
+
+Key features:
+
+* Extremely fast (10-100x faster than pip)
+* Manages Python versions
+* Creates and manages virtual environments
+* Installs packages
+* Handles project dependencies via `pyproject.toml`
+* Drop-in replacement for `pip` and `virtualenv`
+* Directly supported by Positron and Reticulate
+
+## Installing uv
+
+
+On MacOS/Linux:
+
+::: {.small}
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+:::
+
+or with homebrew:
+
+::: {.small}
+```bash
+brew install uv
+```
+:::
+
+or with pip / pipx
+
+::: {.small}
+```bash
+pipx install uv
+pip install uc
+```
+:::
+
+
+## Verify installation
+
+Once installed you should be able to run the following,
+
+```{bash}
+uv --version
+```
+
+. . .
+
+As long as you have version `0.9.*` you should be fine.
+
+
+
+## Managing Python versions
+
+uv can install and manage multiple Python versions,
+
+::: {.columns .small}
+::: {.column .xsmall}
+```{bash}
+uv python list
+```
+:::
+::: {.column}
+```{bash}
+uv python install 3.14
+```
+```{bash}
+uv python pin 3.14
+```
+:::
+:::
+
+. . .
+
+The pinned version is stored in `~/.python-version` and will be used automatically.
+
+
+## Initializing a project
+
+Use `uv init` to create a new project,
+
+::: {.small}
+```bash
+mkdir my-project && cd my-project
+uv init
+```
+```
+Initialized project `my-project`
+```
+```bash
+ls
+```
+```
+total 32
+drwxr-xr-x@   8 rundel  staff   256 Jan 21 13:22 .
+drwxr-xr-x@ 135 rundel  staff  4320 Jan 21 13:23 ..
+drwxr-xr-x@   9 rundel  staff   288 Jan 21 13:22 .git
+-rw-r--r--@   1 rundel  staff   109 Jan 21 13:22 .gitignore
+-rw-r--r--@   1 rundel  staff     5 Jan 21 13:22 .python-version
+-rw-r--r--@   1 rundel  staff    82 Jan 21 13:22 main.py
+-rw-r--r--@   1 rundel  staff   150 Jan 21 13:22 pyproject.toml
+-rw-r--r--@   1 rundel  staff     0 Jan 21 13:22 README.md
+```
+:::
+
+. . .
+
+This creates a `pyproject.toml`, a sample `main.py` script, and basic git infrastructure. Generally, we only really care about the `pyproject.toml` which we can exclusively generate via `uv init --bare`.
+
+
+## `pyproject.toml`
+
+Modern project metadata file, tracks python version and package dependencies among other details.
+
+::: {.small}
+```toml
+[project]
+name = "my-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+```
+:::
+
+
+
+## Adding dependencies
+
+Once we have our project setup we can add (and install) dependencies directly via uv. `uv add` updates `pyproject.toml` and installs the package (creating a venv if needed).
+
+::: {.columns .xsmall}
+::: {.column}
+```bash
+uv add numpy
+```
+```
+Using CPython 3.14.2
+Creating virtual environment at: .venv
+Resolved 2 packages in 157ms
+Installed 1 package in 27ms
+ + numpy==2.4.1
+```
+```bash
+uv add pandas matplotlib scikit-learn
+```
+```
+Resolved 18 packages in 490ms
+Prepared 5 packages in 9.18s
+Installed 15 packages in 134ms
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + fonttools==4.61.1
+ + joblib==1.5.3
+ + kiwisolver==1.4.9
+ + matplotlib==3.10.8
+ + packaging==25.0
+ + pandas==3.0.0
+ + pillow==12.1.0
+ + pyparsing==3.3.2
+ + python-dateutil==2.9.0.post0
+ + scikit-learn==1.8.0
+ + scipy==1.17.0
+ + six==1.17.0
+ + threadpoolctl==3.6.0
+```
+
+:::
+::: {.column .fragment}
+```bash
+uv add "pydantic<2"
+```
+```
+Resolved 26 packages in 336ms
+Prepared 1 package in 238ms
+Installed 2 packages in 3ms
+ + pydantic==1.10.26
+ + typing-extensions==4.15.0
+```
+```bash
+uv add --dev pytest ruff
+```
+```
+Resolved 24 packages in 337ms
+Prepared 4 packages in 859ms
+Installed 5 packages in 27ms
+ + iniconfig==2.3.0
+ + pluggy==1.6.0
+ + pygments==2.19.2
+ + pytest==9.0.2
+ + ruff==0.14.13
+```
+:::
+::: 
+
+## Updated `pyproject.toml`
+
+::: {.small}
+```toml
+[project]
+name = "my-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "pandas>=3.0.0",
+    "pydantic<2",
+    "scikit-learn>=1.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.14.13",
+]
+```
+:::
+
+
+## Virtual environments
+
+Virtual environments isolate project dependencies from the system Python and other projects. Packages are installed in a local folder in your project.
+
+As we just saw, using `uv add` will create a new virtual environment in `.venv` by default if there is not an existing venv.
+
+To explicitly create your own venv you can use,
+
+::: {.small}
+```bash
+uv venv # Create a virtual environment
+uv venv --python 3.13 # Or specify Python version
+uv venv .venv # Or specify directory name
+```
+:::
+
+## Activating environments
+
+To use the virtual environment certain environmental variables need to be set correctly (e.g. `PATH`, `PYTHONPATH`, etc.) so that the correcy Python binary and libraries are used.
+
+From the command line / terminal you can run the following in your project directory:
+
+::: {.small}
+```bash
+source .venv/bin/activate  # macOS/Linux (bash/zsh)
+.venv\Scripts\Activate.ps1 # Windows (PowerShell)
+.venv\Scripts\activate.bat # Windows (cmd)
+```
+:::
+
+Alternatively (strongly suggested), use `uv run` to execute commands in the environment without activating,
+
+::: {.small}
+```bash
+uv run python script.py
+uv run pytest
+uv quarto render test.qmd
+```
+:::
+
+
+## uv and Positron
+
+Positron automatically detects virtual environments in your project directory. When you open a folder containing a `.venv` directory (created by uv), Positron will:
+
+* Detect the environment and offer to use it
+* Show the active Python interpreter in the status bar
+* Use the environment for the Python console and when running scripts
+
+If not automatically detected, you can manually select the interpreter via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and searching for "Python: Select Interpreter".
+
+
+## `uv sync`
+
+Since the `.venv` folder is system specific (and large) it is not typically commited to git. Instead you will likely clone a respository that just has a `pyproject.toml` file.
+
+Use `uv sync` is used to construct the venv and install all dependencies for the project 
+
+::: {.small}
+```bash
+uv sync
+```
+```
+Using CPython 3.14.2
+Creating virtual environment at: .venv
+Resolved 26 packages in 8ms
+Installed 23 packages in 96ms
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + fonttools==4.61.1
+ + iniconfig==2.3.0
+ + joblib==1.5.3
+ + kiwisolver==1.4.9
+ + matplotlib==3.10.8
+ + numpy==2.4.1
+ + packaging==25.0
+ + pandas==3.0.0
+ + pillow==12.1.0
+ + pluggy==1.6.0
+ + pydantic==1.10.26
+ + pygments==2.19.2
+ + pyparsing==3.3.2
+ + pytest==9.0.2
+ + python-dateutil==2.9.0.post0
+ + ruff==0.14.13
+ + scikit-learn==1.8.0
+ + scipy==1.17.0
+ + six==1.17.0
+ + threadpoolctl==3.6.0
+ + typing-extensions==4.15.0
+```
+:::
+
+
+
+
+
+## Listing packages
+
+::: {.small}
+```bash
+uv pip list
+```
+```
+Package           Version
+----------------- -----------
+contourpy         1.3.3
+cycler            0.12.1
+fonttools         4.61.1
+...
+```
+
+```bash
+uv pip show numpy
+```
+```
+Name: numpy
+Version: 2.4.1
+Location: /Users/rundel/my-project/.venv/lib/python3.14/site-packages
+Requires:
+Required-by: contourpy, matplotlib, pandas, scikit-learn, scipy
+```
+:::
+
+`uv pip install` and `uv pip freeze` are also available as lower-level commands for working outside of a project context or with `requirements.txt` files.
+
+
+## Dependency tree
+
+::: {.xsmall}
+```bash
+uv tree
+```
+```
+Resolved 26 packages in 8ms
+my-project v0.1.0
+├── matplotlib v3.10.8
+│   ├── contourpy v1.3.3
+│   │   └── numpy v2.4.1
+│   ├── cycler v0.12.1
+│   ├── fonttools v4.61.1
+│   ├── kiwisolver v1.4.9
+│   ├── numpy v2.4.1
+│   ├── packaging v25.0
+│   ├── pillow v12.1.0
+│   ├── pyparsing v3.3.2
+│   └── python-dateutil v2.9.0.post0
+│       └── six v1.17.0
+├── numpy v2.4.1
+├── pandas v3.0.0
+│   ├── numpy v2.4.1
+│   └── python-dateutil v2.9.0.post0 (*)
+├── pydantic v1.10.26
+│   └── typing-extensions v4.15.0
+├── scikit-learn v1.8.0
+│   ├── joblib v1.5.3
+│   ├── numpy v2.4.1
+│   ├── scipy v1.17.0
+│   │   └── numpy v2.4.1
+│   └── threadpoolctl v3.6.0
+├── pytest v9.0.2 (group: dev)
+│   ├── iniconfig v2.3.0
+│   ├── packaging v25.0
+│   ├── pluggy v1.6.0
+│   └── pygments v2.19.2
+└── ruff v0.14.13 (group: dev)
+(*) Package tree already displayed
+```
+:::
+
+
+## Common workflows
+
+New project setup:
+
+::: {.small}
+```bash
+mkdir my-project && cd my-project
+uv init --bare
+uv add pandas numpy
+uv run python project.py
+```
+:::
+
+. . .
+
+<br/>
+
+Clone existing project:
+
+::: {.small}
+```bash
+git clone <repo-url> && cd <repo>
+uv sync
+uv run python script.py
+```
+:::
+
+
+
+
+## Exercise 2
+
+::: {.code-file .sourceCode .cell-code}
+`r fontawesome::fa("file")` &nbsp; `calculate_ci.py`
+:::
+::: {.small}
+```{python}
+#| eval: false
+#| file: Lec05_notes/calculate_ci.py
+```
+:::
+
+The script above computes a confidence interval but requires `numpy` and `scipy`.
+
+1. Create a new directory and copy the script into it
+2. Initialize a uv project and the required dependencies
+3. Check that you are able to successfully run the script and see the calculation results
