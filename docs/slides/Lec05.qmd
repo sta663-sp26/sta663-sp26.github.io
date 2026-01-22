@@ -90,14 +90,14 @@ module.pi
 
 . . .
 
-The `from module import *` pattern imports all public names but is considered bad practice as it can lead to namespace pollution and naming conflicts.
+The `from module import *` pattern imports all public names (does not start with `_`) but is considered bad practice as it can lead to namespace pollution and naming conflicts.
 
 
 ## Module search path
 
 When you import a module, Python searches for it in the following order:
 
-1. The current working directory directory
+1. The current working directory
 2. Directories in the `PYTHONPATH` environment variable
 3. Standard library directories
 4. Site-packages (installed third-party packages)
@@ -113,6 +113,7 @@ import sys
 sys.path
 ```
 ```{python}
+#| echo: false
 import sys
 print("[", ",\n  ".join([x for x in sys.path if x]), "]")
 ```
@@ -179,7 +180,7 @@ uv run Lec05_app.py
 :::
 ::: {.column}
 ```{python}
-from Lec05_app import  main
+from Lec05_app import main
 main()
 ```
 :::
@@ -199,19 +200,22 @@ A *package* is a way to organize related modules into a hierarchal structure usi
 
 . . .
 
+::: {.small}
 ```
-data_tools/
-    __init__.py
-    io/
-        __init__.py
-        csv_reader.py
-        json_reader.py
-    analysis/
-        __init__.py
-        statistics.py
-        visualization.py
-    utils.py
+.
+└── data_tools
+    ├── __init__.py
+    ├── io
+    │   ├── __init__.py
+    │   ├── csv_reader.py
+    │   └── json_reader.py
+    ├── analysis
+    │   ├── __init__.py
+    │   ├── statistics.py
+    │   └── visualization.py
+    └── utils.py
 ```
+:::
 
 ## `__init__.py`
 
@@ -221,8 +225,11 @@ The `__init__.py` file:
 * Runs when the package is imported
 * Can be empty or contain initialization code
 * Can define `__all__` to control `from package import *`
+* Often handles re-exporting from sub-modules to simplify import process
 
 . . .
+
+Example base `__init__.py` from our data_tools package,
 
 ::: {.code-file .sourceCode .cell-code}
 `r fontawesome::fa("file")` &nbsp; `data_tools/__init__.py`
@@ -237,9 +244,6 @@ __all__ = ["helper_func", "read_csv"]
 ```
 :::
 
-::: {.aside}
-As of Python 3.3, `__init__.py` is technically optional for "namespace packages", but it's still recommended for regular packages.
-:::
 
 
 ## httpx - `__init__.py` example
@@ -280,19 +284,26 @@ Adapted from [encode/httpx/](https://github.com/encode/httpx/blob/master/httpx/_
 
 Packages allow for hierarchical imports,
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 from collections import Counter
 Counter("mississippi")
 ```
-:::
 
-. . .
-
-::: {.small}
 ```{python}
 from urllib.parse import urlparse
-urlparse("https://example.com/path?query=1")
+urlparse("https://duke.edu/path?x=1")
+```
+
+```{python}
+from pathlib import Path
+Path(".").resolve()
+```
+
+```{python}
+from os.path import join, exists
+join("static", "slides")
+exists("Lec05.qmd")
 ```
 :::
 
@@ -332,26 +343,37 @@ See the full list: [Python Standard Library](https://docs.python.org/3/library/i
 
 ## Exercise 1
 
-Given the following package structure:
+::: {.medium}
+Given the following package structure (available in `exercises/`):
+:::
 
+::: {.xsmall}
 ```
-analytics/
-    __init__.py
-    data/
-        __init__.py
-        loader.py      # contains: load_csv(), load_json()
-        cleaner.py     # contains: remove_nulls(), normalize()
-    models/
-        __init__.py
-        regression.py  # contains: LinearModel class
+.
+└── analytics
+    ├── __init__.py
+    ├── data
+    │   ├── __init__.py
+    │   ├── cleaner.py     # contains: remove_nulls(), normalize()
+    │   └── loader.py      # contains: load_csv(), load_json()
+    └── models
+        ├── __init__.py
+        └── regression.py  # contains: LinearModel class
 ```
+:::
 
+::: {.medium}
 Write import statements to:
 
 1. Import `load_csv` from `loader.py`
 2. Import both functions from `cleaner.py`
 3. Import `LinearModel` with the alias `lm`
 4. From within `regression.py`, import `remove_nulls` using a relative import
+:::
+
+::: {.aside}
+If you want to change the working directory of your Python session use `os.chdir("path/")`.
+:::
 
 
 # Package Management <br/>with uv
@@ -387,6 +409,8 @@ Key features:
 
 ## Installing uv
 
+**uv** is already installed on the departmental servers, for local installs:
+
 
 On MacOS/Linux:
 
@@ -409,7 +433,7 @@ or with pip / pipx
 ::: {.small}
 ```bash
 pipx install uv
-pip install uc
+pip install uv
 ```
 :::
 
@@ -423,6 +447,8 @@ uv --version
 ```
 
 . . .
+
+<br/>
 
 As long as you have version `0.9.*` you should be fine.
 
@@ -459,7 +485,8 @@ Use `uv init` to create a new project,
 
 ::: {.small}
 ```bash
-mkdir my-project && cd my-project
+mkdir my-project
+cd my-project
 uv init
 ```
 ```
@@ -502,6 +529,10 @@ dependencies = []
 ```
 :::
 
+
+::: {.aside}
+Also useful for configuring tools like Pyrefly
+:::
 
 
 ## Adding dependencies
@@ -609,15 +640,15 @@ To explicitly create your own venv you can use,
 
 ::: {.small}
 ```bash
-uv venv # Create a virtual environment
-uv venv --python 3.13 # Or specify Python version
-uv venv .venv # Or specify directory name
+uv venv                # Create a virtual environment
+uv venv --python 3.13  # Or specify Python version
+uv venv .venv2         # Or specify directory name
 ```
 :::
 
 ## Activating environments
 
-To use the virtual environment certain environmental variables need to be set correctly (e.g. `PATH`, `PYTHONPATH`, etc.) so that the correcy Python binary and libraries are used.
+To use the virtual environment certain environmental variables need to be set correctly (e.g. `PATH`, `PYTHONPATH`, etc.) so that the correct Python binary and libraries are used.
 
 From the command line / terminal you can run the following in your project directory:
 
@@ -635,7 +666,7 @@ Alternatively (strongly suggested), use `uv run` to execute commands in the envi
 ```bash
 uv run python script.py
 uv run pytest
-uv quarto render test.qmd
+uv run quarto render test.qmd
 ```
 :::
 
@@ -653,11 +684,11 @@ If not automatically detected, you can manually select the interpreter via the C
 
 ## `uv sync`
 
-Since the `.venv` folder is system specific (and large) it is not typically commited to git. Instead you will likely clone a respository that just has a `pyproject.toml` file.
+Since the `.venv` folder is system specific (and large) it is not typically committed to git. Instead you will likely clone a repository that just has a `pyproject.toml` file.
 
-Use `uv sync` is used to construct the venv and install all dependencies for the project 
+Use `uv sync` to construct the venv and install all dependencies for the project 
 
-::: {.small}
+::: {.xsmall}
 ```bash
 uv sync
 ```
@@ -678,17 +709,7 @@ Installed 23 packages in 96ms
  + pandas==3.0.0
  + pillow==12.1.0
  + pluggy==1.6.0
- + pydantic==1.10.26
- + pygments==2.19.2
- + pyparsing==3.3.2
- + pytest==9.0.2
- + python-dateutil==2.9.0.post0
- + ruff==0.14.13
- + scikit-learn==1.8.0
- + scipy==1.17.0
- + six==1.17.0
- + threadpoolctl==3.6.0
- + typing-extensions==4.15.0
+...
 ```
 :::
 
@@ -776,7 +797,8 @@ New project setup:
 
 ::: {.small}
 ```bash
-mkdir my-project && cd my-project
+mkdir my-project
+cd my-project
 uv init --bare
 uv add pandas numpy
 uv run python project.py
@@ -791,7 +813,8 @@ Clone existing project:
 
 ::: {.small}
 ```bash
-git clone <repo-url> && cd <repo>
+git clone <repo-url>
+cd <repo>
 uv sync
 uv run python script.py
 ```
