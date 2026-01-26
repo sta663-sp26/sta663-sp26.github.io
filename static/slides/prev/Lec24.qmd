@@ -1,5 +1,5 @@
 ---
-title: "PyMC - Samplers"
+title: "PyMC + ArviZ"
 subtitle: "Lecture 24"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -11,28 +11,25 @@ format:
     self-contained: true
 execute: 
   echo: true
-  warning: true
 ---
 
 ```{python setup}
 #| include: false
-
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import scipy
-
 import patsy
 
 import pymc as pm
 import arviz as az
 
-plt.rcParams['figure.dpi'] = 200
+plt.rcParams['figure.dpi'] = 300
 
 np.set_printoptions(
-  edgeitems=30, linewidth=200,
+  linewidth=80,
   precision = 5, suppress=True
   #formatter=dict(float=lambda x: "%.5g" % x)
 )
@@ -42,1027 +39,434 @@ pd.set_option("display.max_columns", 10)
 pd.set_option("display.precision", 6)
 ```
 
-```{python helpers}
-#| include: false
-def offset(l, shift=False):
-  res = [x for x in l for _ in range(2)]
-  if shift:
-    res = [res[0]] + res[:-1]
-  return res
 
-def mh_trajectories(trace, colors = ["magenta","green","yellow","blue"], use_offset=True, chains = None):
-  
-  n = trace.posterior.sizes.get("chain",1)
-  if chains is None:
-    chains = range(n)
+## pymc
 
-  for i in chains:
-    x = trace.posterior["x1"].sel(chain=i).values
-    y = trace.posterior["x2"].sel(chain=i).values
-    if use_offset:
-      x = offset( x )
-      y = offset( y, True)
+::: {.small}
 
-    plt.plot(
-      x, y,
-      "-o", c=colors[i], #linewidth=0.5, markersize=0.75,
-      label=f"Chain {i}", alpha=0.5
-    )
-  
-  plt.legend()
+> PyMC is a probabilistic programming library for Python that allows users to build Bayesian models with a simple Python API and fit them using Markov chain Monte Carlo (MCMC) methods.
+>
+> * **Modern** - Includes state-of-the-art inference algorithms, including MCMC (NUTS) and variational inference (ADVI).
+>
+> * **User friendly** - Write your models using friendly Python syntax. Learn Bayesian modeling from the many example notebooks.
+>
+> * **Fast** - Uses PyTensor as its computational backend to compile to C and JAX, run your models on the GPU, and benefit from complex graph-optimizations.
+>
+> * **Batteries included** - Includes probability distributions, Gaussian processes, ABC, SMC and much more. It integrates nicely with ArviZ for visualizations and diagnostics, as well as Bambi for high-level mixed-effect models.
+> 
+> * **Community focused** - Ask questions on discourse, join MeetUp events, follow us on Twitter, and start contributing.
 
+<br/>
+
+```{python}
+import pymc as pm
 ```
+:::
+
+## ArviZ
+
+::: {.small}
+> ArviZ is a Python package for exploratory analysis of Bayesian models. Includes functions for posterior analysis, data storage, sample diagnostics, model checking, and comparison.
+>
+> * **Interoperability** - Integrates with all major probabilistic programming libraries: PyMC, CmdStanPy, PyStan, Pyro, NumPyro, and emcee.
+>
+> * **Large Suite of Visualizations** - Provides over 25 plotting functions for all parts of Bayesian workflow: visualizing distributions, diagnostics, and model checking. See the gallery for examples.
+>
+> * **State of the Art Diagnostics** - Latest published diagnostics and statistics are implemented, tested and distributed with ArviZ.
+>
+> * **Flexible Model Comparison** - Includes functions for comparing models with information criteria, and cross validation (both approximate and brute force).
+> 
+> * **Built for Collaboration** - Designed for flexible cross-language serialization using netCDF or Zarr formats. ArviZ also has a Julia version that uses the same data schema.
+>
+> * **Labeled Data** - Builds on top of xarray to work with labeled dimensions and coordinates.
+
+<br/>
+
+```{python}
+import arviz as az
+```
+:::
+
+## Some history
+
+::: {.r-stack}
+![](imgs/pymc_versions.webp){fig-align="center" width="75%"}
+
+::: {.fragment}
+![](imgs/pymc_versions2.png){fig-align="center" width="75%"}
+:::
+:::
 
 
-# Samplers - Metropolis-Hastings
+::: {.aside}
+Graphic by [Ravin Kumar](https://twitter.com/canyon289) from [PyMC 4.0 Release Announcement](https://www.pymc.io/blog/v4_announcement.html#v4_announcement)
+:::
 
-## Algorithm
+## Model basics
 
-::: {.medium}
-For a parameter of interest start with an initial value $\theta_0$ then for the nex sample ($t+1$),
+All models are derived from pymc's `Model()` class, unlike what we have seen previously PyMC makes heavy use of Python's context manager using the `with` statement to add model components to a model.
 
-1. Generate a proposal value $\theta'$ from a proposal distribution $q(\theta'|\theta_t)$.
-
-2. Calculate the acceptance probability,
-   $$
-   \alpha = \text{min}\left(1, \frac{P(\theta'|x)}{P(\theta_t|x)} \frac{q(\theta_t|\theta')}{q(\theta'|\theta_t)}\right)
-   $$
-
-   where $P(\theta|x)$ is the target posterior distribution.
-
-3. Accept proposal $\theta'$ with probability $\alpha$, if accepted $\theta_{t+1} = \theta'$ else $\theta_{t+1} = \theta_t$.
+::: {.small}
+```{python}
+with pm.Model() as norm:
+  x = pm.Normal("x", mu=0, sigma=1)
+```
 :::
 
 . . .
 
-::: {.medium}
-Some considerations:
+Note that `with` blocks do not have their own scope - so variables defined inside are added to the parent scope (becareful about overwriting other variables).
 
-* Choice of the proposal distribution matters a lot
+::: {.small}
+```{python}
+x
+```
 
-* Results are for the limit as $t \to \infty$
-
-* Concerns are around computational efficiency
+```{python}
+type(x)
+```
 :::
 
+## Using a component without a context
 
-## Banana Distribution
 
 ::: {.xsmall}
 ```{python}
-# Data
-n = 100
-x1_mu = .75
-x2_mu = .75
-y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
-
-# Model
-with pm.Model() as banana:
-  x1 = pm.Normal("x1", mu=0, sigma=1)
-  x2 = pm.Normal("x2", mu=0, sigma=1)
-
-  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
-
-  trace = pm.sample(draws=50000, chains=1, random_seed=1234)
+#| error: true
+x = pm.Normal("x", mu=0, sigma=1)
 ```
 :::
 
-## Joint posterior of x1 & x2
 
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-plt.show()
-```
 
-## Metropolis-Hastings Sampler
 
-::: {.panel-tabset}
+## Random Variables
 
-### Model
+`pm.Normal()` is an example of a PyMC distribution, which are used to construct models, these are implemented using the `TensorVariable` class which is used for all of the builtin distributions (and can be used to create custom distributions). Generally you will not be interacting with these objects directly, but they do have some useful methods and attributes:
 
 ::: {.small}
 ```{python}
-#| code-line-numbers: "|4|3"
-with banana:
-  mh = pm.sample(
-    draws=100, tune=0,
-    step=pm.Metropolis([x1,x2]),
-    random_seed=1234
-  )
+type(norm.x)
+```
+```{python}
+norm.x.owner.op
+```
+```{python}
+pm.draw(norm.x)
 ```
 :::
 
-### Summary
+
+## Standalone RVs
+
+If you really want to construct a `TensorVariable` outside of a model it can be done via the `dist` method for each distribution.
 
 ::: {.small}
 ```{python}
-#| echo: false
-az.summary(mh)
+z = pm.Normal.dist(mu=1, sigma=2, shape=[2,3])
+```
+```{python}
+z
+```
+```{python}
+pm.draw(z)
 ```
 :::
 
-### Traces
+## Modifying models
 
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(mh.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(mh, use_offset=False)
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-
-## MH with Tuning
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-#| code-line-numbers: "|3"
-with banana:
-  mht = pm.sample(
-    draws=100, tune=1000,
-    step=pm.Metropolis([x1,x2]),
-    random_seed=1234
-  )
-```
-:::
-
-### Summary
+Because of this construction it is possible to add additional components to an existing (named) model via subsequent `with` statements (only the first needs `pm.Model()`)
 
 ::: {.small}
 ```{python}
-#| echo: false
-az.summary(mht)
+with norm:
+  y = pm.Normal("y", mu=x, sigma=1, shape=3)
 ```
 :::
 
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mht.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(mht.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(mht, use_offset=False)
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mht.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-
-
-## Effects of tuning / burn-in
-
-There are two confounded effects from letting the sampler tune / burn-in:
-
-1. We have let the sampler run for 1000 iterations - this gives it a chance to find the area's of higher density and settle in. 
-
-   This also makes each chain less sensitive to their initial starting position.
-
-2. We have also tuned the size of the MH proposals to achieve a better acceptance rates - this lets the chains better explore the target distribution.
-
-
-## More samples?
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-#| code-line-numbers: "|3"
-with banana:
-  mh_more = pm.sample(
-    draws=1000, tune=1000,
-    step=pm.Metropolis([x1,x2]),
-    random_seed=1234
-  )
-```
-:::
-
-### Summary
+. . .
 
 ::: {.small}
 ```{python}
-#| echo: false
-az.summary(mh_more)
-```
-:::
-
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh_more.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(mh_more.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(mh_more, chains=[0])
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh_more.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-## Even more samples?
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-#| code-line-numbers: "|3"
-with banana:
-  mh_more2 = pm.sample(
-    draws=10000, tune=1000,
-    step=pm.Metropolis([x1,x2]),
-    random_seed=1234
-  )
-
-mh_more_thin = mh_more2.sel(draw=slice(0,None,10))
+norm.basic_RVs
 ```
 :::
 
 
-### Summary
+## Variable heirarchy
+
+Note that we defined $y|x \sim \mathcal{N}(x, 1)$, so what is happening when we use `pm.draw(norm.y)`?
 
 ::: {.small}
 ```{python}
-#| echo: false
-az.summary(mh_more_thin)
+#| error: true
+pm.draw(norm.y)
 ```
 :::
 
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh_more_thin.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(mh_more_thin.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(mh_more_thin, chains=[0])
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh_more_thin.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-
-## Bivariate Normal Distribution
-
-::: {.xsmall}
-```{python}
-# Data
-n = 100
-y = pm.draw(pm.MvNormal.dist(mu=np.zeros(2), cov=np.eye(2,2), shape=(n,2)))
-
-# Model
-with pm.Model() as bv_normal:
-  x1 = pm.Normal("x1", mu=0, sigma=1)
-  x2 = pm.Normal("x2", mu=0, sigma=1)
-
-  y = pm.MvNormal("y", mu=[x1,x2], cov=np.eye(2,2), observed=y)
-
-  bv_trace = pm.sample(draws=10000, chains=1, random_seed=1234)
-```
-:::
-
-## Joint posterior
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-sns.kdeplot(
-  bv_trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-plt.show()
-```
-
-
-## BVM w/ MH
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-with bv_normal:
-  mh_bvn = pm.sample(
-    draws=1000, tune=1000,
-    step=pm.Metropolis([x1,x2]),
-    random_seed=1234, cores=1
-  )
-```
-:::
-
-### Summary
-
-::: {.small}
-```{python}
-#| echo: false
-az.summary(mh_bvn)
-```
-:::
-
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh_bvn.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(mh_bvn.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-sns.kdeplot(
-  bv_trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(mh_bvn, chains=[0])
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh_bvn.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-# Sampler - Hamiltonian Methods
-
-## Background
-
-Takes advantage of techniques developed in classical mechanics by imagining our parameters of interest as particles with a position and momentum,
-
-$$
-H(\theta, \rho) = -\underset{\text{potential}}{\log p(\theta)} - \underset{\text{kinetic}}{\log p(\rho|\theta)}
-$$
-
-Hamilton’s equations of motion state give a set of partial differential equations governing the motion of the "particle".
-
-A numerical integration method known as Leapfrog is then used to evolve the system some number of discrete steps forward in time. 
-
-Due to the approximate nature of the leapfrog integrator, a Metropolis acceptance step is typically used,
-$$
-\alpha = \min \left(1, \exp\left( H(\theta, \rho) - H(\theta',\rho') \right)
-\right)
-$$
-
-
-::: {.aside}
-See Stan's discussion [here](https://mc-stan.org/docs/reference-manual/mcmc.html#the-hamiltonian)
-:::
-
-## Algorithm parameters
-
-There are a couple of important tuning parameters that are used by Hamiltonian monte carlo methods:
-
-* $\epsilon$ is the size of the discrete time steps
-
-* $M$ is the mass matrix (or metric) that is used to determine the kinetic energy from the momentum ($\rho$)
-
-* $L$ is the number of leapfrog steps to take per iteration
-
-Generally most of these will be tuned automatically for you by your sampler of choice.
-
-```{python}
-#| echo: false
-#| include: false
-
-n = 100
-x1_mu = .75
-x2_mu = .75
-y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
-
-# Model
-with pm.Model() as banana:
-  x1 = pm.Normal("x1", mu=0, sigma=1)
-  x2 = pm.Normal("x2", mu=0, sigma=1)
-
-  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
-  
-  trace = pm.sample(draws=50000, chains=1, random_seed=1234)
-```
-
-## HamiltonianMC
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-#| code-line-numbers: "|4"
-with banana:
-  hmc = pm.sample(
-    draws=1000, tune=1000,
-    step=pm.HamiltonianMC([x1,x2]),
-    random_seed=1234
-  )
-```
-:::
-
-### Summary
-
-::: {.small}
-```{python}
-#| echo: false
-az.summary(hmc)
-```
-:::
-
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(hmc.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(hmc.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(hmc, chains=[0], use_offset=False)
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(hmc.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-## No-U-turn sampler (NUTS)
-
-::: {.medium}
-This is a variation of Hamiltonian monte carlo that automatically tunes the number of leapfrog steps to allow more effective exploration of the parameter space.
-
-Specifically, it uses a tree based algorithm that tracks trajectories forwards and backwards in time. The tree expands until a maximum depth is achieved or a "U-turn" is detected.
-
-![](imgs/nuts_path_extension.png){width=40% fig-align="center"}
-
-NUTS also does not use a metropolis step to select the final parameter value, instead the sample is chosen among the valid candidates along the trajectory.
-:::
-
-::: {.aside}
-Figure from Hoffman and Gelman, 2014
-:::
-
-## NUTS
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-#| code-line-numbers: "|4"
-with banana:
-  nuts = pm.sample(
-    draws=1000, tune=1000,
-    step=pm.NUTS([x1,x2]),
-    random_seed=1234
-  )
-```
-:::
-
-### Summary
-
-::: {.small}
-```{python}
-#| echo: false
-az.summary(nuts)
-```
-:::
-
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(nuts.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(nuts.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(nuts, chains=[0], use_offset=False)
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(nuts.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-
-## Some considerations
-
-* Hamiltonian MC methods are all very sensitive to the choice of their tuning parameters (NUTS less so, but adds additional parameters)
-
-* Hamiltonian MC methods require the gradient of the log density of the parameter of interest for the leapfrog integrator - limits this method to continuous parameters
-
-* HMC updates are generally more expensive computationally than MH updates, but they also tend to produce chains with lower autocorrelation. Best to think about performance in terms of effective samples per unit of time.
-
-
-## Divergent transitions
-
-Using Stan or PyMC with NUTS you will often see messages/ warnings about divergent transitions or divergences.
-
-This is based on the assumption of conservation of energy with regard to the Hamiltonian system - this tells us that $H(\theta, \rho)$ should remain constant for the "particle" along its trajectory. When $H(\theta, \rho)$ of the trajectory diverges from its initial value then a divergence is considered to have occurred and positions after that point cannot be considered as the next draw.
-
-The proximate cause of this is a break down of the first order approximations in the leapfrog algorithm.
-
-The ultimate cause is usually a highly curved posterior or a posterior where the rate of curvature is changing rapidly.
-
-## Solutions?
-
-Very much depend on the nature of the problem - typically we can potentially reparameterize the model and or adjust some of the tuning parameters to help the sampler deal with the problematic posterior.
-
-For the latter the following options can be passed to `pm.sample()` or `pm.NUTS()`:
-
-* `target_accept` - step size is adjusted to achieve the desired acceptance rate (larger values result in smaller steps which often work better for problematic posteriors)
-
-* `max_treedepth` - maximum depth of the trajectory tree
-
-* `step_scale` - the initial guess for the step size (scaled down by 
-based on the dimensionality of the parameter space)
-
-
-## NUTS (adjusted)
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.small}
-```{python}
-#| code-line-numbers: "|4"
-with banana:
-  nuts2 = pm.sample(
-    draws=1000, tune=1000,
-    step=pm.NUTS([x1,x2], target_accept=0.9),
-    random_seed=1234
-  )
-```
-:::
-
-### Summary
-
-::: {.small}
-```{python}
-#| echo: false
-az.summary(nuts2)
-```
-:::
-
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(nuts2.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(nuts2.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(nuts2, chains=[0], use_offset=False)
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(nuts2.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-
-
-
-# Example 1 - Poisson Regression
-
-## Data
-
-```{python}
-#| include: false
-aids = pd.DataFrame({
-  'year': range(1981,1994),
-  'cases': [12, 14, 33, 50, 67, 74, 123, 141, 165, 204, 253, 246, 240]
-})
-```
+. . .
 
 :::: {.columns .small}
-::: {.column width='25%'}
+::: {.column width='50%'}
 ```{python}
-aids
+#| error: true
+obs = pm.draw(norm.y, draws=1000) 
+obs
 ```
 :::
 
-::: {.column width='75%'}
+::: {.column width='50%' .fragment}
 ```{python}
-#| echo: false
-plt.figure(figsize=(12,6))
-sns.scatterplot(x="year", y="cases", data=aids)
-plt.title("AIDS cases in Belgium")
-plt.show()
+#| error: true
+np.mean(obs)
+```
+```{python}
+np.var(obs)
+```
+```{python}
+np.std(obs)
 ```
 :::
 ::::
 
+. . .
 
-## Model
+Each time we ask for a draw from `y`, PyMC is first drawing from `x` for us.
+
+
+## Beta-Binomial model
+
+We will now build a basic model where we know what the solution should look like and compare the results.
 
 ::: {.small}
 ```{python}
-y, X = patsy.dmatrices("cases ~ year", aids)
-
-X_lab = X.design_info.column_names
-y = np.asarray(y).flatten()
-X = np.asarray(X)
-
-with pm.Model(coords = {"coeffs": X_lab}) as model:
-    b = pm.Cauchy("b", alpha=0, beta=1, dims="coeffs")
-    η = X @ b
-    λ = pm.Deterministic("λ", np.exp(η))
-    
-    likelihood = pm.Poisson("y", mu=λ, observed=y)
-    
-    post = pm.sample(random_seed=1234)
+with pm.Model() as beta_binom:
+  p = pm.Beta("p", alpha=10, beta=10)
+  x = pm.Binomial("x", n=20, p=p, observed=5)
 ```
 :::
 
-## Summary
+. . .
 
 ::: {.small}
 ```{python}
-#| warning: false
-az.summary(post)
+beta_binom.basic_RVs
 ```
 :::
 
-## Sampler stats
+. . .
+
+In order to sample from the posterior we add a call to `sample()` within the model context.
 
 ::: {.small}
 ```{python}
-print(post.sample_stats)
+with beta_binom:
+  trace = pm.sample(random_seed=1234, progressbar=False)
 ```
 :::
 
-## Tree depth
+## `pm.sample()` results
 
 ::: {.small}
 ```{python}
-post.sample_stats["tree_depth"].values
+print(trace)
 ```
-
 ```{python}
-post.sample_stats["reached_max_treedepth"].values
-```
-:::
-
-## Adjusting the sampler
-
-::: {.small}
-```{python}
-with model:
-  post = pm.sample(
-    random_seed=1234,
-    step = pm.NUTS(max_treedepth=20)
-  )
+print(type(trace))
 ```
 :::
 
+## Xarray - N-D labeled arrays and datasets in Python
 
-## Summary
+::: {.medium}
+> Xarray (formerly xray) is an open source project and Python package that makes working with labelled multi-dimensional arrays simple, efficient, and fun! 
+>
+> Xarray introduces labels in the form of dimensions, coordinates and attributes on top of raw NumPy-like arrays, which allows for a more intuitive, more concise, and less error-prone developer experience. The package includes a large and growing library of domain-agnostic functions for advanced analytics and visualization with these data structures.
+>
+> Xarray is inspired by and borrows heavily from pandas, the popular data analysis package focused on labelled tabular data. It is particularly tailored to working with netCDF files, which were the source of xarray’s data model, and integrates tightly with dask for parallel computing.
+:::
 
-::: {.small}
+::: {.aside}
+See [here](https://arviz-devs.github.io/arviz/getting_started/XarrayforArviZ.html) for more details on xarray
+:::
+
+## Digging into `trace`
+
+::: {.xsmall}
 ```{python}
-az.summary(post)
+print(trace.posterior)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+print(trace.posterior["p"].shape)
+```
+```{python}
+print(trace.sel(chain=0).posterior["p"].shape)
+```
+```{python}
+print(trace.sel(draw=slice(500, None, 10)).posterior["p"].shape)
 ```
 :::
 
 
-## Trace plots
+## As a DataFrame
+
+Posterior values, or subsets, can be converted to DataFrames via the `to_dataframe()` method
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+trace.posterior.to_dataframe()
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+trace.posterior["p"][0,:].to_dataframe()
+```
+:::
+::::
+
+## Traceplots with ArviZ
+
+::: {.xsmall}
+```{python}
+az.plot_trace(trace)
+plt.show()
+```
+:::
+
+## Posterior plot with ArviZ
+
+::: {.xsmall}
+```{python}
+az.plot_posterior(trace, ref_val=[15/40])
+plt.show()
+```
+:::
+
+## PyMC vs Theoretical
 
 ::: {.small}
 ```{python}
-ax = az.plot_trace(post)
+#| echo: false
+p = np.linspace(0, 1, 100)
+post_beta = scipy.stats.beta.pdf(p,15,25)
+ax = az.plot_posterior(trace, hdi_prob="hide", point_estimate=None)
+plt.plot(p, post_beta, "-k", alpha=0.5, label="Theoretical")
+plt.legend(['PyMC NUTS', 'Theoretical'])
 plt.show()
 ```
 :::
 
 
-## Trace plots (again)
+## Autocorrelation plots
 
-::: {.small}
+::: {.xsmall}
 ```{python}
-ax = az.plot_trace(post.posterior["b"], compact=False)
+az.plot_autocorr(trace, grid=(2,2), max_lag=20)
 plt.show()
 ```
 :::
 
-
-## Predictions (λ)
+## Forest plots
 
 ::: {.xsmall}
 ```{python}
-plt.figure(figsize=(12,6))
-sns.scatterplot(x="year", y="cases", data=aids)
-sns.lineplot(x="year", y=post.posterior["λ"].mean(dim=["chain", "draw"]), data=aids, color='red')
+az.plot_forest(trace)
 plt.show()
 ```
 :::
 
+## Other useful diagnostics
 
-## Revised model
-
-::: {.xsmall}
-```{python}
-y, X = patsy.dmatrices(
-  "cases ~ year_min + I(year_min**2)", 
-  aids.assign(year_min = lambda x: x.year-np.min(x.year))
-)
-
-X_lab = X.design_info.column_names
-y = np.asarray(y).flatten()
-X = np.asarray(X)
-
-with pm.Model(coords = {"coeffs": X_lab}) as model:
-    b = pm.Cauchy("b", alpha=0, beta=1, dims="coeffs")
-    η = X @ b
-    λ = pm.Deterministic("λ", np.exp(η))
-    
-    likelihood = pm.Poisson("y", mu=λ, observed=y)
-    
-    post = pm.sample(random_seed=1234)
-```
-:::
-
-## Summary
-
-::: {.xsmall}
-```{python}
-az.summary(post)
-```
-:::
-
-## Trace plots
-
-::: {.xsmall}
-```{python}
-ax = az.plot_trace(post.posterior["b"], compact=False)
-plt.show()
-```
-:::
-
-
-## Predictions (λ)
-
-::: {.xsmall}
-```{python}
-plt.figure(figsize=(12,6))
-sns.scatterplot(x="year", y="cases", data=aids)
-sns.lineplot(x="year", y=post.posterior["λ"].mean(dim=["chain", "draw"]), data=aids, color='red')
-plt.show()
-```
-:::
-
-
-
-# Example 2 - Compound Samplers
-
-
-## Model with a discrete parameter
-
-::: {.xsmall}
-```{python}
-import pytensor
-
-n = pytensor.shared(np.asarray([10, 20]))
-with pm.Model() as m:
-    p = pm.Beta("p", 1.0, 1.0)
-    i = pm.Bernoulli("i", 0.5)
-    k = pm.Binomial("k", p=p, n=n[i], observed=4)
-    
-    step = pm.CompoundStep([
-      pm.NUTS([p]),
-      pm.BinaryMetropolis([i])
-    ])
-
-    trace = pm.sample(
-      1000, step=step
-    )
-```
-:::
-
-## Summary
+Standard MCMC diagnostic statistics are available via `summary()` from ArviZ
 
 ::: {.small}
 ```{python}
 az.summary(trace)
 ```
 :::
+
+. . .
+
+individual methods are available for each statistics,
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+print(az.ess(trace, method="bulk"))
+```
+```{python}
+print(az.ess(trace, method="tail"))
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+print(az.rhat(trace))
+```
+```{python}
+print(az.mcse(trace))
+```
+:::
+::::
+
+
+## Demo 1 - Linear regression
+
+Given the below data, we want to fit a linear regression model to the following synthetic data,
+
+::: {.small}
+```{python}
+np.random.seed(1234)
+n = 11; m = 6; b = 2
+x = np.linspace(0, 1, n)
+y = m*x + b + np.random.randn(n)
+```
+:::
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.scatter(x, y, s=30, label='data')
+plt.plot(x, 6*x + 2, label='true regression line', lw=3., c='red')
+plt.legend(loc='best')
+plt.show()
+```
+
+## Model
+
+::: {.small}
+```{python}
+with pm.Model() as lm:
+  m = pm.Normal('m', mu=0, sigma=50)
+  b = pm.Normal('b', mu=0, sigma=50)
+  sigma = pm.HalfNormal('sigma', sigma=5)
+  
+  likelihood = pm.Normal('y', mu=m*x + b, sigma=sigma, observed=y)
+  
+  trace = pm.sample(progressbar=False, random_seed=1234)
+```
+:::
+
+::: {.aside}
+More on `pm.sample()` arguments next time, but by default PyMC tunes / burns-in for 1000 iterations and then samples for 1000 iterations
+:::
+
+
+## Posterior summary
+
+::: {.small}
+```{python}
+az.summary(trace)
+```
+:::
+
 
 ## Trace plots
 
@@ -1074,47 +478,582 @@ plt.show()
 :::
 
 
-##
+## Regression line posterior draws
 
-::: {.xsmall}
+::: {.small}
 ```{python}
-d = pd.DataFrame({
-  "p": trace.posterior["p"].values.flatten(),
-  "i": trace.posterior["i"].values.flatten()
-})
-```
-:::
+#| output-location: slide
+post_m = trace.posterior['m'].sel(chain=0, draw=slice(0,None,10))
+post_b = trace.posterior['b'].sel(chain=0, draw=slice(0,None,10))
 
-::: {.columns .xsmall}
-::: {.column}
-```{python}
-sns.displot(d, x="p", hue="i", kind="kde")
+plt.figure(layout="constrained")
+plt.scatter(x, y, s=30, label='data')
+for m, b in zip(post_m.values, post_b.values):
+    plt.plot(x, m*x + b, c='gray', alpha=0.1)
+plt.plot(x, 6*x + 2, label='true regression line', lw=3., c='red')
+plt.legend(loc='best')
 plt.show()
 ```
 :::
-::: {.column}
+
+
+## Posterior predictive draws
+
+Draws for observed variables can also be generated (posterior predictive draws) via the `sample_posterior_predictive()` method.
+
+::: {.xsmall}
 ```{python}
-d.groupby("i").mean()
+with lm:
+  pp = pm.sample_posterior_predictive(trace, progressbar=False)
+```
+```{python}
+pp
+```
+:::
+
+## Plotting the posterior predictive distribution
+
+::: {.small}
+```{python}
+az.plot_ppc(pp, num_pp_samples=500)
+plt.show()
+```
+:::
+
+## PP draws
+
+::: {.xsmall}
+```{python}
+plt.figure(layout="constrained")
+plt.scatter(x, y, s=30, label='data')
+plt.plot(x, pp.posterior_predictive['y'].sel(chain=0).T, c="grey", alpha=0.01)
+plt.plot(x, np.mean(pp.posterior_predictive['y'].sel(chain=0).T, axis=1), c='red', label="PP mean")
+plt.legend()
+plt.show()
+```
+:::
+
+## PP HDI
+
+::: {.xsmall}
+```{python}
+plt.figure(layout="constrained")
+plt.scatter(x, y, s=30, label='data')
+plt.plot(x, np.mean(pp.posterior_predictive['y'].sel(chain=0).T, axis=1), c='red', label="PP mean")
+az.plot_hdi(x, pp.posterior_predictive['y'])
+plt.legend()
+plt.show()
+```
+:::
+
+
+## Model revision
+
+::: {.small}
+```{python}
+with pm.Model() as lm2:
+  m = pm.Normal('m', mu=0, sigma=50)
+  b = pm.Normal('b', mu=0, sigma=50)
+  sigma = pm.HalfNormal('sigma', sigma=5)
+  
+  y_hat = pm.Deterministic("y_hat", m*x + b)
+  
+  likelihood = pm.Normal('y', mu=y_hat, sigma=sigma, observed=y)
+  
+  trace = pm.sample(random_seed=1234, progressbar=False)
+  pp = pm.sample_posterior_predictive(trace, var_names=["y_hat"], progressbar=False)
+```
+:::
+
+## $\hat{y}$ - PP
+
+::: {.small}
+```{python}
+pm.summary(trace)
+```
+:::
+
+## $\hat{y}$ - PP draws
+
+::: {.xsmall}
+```{python}
+plt.figure(layout="constrained")
+plt.plot(x, pp.posterior_predictive['y_hat'].sel(chain=0).T, c="grey", alpha=0.01)
+plt.scatter(x, y, s=30, label='data')
+plt.show()
+```
+:::
+
+## $\hat{y}$ - PP HDI
+
+::: {.xsmall}
+```{python}
+plt.figure(layout="constrained")
+plt.scatter(x, y, s=30, label='data')
+plt.plot(x, np.mean(pp.posterior_predictive['y_hat'].sel(chain=0).T, axis=1), c='red', label="PP mean")
+az.plot_hdi(x, pp.posterior_predictive['y_hat'])
+plt.legend()
+plt.show()
+```
+:::
+
+## Demo 2 - Bayesian Lasso
+
+::: {.small}
+```{python}
+n = 50
+k = 100
+
+np.random.seed(1234)
+X = np.random.normal(size=(n, k))
+
+beta = np.zeros(shape=k)
+beta[[10,30,50,70]] =  10
+beta[[20,40,60,80]] = -10
+
+y = X @ beta + np.random.normal(size=n)
+```
+:::
+
+::: {.aside}
+Based on [Bayesian Sparse Regression](https://betanalpha.github.io/assets/case_studies/bayes_sparse_regression.html) and [Lasso regression with block updating](https://docs.pymc.io/en/v3/pymc-examples/examples/pymc3_howto/lasso_block_update.html)
+:::
+
+## Naive model
+
+::: {.small}
+```{python naive}
+#| cache: true
+with pm.Model() as bayes_naive:
+  b = pm.Flat("beta", shape=k)
+  s = pm.HalfNormal('sigma', sigma=2)
+  
+  pm.Normal("y", mu=X @ b, sigma=s, observed=y)
+  
+  trace = pm.sample(progressbar=False, random_seed=12345)
+```
+:::
+
+##
+
+::: {.medium}
+```{python naive summary}
+#| cache: true
+az.summary(trace)
+```
+:::
+
+## Weakly informative model
+
+::: {.small}
+```{python weak}
+#| cache: true
+with pm.Model() as bayes_weak:
+  b = pm.Normal("beta", mu=0, sigma=10, shape=k)
+  s = pm.HalfNormal('sigma', sigma=2)
+  
+  pm.Normal("y", mu=X @ b, sigma=s, observed=y)
+  
+  trace = pm.sample(progressbar=False, random_seed=12345)
+```
+:::
+
+##
+
+::: {.medium}
+```{python weak_summary}
+#| cache: true
+az.summary(trace)
+```
+:::
+
+##
+
+::: {.medium}
+```{python weak_summary_hl}
+#| cache: true
+az.summary(trace).iloc[[10,20,30,40,50,60,70,80]]
+```
+:::
+
+##
+
+::: {.small}
+```{python weak_forest}
+#| cache: true
+ax = az.plot_forest(trace)
+plt.tight_layout()
+plt.show()
+```
+:::
+
+## Plot helper
+
+::: {.small}
+```{python}
+def plot_slope(trace, prior="beta", chain=0):
+  post = (trace.posterior[prior]
+          .to_dataframe()
+          .reset_index()
+          .query(f"chain == {chain}")
+         )
+  
+  sns.catplot(x="beta_dim_0", y="beta", data=post, kind="boxen", linewidth=0, color='blue', aspect=2, showfliers=False)
+  plt.tight_layout()
+  plt.xticks(range(0,110,10))
+  plt.show()
+  
+```
+:::
+
+##
+
+```{python weak_plot2}
+#| cache: true
+plot_slope(trace)
 ```
 
 
-::: {.fragment}
-If we assume `i=0`:
-$$
-\begin{aligned} 
-p|x=4,i=0 \sim \text{Beta}(5,7) \\
-E(p|x=4,i=0) = \frac{5}{5+7} = 0.416
-\end{aligned}
-$$
+## Laplace Prior
 
-If we assume `i=1`:
-$$ 
-\begin{aligned} 
-p|x=4,i=1 \sim \text{Beta}(5,17) \\
-E(p|x=4,i=0) = \frac{5}{5+17} = 0.227
-\end{aligned}
-$$
+
+::: {.small}
+```{python laplace}
+#| cache: true
+with pm.Model() as bayes_lasso:
+  b = pm.Laplace("beta", 0, 1, shape=k)
+  s = pm.HalfNormal('sigma', sigma=1)
+  
+  pm.Normal("y", mu=X @ b, sigma=s, observed=y)
+  
+  trace = pm.sample(progressbar=False, random_seed=1234)
+```
+:::
+
+##
+
+::: {.medium}
+```{python laplace_summary}
+#| cache: true
+az.summary(trace)
+```
+:::
+
+##
+
+::: {.medium}
+```{python laplace_summary_hl}
+#| cache: true
+az.summary(trace).iloc[[10,20,30,40,50,60,70,80]]
+```
+:::
+
+##
+
+```{python laplace_plot}
+#| cache: true
+plot_slope(trace)
+```
+
+# Demo 3 - Logistic Regression
+
+<br/><br/><br/><br/>
+
+::: {.small}
+Based on PyMC [Out-Of-Sample Predictions](https://www.pymc.io/projects/examples/en/latest/generalized_linear_models/GLM-out-of-sample-predictions.html) example
+:::
+
+
+## Data
+
+:::: {.columns .small}
+::: {.column width='33%'}
+```{python}
+#| echo: false
+from scipy.special import expit as inverse_logit
+
+rng = np.random.default_rng(1234)
+
+# Number of data points
+n = 250
+
+# Create features
+x1 = rng.normal(loc=0.0, scale=2.0, size=n)
+x2 = rng.normal(loc=0.0, scale=2.0, size=n)
+
+# Define target variable
+intercept = -0.5
+beta_x1 = 1
+beta_x2 = -1
+beta_interaction = 2
+z = intercept + beta_x1 * x1 + beta_x2 * x2 + beta_interaction * x1 * x2
+p = inverse_logit(z)
+
+y = rng.binomial(n=1, p=p, size=n)
+df = pd.DataFrame(dict(x1=x1, x2=x2, y=y))
+df
+```
+:::
+
+::: {.column width='66%'}
+```{python}
+#| echo: false
+rel = sns.relplot(x="x1", y="x2", data=df, hue="y")
+rel.set(ylim = (-9,9), xlim=(-9,9), title='Sample Data')
+#plt.show()
+```
+:::
+::::
+
+## Test-train split
+
+::: {.small}
+```{python}
+from sklearn.model_selection import train_test_split
+
+y, X = patsy.dmatrices("y ~ x1 * x2", data=df)
+X_lab = X.design_info.column_names
+y_lab = y.design_info.column_names
+y = np.asarray(y).flatten()
+X = np.asarray(X)
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7)
+```
+:::
+
+. . .
+
+:::: {.columns}
+::: {.column width='50%'}
+```{python}
+#| echo: false
+#| out-width: 66%
+df_train = pd.DataFrame(
+  np.c_[y_train,X_train], 
+  columns=y_lab + X_lab
+)
+
+rel = sns.relplot(x="x1", y="x2", data=df_train, hue="y", legend=False, aspect=1)
+rel.set(ylim = (-9,9), xlim=(-9,9), title='Training Data')
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| echo: false
+#| out-width: 66%
+df_test = pd.DataFrame(
+  np.c_[y_test,X_test], 
+  columns=y_lab + X_lab
+)
+
+rel = sns.relplot(x="x1", y="x2", data=df_test, hue="y", legend=False, aspect=1)
+rel.set(ylim = (-9,9), xlim=(-9,9), title='Test Data')
+```
+:::
+::::
+
+
+
+## Model
+
+::: {.medium}
+```{python}
+with pm.Model(coords = {"coeffs": X_lab}) as model:
+    # data containers
+    X = pm.MutableData("X", X_train)
+    y = pm.MutableData("y", y_train)
+    # priors
+    b = pm.Normal("b", mu=0, sigma=3, dims="coeffs")
+    # linear model
+    mu = X @ b
+    # link function
+    p = pm.Deterministic("p", pm.math.invlogit(mu))
+    # likelihood
+    obs = pm.Bernoulli("obs", p=p, observed=y)
+```
+:::
+
+
+::: {.aside}
+Registers the value as a SharedVariable with the model - it can then be altered in value or shape (but not dimensionality) using `set_data()`.
+:::
+
+## Visualizing models
+
+::: {.small}
+```{python}
+#| eval: false
+pm.model_to_graphviz(model)
+```
+:::
+
+```{dot}
+//| echo: false
+digraph {
+	subgraph "cluster175 x 4" {
+		X [label="X~MutableData" shape=box style="rounded, filled"]
+		label="175 x 4" labeljust=r labelloc=b style=rounded
+	}
+	subgraph cluster175 {
+		p [label="p~Deterministic" shape=box]
+		obs [label="obs~Bernoulli" shape=ellipse style=filled]
+		y [label="y~MutableData" shape=box style="rounded, filled"]
+		label=175 labeljust=r labelloc=b style=rounded
+	}
+	subgraph "clustercoeffs (4)" {
+		b [label="b~Normal" shape=ellipse]
+		label="coeffs (4)" labeljust=r labelloc=b style=rounded
+	}
+	obs -> y
+	b -> p
+	X -> p
+	p -> obs
+}
+```
+
+## Fitting
+
+::: {.small}
+```{python}
+with model:
+    post = pm.sample(progressbar=False, random_seed=1234)
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+az.summary(post)
+```
+:::
+
+
+## Trace plots
+
+::: {.small}
+```{python}
+#| out-width: 50%
+az.plot_trace(post, var_names="b", compact=False)
+plt.show()
+```
+:::
+
+## Posterior plots
+
+::: {.small}
+```{python}
+az.plot_posterior(
+  post, var_names=["b"], ref_val=[intercept, beta_x1, beta_x2, beta_interaction], 
+  figsize=(15, 6)
+)
+plt.show()
+```
+:::
+
+## Posterior samples
+
+
+
+## Out-of-sample predictions
+
+::: {.panel-tabset}
+
+### Current `post`
+
+::: {.small}
+```{python}
+post
+```
+:::
+
+### Out-of-sample `post`
+
+::: {.columns .xsmall}
+```{python}
+with model:
+  pm.set_data({"X": X_test, "y": y_test})
+  post = pm.sample_posterior_predictive(
+    post, progressbar=False, var_names=["obs", "p"],
+    extend_inferencedata = True
+  )
+```
+```{python}
+post
+```
 :::
 
 :::
+
+
+## Posterior predictive summary
+
+::: {.small}
+```{python}
+az.summary(
+  post.posterior_predictive  
+)
+```
+:::
+
+## Evaluation
+
+::: {.xsmall}
+```{python}
+post.posterior["p"].shape
+```
+```{python}
+post.posterior_predictive["p"].shape
+```
+```{python}
+p_train = post.posterior["p"].mean(dim=["chain", "draw"])
+p_test  = post.posterior_predictive["p"].mean(dim=["chain", "draw"])
+```
+:::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+print(p_train)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+print(p_test)
+```
+:::
+::::
+
+## ROC & AUC
+
+::: {.small}
+```{python}
+from sklearn.metrics import RocCurveDisplay, accuracy_score, auc, roc_curve
+```
+
+```{python}
+# Test data
+fpr_test, tpr_test, thd_test = roc_curve(y_true=y_test, y_score=p_test)
+auc_test = auc(fpr_test, tpr_test); auc_test
+```
+
+```{python}
+# Training data
+fpr_train, tpr_train, thd_train = roc_curve(y_true=y_train, y_score=p_train)
+auc_train = auc(fpr_train, tpr_train); auc_train
+```
+:::
+
+## ROC Curves
+
+::: {.xsmall}
+```{python}
+fig, ax = plt.subplots()
+roc = RocCurveDisplay(fpr=fpr_test, tpr=tpr_test).plot(ax=ax, label="test")
+roc = RocCurveDisplay(fpr=fpr_train, tpr=tpr_train).plot(ax=ax, color="k", label="train")
+plt.show()
+```
 :::

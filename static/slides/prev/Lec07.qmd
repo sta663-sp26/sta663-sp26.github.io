@@ -1,5 +1,5 @@
 ---
-title: "pandas"
+title: "NumPy Broadcasting & JAX"
 subtitle: "Lecture 07"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -11,1286 +11,1035 @@ format:
     self-contained: true
 execute:
   echo: true
+  warning: true
 ---
 
-```{r config}
+```{r r_setup}
+#| message: false
+#| warning: false
 #| include: false
+
 options(
   width=80
 )
 
 local({
-  hook_old <- knitr::knit_hooks$get("error")  # save the old hook
-  knitr::knit_hooks$set(error = function(x, options) {
-    x = sub("## \n## Detailed traceback:\n.*$", "", x)
-    x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
-    hook_old(x, options)
-  })
+  hook_error <- knitr::knit_hooks$get("error")
+  hook_output <- knitr::knit_hooks$get("output")
+  knitr::knit_hooks$set(
+    error = function(x, options) {
+      x = sub("## \n## Detailed traceback:\n.*$", "", x)
+      x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
+      hook_error(x, options)
+    },
+    output = function(x, options) {
+      x = sub("<string>:1: (.*?)\n", "\\1\n\n", x)
+      hook_output(x, options)
+    }
+  )
 })
 ```
 
-```{python setup, include=FALSE}
-import scipy
+```{python setup}
+#| include: false
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 
-np.set_printoptions(edgeitems=3, linewidth=180)
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=60,
+  precision = 5, suppress=True
+)
 ```
 
 
-## pandas
+# Basic file IO
 
-pandas is an implementation of data frames in Python - it takes much of its inspiration from R and NumPy.
+## Reading and writing ndarrays
 
-> pandas aims to be the fundamental high-level building block for doing practical, real world data analysis in Python. Additionally, it has the broader goal of becoming the most powerful and flexible open source data analysis / manipulation tool available in any language.
+We will not spend much time on this as most data you will encounter is more likely to be a tabular format (e.g. data frame) and tools like Pandas are more appropriate.
 
+For basic saving and loading of NumPy arrays there are the `save()` and `load()` functions which use a custom binary format.
+
+```{python}
+x = np.arange(1e5)
+np.save("data/x.npy", x)
+```
+
+```{python}
+new_x = np.load("data/x.npy")
+np.all(x == new_x)
+```
+
+Additional functions for saving (`savez()`, `savez_compressed()`, `savetxt()`) exist for saving multiple arrays or saving a text representation of an array.
+
+## Reading delimited data
+
+While not particularly recommended, if you need to read delimited (csv, tsv, etc.) data into a NumPy array you can use `genfromtxt()`,
+
+::: {.small}
+```{python}
+with open("data/mtcars.csv") as file:
+    mtcars = np.genfromtxt(file, delimiter=",", skip_header=True)
+    
+mtcars
+```
+:::
+
+
+
+# Broadcasting
+
+## Broadcasting
+
+This is an approach for deciding how to generalize operations between arrays with differing shapes.
+
+```{python}
+x = np.array([1, 2, 3])
+```
+
+. . .
+
+```{python}
+x * 2
+```
 
 
 . . .
 
-Key features:
-
-* DataFrame and Series (column) object classes
-
-* Reading and writing tabular data
-
-* Data munging (filtering, grouping, summarizing, joining, etc.)
-
-* Data reshaping
-
-
-# Series
-
-## Series
-
-The columns of a DataFrame are constructed using the `Series` class - these are a 1d array like object containing values of the same type (similar to an numpy array).
-
-:::: {.columns .small}
-::: {.column width='50%'}
 ```{python}
-pd.Series([1,2,3,4])
-pd.Series(["C","B","A"])
-pd.Series([True])
+x * np.array([2,2,2])
 ```
-:::
-
-::: {.column width='50%'}
-```{python}
-pd.Series(range(5))
-pd.Series([1,"A",True])
-```
-:::
-::::
-
-
-## Series methods
-
-Once constructed the components of a series can be accessed via `array` and `index` attributes.
-
-```{python}
-s = pd.Series([4,2,1,3])
-```
-
-:::: {.columns}
-::: {.column width='50%'}
-```{python}
-s
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-s.array
-s.index
-```
-:::
-::::
-
-##
-
-An index (row names) can also be explicitly provided when constructing a Series,
-
-```{python}
-t = pd.Series([4,2,1,3], index=["a","b","c","d"])
-```
-
-:::: {.columns}
-::: {.column width='50%'}
-```{python}
-t
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-t.array
-t.index
-```
-:::
-::::
-
-
-## Series + NumPy
-
-Series objects are compatible with NumPy like functions (i.e. vectorized)
-
-```{python}
-t = pd.Series([4,2,1,3], index=["a","b","c","d"])
-```
-
-:::: {.columns}
-::: {.column width='50%'}
-```{python}
-t + 1
-t / 2 + 1
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-np.log(t)
-np.exp(-t**2/2)
-```
-:::
-::::
-
-
-
-## Series indexing
-
-Series can be indexed in the same was as NumPy arrays with the addition of being able to use index label(s) when selecting elements.
-
-::: {.small}
-```{python}
-t = pd.Series([4,2,1,3], index=["a","b","c","d"])
-```
-
-:::: {.columns}
-::: {.column width='50%'}
-```{python}
-t[1]
-t[[1,2]]
-t["c"]
-t[["a","d"]]
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-t[t == 3]
-t[t % 2 == 0]
-t["d"] = 6
-t
-```
-:::
-::::
-
-:::
-
-## Index alignment
-
-When performing operations with multiple series, generally pandas will attempt to align the operation by the index values,
-
-::: {.small}
-```{python}
-m = pd.Series([1,2,3,4], index = ["a","b","c","d"])
-n = pd.Series([4,3,2,1], index = ["d","c","b","a"])
-o = pd.Series([1,1,1,1,1], index = ["b","d","a","c","e"])
-```
-:::
 
 . . .
 
-:::: {.columns .small}
-::: {.column width='50%'}
 ```{python}
-m + n
+x * np.array([2])
 ```
 
-```{python}
-n + m
-```
-:::
+## Efficiency
 
-::: {.column width='50%' .fragment}
-```{python}
-n + o
-```
-:::
-::::
-
-
-## Series and dicts
-
-Series can also be constructed from dictionaries, in which case the keys are used as the index,
+Using broadcasts can be more efficient as it does not copy the broadcast data,
 
 ::: {.small}
 ```{python}
-d = {"anna": "A+", "bob": "B-", "carol": "C", "dave": "D+"}
-pd.Series(d)
+x = np.arange(1e5)
+y = np.array([2]).repeat(1e5)
 ```
 :::
-
-. . .
-
-Index order will follow key order, unless overriden by `index`,
-
-::: {.small}
-```{python}
-pd.Series(d, index = ["dave","carol","bob","anna"])
-```
-:::
-
-
-## Missing values
-
-Pandas encodes missing values using NaN (mostly),
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-s = pd.Series(
-  {"anna": "A+", "bob": "B-", 
-   "carol": "C", "dave": "D+"}, 
-  index = ["erin","dave","carol","bob","anna"]
-)
-```
-
-```{python}
-s
-pd.isna(s)
-```
-
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-s = pd.Series(
-  {"anna": 97, "bob": 82, 
-   "carol": 75, "dave": 68}, 
-  index = ["erin","dave","carol","bob","anna"],
-  dtype = 'int64'
-)
-```
-
-```{python}
-s
-pd.isna(s)
-```
-:::
-::::
-
-## Aside - why `np.isna()`? {.smaller}
-
-```{python}
-s = pd.Series([1,2,3,None])
-s
-```
-
-:::: {.columns}
-::: {.column width='50%'}
-```{python}
-pd.isna(s)
-s == np.nan
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-np.nan == np.nan
-np.nan != np.nan
-np.isnan(np.nan)
-np.isnan(0)
-```
-:::
-::::
-
-## Missing via `none`
-
-In some cases `none` can also be used as a missing value, for example:
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-pd.Series([1,2,3,None])
-pd.Series([True,False,None])
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-pd.isna( pd.Series([1,2,3,None]) )
-pd.isna( pd.Series([True,False,None]) )
-```
-:::
-::::
-
-This can have a side effect of changing the dtype of the series.
-
-
-## Native NAs
-
-If instead of using base dtypes we use Pandas' built-in dtypes we get "native" support for missing values,
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-pd.Series(
-  [1,2,3,None], 
-  dtype = pd.Int64Dtype()
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-pd.Series(
-  [True, False,None], 
-  dtype = pd.BooleanDtype()
-)
-```
-:::
-::::
-
-
-## String series
-
-Series containing strings can their strings accessed via the `str` attribute,
-
-::: {.xsmall}
-```{python}
-s = pd.Series(["the quick", "brown fox", "jumps over", "a lazy dog"])
-```
-:::
-
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-s
-s.str.upper()
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-s.str.split(" ")
-s.str.split(" ").str[1]
-```
-:::
-::::
-
-::: {.fragment .xsmall}
-```{python}
-#| error: true
-pd.Series([1,2,3]).str
-```
-:::
-
-
-## Categorical Series
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-pd.Series(
-  ["Mon", "Tue", "Wed", "Thur", "Fri"]
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-pd.Series(
-  ["Mon", "Tue", "Wed", "Thur", "Fri"],
-  dtype="category"
-)
-```
-:::
-::::
-
-
-::: {.xsmall}
-```{python}
-pd.Series(
-  ["Mon", "Tue", "Wed", "Thur", "Fri"], 
-  dtype=pd.CategoricalDtype(ordered=True)
-)
-```
-:::
-
-## Category orders
-
-::: {.small}
-```{python}
-pd.Series(
-  ["Tue", "Thur", "Mon", "Sat"], 
-  dtype=pd.CategoricalDtype(
-    categories=["Mon", "Tue", "Wed", "Thur", "Fri"], 
-    ordered=True
-  )
-)
-```
-:::
-
-# DataFrames
-
-## DataFrame
-
-::: {.columns .medium}
-::: {.column width=33%}
-* Just like R a DataFrame is a collection of vectors (Series) with a common length (and a common index)
-
-* Column dtypes can be heterogeneous
-
-* Columns have names stored in the `columns` index.
-
-* It can be useful to think of a dictionary of Series objects where the keys are the column names.
-:::
-::: {.column width=66% .xsmall}
-```{python}
-iris = pd.read_csv("data/iris.csv")
-type(iris)
-iris
-```
-:::
-:::
-
-
-
-## Constructing DataFrames
-
-We just saw how to read a DataFrame via `read_csv()`, `DataFrames` can also be constructed via `DataFrame()`, in general this is done using a dictionary of columns / `Series`:
-
-::: {.small}
-```{python}
-n = 5
-d = {
-  "id":     np.random.randint(100, 999, n),
-  "weight": np.random.normal(70, 20, n),
-  "height": np.random.normal(170, 15, n),
-  "date":   pd.date_range(start='2/1/2022', periods=n, freq='D')
-}
-```
-:::
-
-::: {.small .fragment}
-```{python}
-df = pd.DataFrame(d); df
-```
-:::
-
-::: {.aside}
-See more IO functions [here](https://pandas.pydata.org/docs/reference/io.html)
-:::
-
-## DataFrame from nparray
-
-2d ndarrays can also be used to construct a `DataFrame` - generally it is a good idea to provide column and row names (indexes)
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-pd.DataFrame(
-  np.diag([1,2,3]),
-  columns = ["x","y","z"]
-)
-```
-
-```{python}
-pd.DataFrame(
-  np.diag([1,2,3]),
-  index = ["x","y","z"]
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-pd.DataFrame(
-  np.tri(5,3,-1),
-  columns = ["x","y","z"],
-  index = ["a","b","c","d","e"]
-)
-```
-:::
-::::
-
-## DataFrame properties
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.size
-df.shape
-df.info()
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.dtypes
-df.columns
-df.index
-df.axes
-```
-:::
-::::
-
-
-## DataFrame indexing
-
-
-:::: {.columns .small}
-::: {.column width='50%'} 
-### Selecting a column:
-
-Columns can be selected by name or via `.` accessor,
-
-```{python error=TRUE}
-df[0]
-df["id"]
-df.id
-```
-:::
-
-::: {.column width='50%' .fragment} 
-### Selecting rows: 
-
-a single slice is assumed to refer to the rows
-
-```{python}
-df[1:3]
-df[0::2]
-```
-:::
-::::
-
-## Indexing by position
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-df.iloc[1]
-df.iloc[[1]]
-df.iloc[0:2]
-df.iloc[1:3,1:3]
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-df.iloc[0:3, [0,3]]
-df.iloc[0:3, [True, True, False, False]]
-df.iloc[lambda x: x.index % 2 != 0]
-```
-:::
-::::
-
-
-## Index by name
-
-::: {.xsmall}
-```{python}
-df.index = (["anna","bob","carol", "dave", "erin"])
-df
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.loc["anna"]
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.loc[["anna"]]
-```
-:::
-::::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-type(df.loc["anna"])
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-type(df.loc[["anna"]])
-```
-:::
-::::
-
-##
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.loc["bob":"dave"]
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.loc[df.id < 300]
-```
-:::
-::::
-
-::: {.columns .xsmall}
-::: {.column}
-```{python, error=TRUE}
-df.loc[:, "date"]
-```
-:::
-::: {.column}
-```{python, error=TRUE}
-df.loc[["bob","erin"], "weight":"height"]
-```
-:::
-:::
-
-::: {.small}
-```{python, error=TRUE}
-df.loc[0:2, "weight":"height"]
-```
-:::
-
-## Views vs. Copies
-
-In general most pandas operations will generate a new object but some will return views, mostly the later occurs with subsetting. 
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-d = pd.DataFrame(np.arange(6).reshape(3,2), columns = ["x","y"])
-d
-
-v = d.iloc[0:2,0:2]; v
-
-d.iloc[0,1] = -1; v
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-v.iloc[0,0] = np.pi
-v
-d
-```
-:::
-::::
-
-
-
-
-::: {.aside}
-See the documetation [here](http://pandas-docs.github.io/pandas-docs-travis/user_guide/indexing.html#indexing-view-versus-copy) for more details
-:::
-
-
-
-
-## Element access
-
-::: {.small}
-```{python}
-df
-```
-:::
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python error=TRUE}
-df[0,0]
-df.iat[0,0]
-df.id[0]
-df[0:1].id[0]
-```
-:::
-
-::: {.column width='50%'}
-```{python, error=TRUE}
-df["anna", "id"]
-df.at["anna", "id"]
-df["id"]["anna"]
-df["id"][0]
-```
-:::
-::::
-
-
-# Index objects
-
-## Columns and index
-
-When constructing a DataFrame we can specify the indexes for both the rows (`index`) and columns (`columns`),
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-df = pd.DataFrame(
-  np.random.randn(5, 3), 
-  columns=['A', 'B', 'C']
-)
-df
-
-df.columns
-df.index
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df = pd.DataFrame(
-  np.random.randn(3, 3), 
-  index=['x','y','z'], 
-  columns=['A', 'B', 'C']
-)
-df
-
-df.columns
-df.index
-```
-:::
-::::
-
-
-## Index objects
-
-pandas' `Index` class and its subclasses provide the infrastructure necessary for lookups, data alignment, and other related tasks. You can think of them as being an immutable *multiset* (i.e. duplicate values are allowed).
-
-::: {.small}
-```{python}
-pd.Index(['A','B','C'])
-pd.Index(['A','B','C','A'])
-pd.Index(range(5))
-pd.Index(list(range(5)))
-```
-:::
-
-::: {.aside}
-Because they are sets they support set like operations, e.g. `union()`, `intersection()`, etc.
-:::
-
-
-## Index names
-
-Index objects can have names which are shown when printing the DataFrame or Index,
-
-::: {.small}
-```{python}
-df = pd.DataFrame(
-  np.random.randn(3, 3), 
-  index=pd.Index(['x','y','z'], name="rows"),
-  columns=pd.Index(['A', 'B', 'C'], name="cols")
-)
-df
-df.columns
-df.index
-```
-:::
-
-
-
-
-## Indexes and missing values
-
-It is possible for an index to contain missing values (e.g. `np.nan`) but this is generally a bad idea and should be avoided.
-
-::: {.small}
-```{python}
-pd.Index([1,2,3,np.nan,5])
-pd.Index(["A","B",np.nan,"D", None])
-```
-:::
-
-. . .
 
 <br/>
 
-Missing values can be replaced via the `fillna()` method,
+. . .
 
 ::: {.small}
 ```{python}
-pd.Index([1,2,3,np.nan,5]).fillna(0)
-pd.Index(["A","B",np.nan,"D", None]).fillna("Z")
+#| eval: false
+%timeit x * 2
 ```
-:::
-
-
-## Changing a DataFrame's index
-
-::: {.medium}
-Existing columns can be made into an index via `set_index()` and removed via `reset_index()`,
-:::
-
-```{python}
-#| include: false
-data = pd.DataFrame({
-  "a": ["bar","bar","foo","foo"],
-  "b": ["one","two","one","two"],
-  "c": ["z","y","x","w"],
-  "d": [1,2,3,4]
-})
 ```
-
-::: {.xsmall}
-```{python}
-data
+13.1 μs ± 297 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
 ```
 :::
 
 . . .
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.small}
 ```{python}
-data.set_index('a')
-data.set_index('c', drop=False)
+#| eval: false
+%timeit x * np.array([2])
+```
+```
+18.3 μs ± 96.4 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
 ```
 :::
 
-::: {.column width='50%' .fragment}
+. . .
+
+::: {.small}
 ```{python}
-data.set_index('a').reset_index()
-data.set_index('c').reset_index(drop=True)
+#| eval: false
+%timeit x * y
+```
+```
+61.4 μs ± 465 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+#| eval: false
+%timeit x * np.array([2]).repeat(1e5)
+```
+```
+99.2 μs ± 1.12 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+```
+:::
+
+## Rules for Broadcasting
+
+> When operating on two arrays, NumPy compares their shapes element-wise. It starts with the trailing (i.e. rightmost) dimensions and works its way left. Two dimensions are compatible when
+>
+>    1. they are equal, or
+>
+>    2. one of them is 1
+> 
+> If these conditions are not met, a `ValueError: operands could not be broadcast together` exception is thrown, indicating that the arrays have incompatible shapes. The size of the resulting array is the size that is not 1 along each axis of the inputs.
+
+
+::: {.aside}
+If you want numpy style broadcasting in R you can check out the [`rray`](https://rray.r-lib.org/index.html) package.
+:::
+
+## Example
+
+Why does the code on the left work but not the code on the right?
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+#| error: true
+x = np.arange(12).reshape((4,3)); x
+
+x + np.array([1,2,3])
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| error: true
+x = np.arange(12).reshape((3,4)); x
+
+x + np.array([1,2,3])
+```
+:::
+::::
+
+. . .
+
+:::: {.columns}
+::: {.column width='50%' .callout-note appearance="minimal"}
+```
+    x    (2d array): 4 x 3
+    y    (1d array):     3 
+    ----------------------
+    x+y  (2d array): 4 x 3
+```
+:::
+
+::: {.column width='50%' .callout-note appearance="minimal"}
+```
+    x    (2d array): 3 x 4
+    y    (1d array):     3 
+    ----------------------
+    x+y  (2d array): Error
 ```
 :::
 ::::
 
 
-## Creating a new index
 
-New index values can be attached to a DataFrame via `reindex()`,
+## A fix
+
+::: {.medium}
+```{python error=TRUE}
+x = np.arange(12).reshape((3,4)); x
+```
+
+```{python}
+x + np.array([1,2,3]).reshape(3,1)
+```
+:::
+
+. . .
+
+:::: {.columns}
+::: {.column width="25%"}
+&nbsp;
+:::
+::: {.column width="50%" .callout-note appearance="minimal"}
+```
+    x    (2d array): 3 x 4
+    y    (2d array): 3 x 1
+    ----------------------
+    x+y  (2d array): 3 x 4
+```
+:::
+::::
+
+## Examples (2)
+
+::: {.xsmall}
+```{python}
+x = np.array([0,10,20,30]).reshape((4,1))
+y = np.array([1,2,3])
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+x
+```
+```{python}
+y
+```
+:::
+
+::: {.column width='50%' .fragment}
+
+```{python}
+x+y
+```
+:::
+::::
+
+. . .
+
+![](imgs/numpy_broadcasting.png){fig-align="center" width="50%"}
+
+::: {.aside}
+From NumPy user guide - [Broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html)
+:::
+
+## Exercise 1
+
+For each of the following combinations determine what the resulting dimension will be using broadcasting
+
+* A [128 x 128 x 3] + B [3]
+
+* A [8 x 1 x 6 x 1] + B [7 x 1 x 5]
+
+* A [2 x 1] + B [8 x 4 x 3]
+
+* A [3 x 1] + B [15 x 3 x 5]
+
+* A [3] + B [4]
+
+
+## Demo 1 - Standardization
+
+Below we generate a data set with 3 columns of random normal values. Each column has a different mean and standard deviation which we can check with `mean()` and `std()`.
+
+:::: {.columns .small}
+::: {.column}
+```{python}
+rng = np.random.default_rng(1234)
+d = rng.normal(
+  loc=[-1,0,1], 
+  scale=[1,2,3],
+  size=(1000,3)
+)
+```
+
+```{python}
+d.shape
+```
+:::
+::: {.column}
+```{python}
+d.mean(axis=0)
+```
+
+```{python}
+d.std(axis=0)
+```
+:::
+::::
+
+Lets use broadcasting to standardize all three columns to have mean 0 and standard deviation 1. 
+
+
+
+## Broadcasting and assignment
+
+In addition to arithmetic operators, broadcasting can be used with assignment via array indexing,
+
+::: {.small}
+```{python error=TRUE}
+x = np.arange(12).reshape((3,4))
+y = -np.arange(4)
+z = -np.arange(3)
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x[:] = y
+x
+```
+```{python}
+x[...] = y
+x
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| error: true
+x[:] = z
+```
+```{python}
+x[:] = z.reshape((3,1))
+x
+```
+:::
+::::
+
+
+
+
+
+# JAX
+
+## JAX
+
+> JAX is a library for array-oriented numerical computation (à la NumPy), with automatic differentiation and JIT compilation to enable high-performance machine learning research.
+> 
+> * JAX provides a unified NumPy-like interface to computations that run on CPU, GPU, or TPU, in local or distributed settings.
+>
+> * JAX features built-in Just-In-Time (JIT) compilation via Open XLA, an open-source machine learning compiler ecosystem.
+>
+> * JAX functions support efficient evaluation of gradients via its automatic differentiation transformations.
+>
+> * JAX functions can be automatically vectorized to efficiently map them over arrays representing batches of inputs.
+
+::: {.small}
+```{python}
+import jax
+jax.__version__
+```
+:::
+
+## JAX & NumPy
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+import numpy as np
+
+x_np = np.linspace(0, 5, 51)
+y_np = 2 * np.sin(x_np) * np.cos(x_np)
+plt.plot(x_np, y_np)
+```
+```{python}
+type(x_np)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+import jax.numpy as jnp
+
+x_jnp = jnp.linspace(0, 5, 51)
+y_jnp = 2 * jnp.sin(x_jnp) * jnp.cos(x_jnp)
+plt.plot(x_jnp, y_jnp)
+```
+```{python}
+type(x_jnp)
+```
+:::
+::::
+
+
+
+##
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x_np
+```
+```{python}
+x_np.dtype
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+x_jnp
+```
+```{python}
+x_jnp.dtype
+```
+:::
+::::
+
+
+
+## Compatibility
+
+::: {.small}
+```{python}
+y_mix = 2 * np.sin(x_jnp) * jnp.cos(x_np); y_mix
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+type(y_mix)
+```
+:::
+
+## JAX Arrays
+
+As we've just seen a JAX array is very similar to a numpy array but there are some important differences.
+
+- JAX arrays are immutable
+
+::: {.xsmall}
+```{python}
+#| error: true
+x = jnp.array([3, 2, 1])
+x[0] = 2
+```
+:::
+
+- related to the above JAX does not support inplace operations - these functions now create and return a copy of the array
 
 ::: {.columns .xsmall}
 ::: {.column}
 ```{python}
-data
+y = x.sort()
+y
+x
 ```
 :::
-::: {.column .fragment}
+::: {.column}
 ```{python}
-data.reindex(columns = ["a","b","c","d","e"])
+np.shares_memory(x,y)
 ```
 :::
 :::
 
+##
 
-:::: {.columns .xsmall .fragment}
-::: {.column width='50%'}
+- The default JAX array dtypes 32 bits not 64 bits (i.e. `float32` not `float64` and `int32` not `int64`)
+
+  ::: {.columns .xsmall}
+  ::: {.column}
+  ```{python}
+  #| warning: true
+  jnp.array([1, 2, 3])
+  ```
+  :::
+  ::: {.column}
+  ```{python}
+  #| warning: true
+  jnp.array([1., 2., 3.])
+  ```
+  :::
+  :::
+
+  ::: {.xsmall}
+  ```{python}
+  #| warning: true
+  jnp.array([1, 2, 3], dtype=jnp.float64)
+  ```
+  :::
+
+  64-bit dtypes can be enabled by setting `jax_enable_x64=True` in the JAX configuration.
+
+  ::: {.xsmall}
+  ```{python}
+  jax.config.update("jax_enable_x64", True)
+  ```
+  :::
+
+  ::: {.columns .xsmall}
+  ::: {.column}
+  ```{python}
+  jnp.array([1, 2, 3])
+  ```
+  :::
+  ::: {.column}
+  ```{python}
+  jnp.array([1., 2., 3.])
+  ```
+  :::
+  :::
+
+
+
+
+##
+
+- JAX arrays are allocated to one *or more* devices
+
+::: {.columns .small}
+::: {.column}
 ```{python}
-data.reindex(["w","x","y","z"])
+jax.devices()
 ```
 :::
-
-::: {.column width='50%' .fragment}
+::: {.column}
 ```{python}
-data.index = ["w","x","y","z"]; data
+x.devices()
+x.sharding
 ```
 :::
-::::
-
-:::: {.columns .xsmall .fragment}
-::: {.column width='50%'}
-```{python}
-data.reindex(range(4,0,-1))
-```
-:::
-::: {.column width='50%'}
-```{python}
-data.index = range(4,0,-1); data
-```
-:::
-::::
-
-```{python include=FALSE}
-data.index = range(4)
-```
-
-
-# MultiIndexes
-
-## MultiIndex objects
-
-These are a hierarchical analog of standard Index objects and are used to represent nested indexes. There are a number of methods for constructing them based on the initial object
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-tuples = [('A','x'), ('A','y'),
-          ('B','x'), ('B','y'),
-          ('C','x'), ('C','y')]
-pd.MultiIndex.from_tuples(
-  tuples, names=["1st","2nd"]
-)
-```
 :::
 
-::: {.column width='50%'}
-```{python}
-pd.MultiIndex.from_product(
-  [["A","B","C"],
-   ["x","y"]], 
-  names=["1st","2nd"]
-)
-```
-:::
-::::
+- Using JAX interactively allows for the use of standard Python control flow (`if`, `while`, `for`, etc.) but this is not supported for some of JAX's more advanced operations (e.g. `jit` and `grad`)
 
-## DataFrame with MultiIndex
+  There are replacements for most of these constructs in JAX, but they are beyond the scope of today.
+
+
+
+# Random number generation
+
+## JAX vs NumPy
+
+Pseudo random number generation in JAX is a bit different than with NumPy - the latter depends on a global state that is updated each time a random function is called.
+
+NumPy's PRNG guarantees something called sequential equivalence which amounts to sampling N numbers sequentially is the same as sampling N numbers at once (e.g. a vector of length N).
 
 ::: {.small}
 ```{python}
-idx = pd.MultiIndex.from_tuples(
-  tuples, names=["1st","2nd"]
-)
-
-pd.DataFrame(
-  np.random.rand(6,2), 
-  index = idx, 
-  columns=["m","n"]
-)
+np.random.seed(0)
+f"individually: {np.stack([np.random.uniform() for i in range(5)])}"
 ```
-:::
-
-
-## Column MultiIndex
-
-MultiIndexes can also be used for columns as well,
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python error=TRUE}
-cidx = pd.MultiIndex.from_product(
-  [["A","B"],["x","y"]], names=["c1","c2"]
-)
-
-pd.DataFrame(
-  np.random.rand(4,4), columns = cidx
-)
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python error=TRUE}
-ridx = pd.MultiIndex.from_product(
-  [["m","n"],["l","p"]], names=["r1","r2"]
-)
-
-pd.DataFrame(
-  np.random.rand(4,4), 
-  index= ridx, columns = cidx
-)
-```
-:::
-::::
-
-
-
-## MultiIndex indexing
 
 ```{python}
-#| include: false
-data = pd.DataFrame(np.random.rand(4,4), index= ridx, columns = cidx)
+np.random.seed(0)
+f"at once: {np.random.uniform(size=5)}"
 ```
+:::
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
 
+## Parallelization & sequential equivalence
+
+Sequential equivalence can be problematic in when using parallelization across multiple devices, consider the following code:
+
+::: {.small}
 ```{python}
-data
-```
+np.random.seed(0)
 
-```{python error=TRUE}
-data["A"]
-data["x"]
-```
-:::
+def bar(): 
+  return np.random.uniform()
 
-::: {.column width='50%' .fragment}
-```{python error=TRUE}
-data["m"]
-data["m","A"]
-data["A","x"]
-data["A"]["x"]
-```
-:::
-::::
+def baz(): 
+  return np.random.uniform()
 
-
-## MultiIndex indexing via `iloc`
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python error=TRUE}
-data.iloc[0]
-type(data.iloc[0])
-data.iloc[(0,1)]
-data.iloc[[0,1]]
+def foo(): 
+  return bar() + 2 * baz()
 ```
 :::
 
-::: {.column width='50%'}
+How do we guarantee that we get consistent results if we don't know the order that `bar()` and `baz()` will run?
+
+
+## PRNG keys
+
+JAX makes use of *random keys* which are just a fancier version of random seeds - all of JAX's random functions require a key as their first argument.
+
+::: {.small}
 ```{python}
-data.iloc[:,0]
-type(data.iloc[:,0])
-data.iloc[0,1]
-data.iloc[0,[0,1]]
-```
-:::
-::::
-
-::: {.aside}
-Note that tuples and lists are not treated the same by pandas when it comes to indexing
-:::
-
-
-## MultiIndex indexing via `loc`
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python error=TRUE}
-data.loc["m"]
-data.loc["l"]
-data.loc[:,"A"]
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-data.loc[("m","l")]
-data.loc[:,("A","y")]
-```
-:::
-::::
-
-
-## Fancier indexing with `loc`
-
-Index slices can also be used with combinations of indexes and index tuples,
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python error=TRUE}
-data.loc["m":"n"]
-data.loc[("m","l"):("n","l")]
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-data.loc[("m","p"):"n"]
-data.loc[[("m","p"),("n","l")]]
-```
-:::
-:::: 
-
-
-## Selecting nested levels
-
-The previous methods don't give easy access to indexing on nested index levels, this is possible via the cross-section method `xs()`,
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python error=TRUE}
-data.xs("p", level="r2")
-data.xs("m", level="r1")
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-data.xs("y", level="c2", axis=1)
-data.xs("B", level="c1", axis=1)
-```
-:::
-:::: 
-
-
-
-## Setting MultiIndexes
-
-It is also possible to construct a MultiIndex or modify an existing one using `set_index()` and `reset_index()`,
-
-```{python}
-#| include: false
-data = pd.DataFrame({
-  "a": ["bar","bar","foo"],
-  "b": ["one","two","one"],
-  "c": ["z","y","x"],
-  "d": [1,2,3]
-})
-```
-
-::: {.xsmall}
-```{python}
-data
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-data.set_index(['a','b'])
-data.set_index('c', append=True)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-data.set_index(['a','b']).reset_index()
-data.set_index(['a','b']).reset_index(level=1)
-```
-:::
-::::
-
-
-
-# Working with DataFrames
-
-```{python}
-#| include: false
-
-np.random.seed(42)
-
-n = 5
-d = {
-  "id":     np.random.randint(100, 999, n),
-  "weight": np.random.normal(70, 20, n),
-  "height": np.random.normal(170, 15, n),
-  "date":   pd.date_range(start='2/1/2025', periods=n, freq='D')
-}
-
-df = pd.DataFrame(d, index = (["anna","bob","carol", "dave", "erin"]))
-```
-
-
-## Filtering rows
-
-The `query()` method can be used for filtering rows, it evaluates a string expression in the context of the data frame. 
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.query('date == "2022-02-01"')
-df.query('weight > 50')
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.query('weight > 50 & height < 165')
-
-qid = 202
-df.query('id == @qid')
-```
-:::
-::::
-
-
-
-::: {.aside}
-For more details on query syntax see [here](https://pandas.pydata.org/docs/user_guide/indexing.html#indexing-query)
-:::
-
-## Selecting Columns
-
-Beyond the use of `loc()` and `iloc()` there is also the `filter()` method which can be used to select columns (or indices) by name with pattern matching
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.filter(items=["id","weight"])
-df.filter(like = "i")
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.filter(regex="ght$")
-df.filter(like="a", axis=0)
-```
-:::
-::::
-
-
-
-## Adding columns
-
-Indexing with assignment allows for inplace modification of a DataFrame, while `assign()` creates a new object (but is chainable)
-
-::: {.xsmall}
-```{python}
-df['student'] = [True, True, True, False, None]
-df['age'] = [19, 22, 25, None, None]
-df
+key = jax.random.PRNGKey(1234); key
 ```
 :::
 
 . . .
 
+::: {.small}
+```{python}
+jax.random.normal(key)
+```
+```{python}
+jax.random.normal(key)
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+jax.random.normal(key, shape=(3,))
+```
+:::
+
+Note that JAX does not provide a sequential equivalence guarantee - this is so that it can support vectorization for the generation of PRN.
+
+
+## Splitting keys
+
+Since a key is essentially a seed we do not want to reuse them (unless we want an identical output). Therefore to generate multiple different PRN we can split a key to deterministically generate two (or more) new keys.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+key11, key12 = jax.random.split(key)
+f"{key=}"
+f"{key11=}"
+f"{key12=}"
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+key21, key22 = jax.random.split(key)
+f"{key=}"
+f"{key21=}"
+f"{key22=}"
+```
+:::
+::::
+
+. . .
+
 ::: {.xsmall}
 ```{python}
-df.assign(
-  student = lambda x: np.where(x.student, "yes", "no"),
-  rand = np.random.rand(5)
-)
+key3 = jax.random.split(key, num=3)
+key3
+```
+:::
+
+## 
+
+::: {.small}
+```{python}
+jax.random.normal(key, shape=(3,))
+```
+:::
+
+. . .
+ 
+::: {.columns .small}
+::: {.column}
+```{python}
+jax.random.normal(key11, shape=(3,))
+jax.random.normal(key12, shape=(3,))
+```
+:::
+::: {.column}
+
+```{python}
+jax.random.normal(key21, shape=(3,))
+jax.random.normal(key22, shape=(3,))
+```
+:::
+:::
+
+. . .
+
+::: {.small}
+```{python}
+jax.random.normal(key3[0], shape=(3,))
+jax.random.normal(key3[1], shape=(3,))
+jax.random.normal(key3[2], shape=(3,))
 ```
 :::
 
 
-## Removing columns (and rows)
+# JAX & jit
 
-Columns or rows can be removed via the `drop()` method,
+## JAX performance
 
-::: {.xsmall}
-```{python error=TRUE}
-df.drop(['student'])
-df.drop(['student'], axis=1)
-df.drop(['anna','dave'])
+::: {.small}
+```{python}
+key = jax.random.PRNGKey(1234)
+x_jnp = jax.random.normal(key, (1000,1000))
+x_np = np.array(x_jnp)
 ```
+:::
+
+::: {.small}
+```{python}
+#| eval: false
+%timeit y = x_np @ x_np
+```
+```
+1.09 ms ± 92.4 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+
+```{python}
+#| eval: false
+%timeit y = x_jnp @ x_jnp
+```
+```
+3.42 ms ± 122 μs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+#| eval: false
+%timeit y = 3*x_np + x_np
+```
+```
+514 μs ± 41 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+```{python}
+#| eval: false
+%timeit y = 3*x_jnp + x_jnp
+```
+```
+413 μs ± 24.2 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+:::
+
+
+## jit
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+def SELU_np(x, α=1.67, λ=1.05):
+  "Scaled Exponential Linear Unit"
+  return λ * np.where(x > 0, x, α * np.exp(x) - α)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+def SELU_jnp(x, α=1.67, λ=1.05):
+  "Scaled Exponential Linear Unit"
+  return λ * jnp.where(x > 0, x, α * jnp.exp(x) - α)
+```
+:::
+::::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+#| eval: false
+x = np.arange(1e6)
+%timeit y = SELU_np(x)
+```
+```
+4.08 ms ± 80 μs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| eval: false
+x = jnp.arange(1e6)
+%timeit y = SELU_jnp(x)
+```
+```
+1.58 ms ± 68.8 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+:::
+::::
+
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+#| error: true
+SELU_np_jit = jax.jit(SELU_np)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+SELU_jnp_jit = jax.jit(SELU_jnp)
+```
+:::
+::::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+
+```{python}
+#| error: true
+#| eval: false
+%timeit y = SELU_np_jit(x)
+```
+```
+TracerArrayConversionError: The numpy.ndarray conversion method __array__() was called on traced array with shape float32[1000000]
+```
+:::
+
+::: {.column width='50%' .fragment}
+
+```{python}
+#| eval: false
+%timeit y = SELU_jnp_jit(x)
+```
+```
+418 μs ± 13 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+:::
+::::
+
+
+## jit limitations
+
+When it works the jit tool is fantastic, but it does have a number of limitations,
+
+* Must use [pure functions](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html#pure-functions) (no side effects)
+
+* Must primarily use JAX functions
+  * e.g. use `jnp.minimum()` not `np.minimum()` or `min()`
+
+* Must generally avoid conditionals / control flow
+
+* Issues around concrete values when tracing (static values)
+
+* Check performance - there are not always gains + there is the initial cost of compilation
+
+
+# Automatic differentiation
+
+## Basics
+
+The `grad()` function takes a numerical function, returning a scalar, and returns a function for calculating the gradient of that function.
+
+:::: {.columns .xsmall}
+::: {.column width='33%' .fragment}
+```{python}
+def f(x):
+  return x**2
+```
+
+```{python}
+f(3.)
+```
+```{python}
+jax.grad(f)(3.)
+```
+```{python}
+jax.grad(
+  jax.grad(f)
+)(3.)
+```
+:::
+
+::: {.column width='33%' .fragment}
+```{python}
+def g(x):
+  return jnp.exp(-x)
+```
+
+```{python}
+g(1.)
+```
+```{python}
+jax.grad(g)(1.)
+```
+```{python}
+jax.grad(
+  jax.grad(g)
+)(1.)
+```
+:::
+
+::: {.column width='33%' .fragment}
+```{python}
+def h(x):
+  return jnp.maximum(0,x)
+```
+
+```{python}
+h(-2.)
+```
+```{python}
+h(2.)
+```
+```{python}
+jax.grad(h)(-2.)
+```
+```{python}
+jax.grad(h)(2.)
+```
+:::
+::::
+
+## Aside - `vmap()`
+
+I would like to plot `h()` and `jax.grad(h)()` - lets see what happens,
+
+::: {.small}
+```{python}
+#| error: true
+x = jnp.linspace(-3,3,101)
+y = h(x)
+y_grad = jax.grad(h)(x)
+```
+:::
+
+. . .
+
+As just mentiond, we can only calculate the gradient for scalar valued functions. However, we can transform our scalar function into a vectorized function using `vmap()`.
+
+::: {.small}
+```{python}
+h_grad = jax.vmap(
+  jax.grad(h)
+)
+y_grad = h_grad(x)
+```
+:::
+
+::: {.aside}
+`vmap()` is significantly more powerful than just this as it allows for mapping over multiple input and output axes
 :::
 
 ##
 
 ::: {.xsmall}
-```{python error=TRUE}
-df.drop(columns = df.columns == "age")
-df.drop(columns = df.columns[df.columns == "age"])
-df.drop(columns = df.columns[df.columns.str.contains("ght")])
-```
-:::
-
-
-
-## Sorting
-
-DataFrames can be sorted on one or more columns via `sort_values()`,
-
-::: {.small}
 ```{python}
-df
-```
-
-```{python error=TRUE}
-df.sort_values(by=["student","id"], ascending=[True,False])
+y_grad
 ```
 :::
 
+```{python}
+#| echo: false
 
-## join vs merge vs concat
+plt.figure(figsize=(10, 4))
 
-All three can be used to combine data frames,
+plt.subplot(121)
+plt.plot(x, y, "-b")
+plt.title("h(x)")
 
-* `concat()` stacks DataFrames on either axis, with basic alignment based on (row) indexes. `join` argument only supports "inner" and "outer".
+plt.subplot(122)
+plt.plot(x, y_grad, "-r")
+plt.title("∇h(x)")
 
-* `merge()` aligns based on one or more shared columns. `how` supports "inner", "outer", "left", "right", and "cross".
+plt.show()
+```
 
-* `join()` uses `merge()` behind the scenes, but prefers to join based on (row) indexes. Also has different default `how` compared to `merge()`, "left" vs "inner".
+## Another quick example
+
+::: {.xsmall}
+```{python}
+x = jnp.linspace(-6,6,101)
+f = lambda x: 0.5 * (jnp.tanh(x / 2) + 1)
+y = f(x)
+y_grad = jax.vmap(jax.grad(f))(x)
+```
+:::
+
+```{python}
+#| echo: false
+plt.figure(figsize=(10, 4))
+
+plt.subplot(121)
+plt.plot(x, y, "-b")
+plt.title("f(x)")
+
+plt.subplot(122)
+plt.plot(x, y_grad, "-r")
+plt.title("∇f(x)")
+
+plt.show()
+```

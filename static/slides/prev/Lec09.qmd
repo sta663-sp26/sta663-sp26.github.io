@@ -1,6 +1,6 @@
 ---
-title: "matplotlib / pyplot <br/> & seaborn"
-subtitle: "Lecture 9"
+title: "pandas / polars"
+subtitle: "Lecture 10"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:
@@ -13,20 +13,18 @@ execute:
   echo: true
 ---
 
-```{r setup}
+```{r config}
 #| include: false
-knitr::opts_chunk$set(
-  fig.align="center"
+options(
+  width=80
 )
 
 local({
-  hook_err_old <- knitr::knit_hooks$get("error")  # save the old hook
+  hook_old <- knitr::knit_hooks$get("error")  # save the old hook
   knitr::knit_hooks$set(error = function(x, options) {
-    # now do whatever you want to do with x, and pass
-    # the new x to the old hook
     x = sub("## \n## Detailed traceback:\n.*$", "", x)
     x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
-    hook_err_old(x, options)
+    hook_old(x, options)
   })
   
   hook_warn_old <- knitr::knit_hooks$get("warning")  # save the old hook
@@ -37,1162 +35,792 @@ local({
 })
 ```
 
-```{python}
-#| include: false
+```{python setup, include=FALSE}
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import pandas as pd
-import polars as pl
-```
 
-## matplotlib & pyplot
-
-> matplotlib is a comprehensive library for creating static, animated, and interactive visualizations in Python.
-
-```{python}
-import matplotlib as mpl
-```
-
-
-> `matplotlib.pyplot` is a collection of functions that make matplotlib work like MATLAB. Each `pyplot` function makes some change to a figure: e.g., creates a figure, creates a plotting area in a figure, plots some lines in a plotting area, decorates the plot with labels, etc.
-
-```{python}
 import matplotlib.pyplot as plt
+
+np.set_printoptions(edgeitems=3, linewidth=180)
 ```
-
-
-
-## Plot anatomy
-
-:::: {.columns}
-::: {.column width='50%'}
-```{r echo=FALSE, fig.align="center", out.width="95%"}
-knitr::include_graphics("imgs/anatomy.webp")
-```
-:::
-
-::: {.column width='50%'}
-* **Figure** - The entire plot (including subplots)
-
-* **Axes** - Subplot attached to a figure, contains the region for plotting data and x & y axis
-
-* **Axis** - Set the scale and limits, generate ticks and ticklabels
-
-* **Artist** - Everything visible on a figure: text, lines, axis, axes, etc.  
-:::
-::::
-
-
-## Basic plot - pyplot style
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-x = np.linspace(0, 2*np.pi, 100)
-y1 = np.sin(x)
-y2 = np.cos(x)
-
-plt.figure(figsize=(6, 3))
-plt.plot(x, y1, label="sin(x)")
-plt.plot(x, y2, label="cos(x)")
-plt.title("Simple Plot")
-plt.legend()
-```
-:::
-
-
-## Basic plot - OO style
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-x = np.linspace(0, 2*np.pi, 100)
-y1 = np.sin(x)
-y2 = np.cos(x)
-
-fig, ax = plt.subplots(figsize=(6, 3))
-ax.plot(x, y1, label="sin(x)")
-ax.plot(x, y2, label="cos(x)")
-ax.set_title("Simple Plot")
-ax.legend()
-```
-:::
-
-
-
-
-
-## Subplots (OO)
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-#| output-location: column
-#| code-line-numbers: "|5-7|9|11-13|15-17"
-x = np.linspace(0, 2*np.pi, 30)
-y1 = np.sin(x)
-y2 = np.cos(x)
-
-fig, (ax1, ax2) = plt.subplots(
-  2, 1, figsize=(6, 6)
-)
-
-fig.suptitle("Main title")
-
-ax1.plot(x, y1, "--b", label="sin(x)")
-ax1.set_title("subplot 1")
-ax1.legend()
-
-ax2.plot(x, y2, ".-r", label="cos(x)")
-ax2.set_title("subplot 2")
-ax2.legend()
-```
-:::
-
-
-## Subplots (pyplot)
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-#| output-location: column
-#| code-line-numbers: "|9-12|14-17"
-x = np.linspace(0, 2*np.pi, 30)
-y1 = np.sin(x)
-y2 = np.cos(x)
-
-plt.figure(figsize=(6, 6))
-
-plt.suptitle("Main title")
-
-plt.subplot(211)
-plt.plot(x, y1, "--b", label="sin(x)")
-plt.title("subplot 1")
-plt.legend()
-
-plt.subplot(2,1,2)
-plt.plot(x, y2, ".-r", label="cos(x)")
-plt.title("subplot 2")
-plt.legend()
-
-plt.show()
-```
-:::
-
-## More subplots
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-#| output-location: column
-#| code-line-numbers: "|3-6|10-13|15"
-x = np.linspace(-2, 2, 101)
-
-fig, axs = plt.subplots(
-  2, 2, 
-  figsize=(5, 5)
-)
-
-fig.suptitle("More subplots")
-
-axs[0,0].plot(x, x, "b", label="linear")
-axs[0,1].plot(x, x**2, "r", label="quadratic")
-axs[1,0].plot(x, x**3, "g", label="cubic")
-axs[1,1].plot(x, x**4, "c", label="quartic")
-
-[ax.legend() for row in axs for ax in row]
-```
-:::
-
-
-::: {.aside}
-`axs` here is a 2x2 numpy array of axes
-:::
-
-
-## Fancy subplots (mosaic)
-
-::: {.xsmall}
-```{python}
-#| output-location: column
-#| code-line-numbers: "|3-7|9,13|10,14|11,15"
-x = np.linspace(-2, 2, 101)
-
-fig, axd = plt.subplot_mosaic(
-  [['upleft', 'right'],
-   ['lowleft', 'right']],
-  figsize=(5, 5)
-)
-
-axd['upleft' ].plot(x, x,    "b", label="linear")
-axd['lowleft'].plot(x, x**2, "r", label="quadratic")
-axd['right'  ].plot(x, x**3, "g", label="cubic")
-
-axd['upleft'].set_title("Linear")
-axd['lowleft'].set_title("Quadratic")
-axd['right'].set_title("Cubic")
-```
-:::
-
-
-::: {.aside}
-`axd` here is a *dictionary* of axes
-:::
-
-## Format strings
-
-For quick formatting of plots (scatter and line) format strings are a useful shorthand, generally they use the format `'[marker][line][color]'`,
-
-<br/>
-
-:::: {.columns .small}
-::: {.column width='33%'}
-| character | shape          |
-|:---------:|----------------|
-| `.`       | point          |
-| `,`       | pixel          |
-| `o`       | circle         |
-| `v`       | triangle down  |
-| `^`       | triangle up    |
-| `<`       | triangle left  |
-| `>`       | triangle right |
-| ...       | + more         |
-:::
-
-::: {.column width='33%'}
-| character | line style |
-|:---------:|------------|
-| `-`       | solid      |
-| `--`      | dashed     |
-| `-.`      | dash-dot   |
-| `:`       | dotted     |
-:::
-
-::: {.column width='33%'}
-| character |	color   |
-|:---------:|---------|
-| `b`       |	blue    |
-| `g`       |	green   |
-| `r`       |	red     |
-| `c`       |	cyan    |
-| `m`       |	magenta |
-| `y`       |	yellow  |
-| `k`       |	black   |
-| `w`       |	white   |    
-:::
-::::
-
-
-::: {.aside}
-See Notes section of [pyplot.plot](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html) docs
-:::
-
-
-## Plotting data
-
-Beyond creating plots for arrays (and lists), addressable objects like dicts and DataFrames can be used via `data`,
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-#| output-location: column
-np.random.seed(19680801)
-d = {'x': np.arange(50),
-     'color': np.random.randint(0, 50, 50),
-     'size': np.abs(np.random.randn(50)) * 100}
-d['y'] = d['x'] + 10 * np.random.randn(50)
-
-
-plt.figure(figsize=(6, 3))
-plt.scatter(
-  'x', 'y', c='color', s='size', 
-  data=d
-)
-plt.xlabel("x-axis")
-plt.ylabel("y-axis")
-
-plt.show()
-```
-:::
-
-
-::: {.aside}
-Example from [Basic Usage](https://matplotlib.org/stable/tutorials/introductory/usage.html#types-of-inputs-to-plotting-functions) guide
-:::
-
-
-## Constrained layout
-
-To fix the axis label clipping we can use the "constrained" layout to adjust automatically,
-
-::: {.xsmall}
-```{python}
-#| fig-align: center
-#| output-location: column
-np.random.seed(19680801)
-d = {'x': np.arange(50),
-     'color': np.random.randint(0, 50, 50),
-     'size': np.abs(np.random.randn(50)) * 100}
-d['y'] = d['x'] + 10 * np.random.randn(50)
-
-
-plt.figure(
-  figsize=(6, 3), 
-  layout="constrained"
-)
-plt.scatter(
-  'x', 'y', c='color', s='size', 
-  data=d
-)
-plt.xlabel("x-axis")
-plt.ylabel("y-axis")
-
-plt.show()
-```
-:::
-
-
-## pyplot w/ pandas
-
-Data can also come from DataFrame objects or series, 
-
-
-::: {.small}
-```{python}
-#| output-location: slide
-rho = 0.75
-df = pd.DataFrame({
-  "x": np.random.normal(size=10000)
-}).assign(
-  y = lambda d: np.random.normal(rho*d.x, np.sqrt(1-rho**2), size=10000)
-)
-
-fig, ax = plt.subplots(figsize=(5,5))
-
-ax.scatter('x', 'y', c='k', data=df, alpha=0.1, s=0.5)
-
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_title(f"Bivariate normal ($\\rho={rho}$)")
-```
-:::
-
-## pyplot w/ polars
-
-Data can also come from DataFrame objects or series, 
-
-
-::: {.small}
-```{python}
-#| output-location: slide
-rho = -0.95
-df = pl.DataFrame({
-  "x": np.random.normal(size=10000)
-}).with_columns(
-  y = rho*pl.col("x") + np.random.normal(0, np.sqrt(1-rho**2), size=10000)
-)
-
-fig, ax = plt.subplots(figsize=(5,5))
-
-ax.scatter('x', 'y', c='k', data=df, alpha=0.1, s=0.5)
-
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-ax.set_title(f"Bivariate normal ($\\rho={rho}$)")
-```
-:::
-
-
-## Scales
-
-Axis scales can be changed via `plt.xscale()`, `plt.yscale()`, `ax.set_xscale()`, or `ax.set_yscale()`, supported values are "linear", "log", "symlog", and "logit".
-
-::: {.xsmall}
-```{python}
-#| output-location: slide
-y = np.sort( np.random.sample(size=1000) )
-x = np.arange(len(y))
-
-plt.figure(layout="constrained")
-
-scales = ['linear', 'log', 'symlog', 'logit']
-for i, scale in enumerate(scales):
-  plt.subplot(221+i)
-  plt.plot(x, y)
-  plt.grid(True)
-  if scale == 'symlog':
-    plt.yscale(scale, linthresh=0.01)
-  else:
-    plt.yscale(scale)
-  plt.title(scale)
-
-
-plt.show()
-```
-:::
-
-
-## Categorical data
-
-::: {.small}
-```{python}
-#| output-location: column
-df = pd.DataFrame({
-  "cat": ["A", "B", "C", "D", "E"],
-  "value": np.exp(range(5))
-})
-
-plt.figure(figsize=(4, 6), layout="constrained")
-
-plt.subplot(321)
-plt.scatter("cat", "value", data=df)
-plt.subplot(322)
-plt.scatter("value", "cat", data=df)
-
-plt.subplot(323)
-plt.plot("cat", "value", data=df)
-plt.subplot(324)
-plt.plot("value", "cat", data=df)
-
-plt.subplot(325)
-b = plt.bar("cat", "value", data=df)
-plt.subplot(326)
-b = plt.bar("value", "cat", data=df)
-
-plt.show()
-```
-:::
-
-```{python echo=FALSE}
-#| echo: false
-plt.clf()
-```
-
-
-## Histograms
-
-::: {.xsmall}
-```{python}
-#| output-location: column
-df = pd.DataFrame({
-  "x1": np.random.normal(size=100),
-  "x2": np.random.normal(1,2, size=100)
-})
-
-plt.figure(figsize=(4, 6), layout="constrained")
-
-plt.subplot(311)
-h = plt.hist("x1", bins=10, data=df, alpha=0.5)
-h = plt.hist("x2", bins=10, data=df, alpha=0.5)
-
-plt.subplot(312)
-h = plt.hist(df, alpha=0.5)
-
-plt.subplot(313)
-h = plt.hist(df, stacked=True, alpha=0.5)
-
-plt.show()
-```
-:::
-
-
-## Other Plot Types
-
-<iframe data-src="https://matplotlib.org/stable/plot_types/index.html" width="100%" height="550px" style="border:1px solid;border-radius: 5px;" data-external="1"></iframe>
-
-::: {.aside}
-[matplotlib.org/stable/plot_types/](https://matplotlib.org/stable/plot_types/index.html)
-:::
-
-
-## Exercise 1
-
-To the best of your ability recreate the following plot,
-
-```{r echo=FALSE, out.width="50%"}
-knitr::include_graphics("imgs/pyplot_simple.webp")
-```
-
-::: {.aside}
-From matplotlib [examples](https://matplotlib.org/stable/gallery/index.html)
-:::
-
-
-# Seaborn
-
-## seaborn
-
-> Seaborn is a library for making statistical graphics in Python. It builds on top of **matplotlib** and integrates closely with **pandas** data structures.
-> <br/><br/>
-> Seaborn helps you explore and understand your data. Its plotting functions operate on dataframes and arrays containing whole datasets and internally perform the necessary semantic mapping and statistical aggregation to produce informative plots. Its dataset-oriented, declarative API lets you focus on what the different elements of your plots mean, rather than on the details of how to draw them.
-
-::: {.small}
-```{python}
-import seaborn as sns
-```
-:::
-
-## Penguins data
-
-::: {.small}
-```{python}
-penguins = sns.load_dataset("penguins")
-penguins
-```
-:::
-
-
-## Basic plots
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| out-width: 75%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", 
-  y = "bill_depth_mm"
-)
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-#| out-width: 75%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", 
-  y = "bill_depth_mm",
-  hue = "species"
-)
-```
-:::
-::::
-
-
-## A more complex plot
-
-```{python}
-#| output-location: slide
-#| out-width: 60%
-sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  col = "island", row = "species"
-)
-```
-
-
-## Figure-level vs. axes-level functions
-
-```{r out.width = "66%", echo=FALSE}
-knitr::include_graphics("imgs/seaborn_levels.png")
-```
-
-::: {.aside}
-These are not the only axes-level functions - we will see additional plotting functions today
-:::
-
-
-## displots
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| out-width: 75%
-g = sns.displot(
-  data = penguins,
-  x = "bill_length_mm", 
-  hue = "species",
-  alpha = 0.5, aspect = 1.5
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 75%
-g = sns.displot(
-  data = penguins,
-  x = "bill_length_mm", hue = "species",
-  kind = "kde", fill=True,
-  alpha = 0.5, aspect = 1
-)
-```
-:::
-::::
-
-
-## catplots
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| out-width: 75%
-g = sns.catplot(
-  data = penguins,
-  x = "species", 
-  y = "bill_length_mm",
-  hue = "sex"
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 75%
-g = sns.catplot(
-  data = penguins,
-  x = "species", 
-  y = "bill_length_mm",
-  hue = "sex",
-  kind = "box"
-)
-```
-:::
-::::
-
-
-## figure-level plot size
-
-To adjust the size of plots generated via a figure-level plotting function adjust the `aspect` and `height` arguments, figure width is `aspect * height`.
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| out-width: 66%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  aspect = 1, height = 3
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 66%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  aspect = 1, height = 5
-)
-```
-:::
-::::
-
-::: {.aside}
-Note this is the size of a facet (Axes) not the figure
-:::
-
-
-## figure-level plots
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| out-width: 66%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  aspect = 1
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 90%
-h = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species", col = "island",
-  aspect = 1/2
-)
-```
-:::
-::::
-
-## figure-level plot objects
-
-Figure-level plotting methods return a `FacetGrid` object (which is a wrapper around lower level pyplot figure(s) and axes).
-
-```{python}
-print(g)
-print(h)
-```
-
-
-
-## FacetGird methods
-
-::: {.small}
-| Method              | Description     |
-|---------------------|:-------------------------------------------------------------------------|
-| `add_legend()`      | Draw a legend, maybe placing it outside axes and resizing the figure     |
-| `despine()`	        | Remove axis spines from the facets.                                      |
-| `facet_axis()`    	| Make the axis identified by these indices active and return it.          |
-| `facet_data()`	    | Generator for name indices and data subsets for each facet.              |
-| `map()`	            | Apply a plotting function to each facet’s subset of the data.            |
-| `map_dataframe()`	  | Like `.map()` but passes args as strings and inserts data in kwargs.     |
-| `refline()`	        | Add a reference line(s) to each facet.                                   |
-| `savefig()`	        | Save an image of the plot.                                               |
-| `set()`	            | Set attributes on each subplot Axes.                                     |
-| `set_axis_labels()`	| Set axis labels on the left column and bottom row of the grid.           |
-| `set_titles()`	    | Draw titles either above each facet or on the grid margins.              |
-| `set_xlabels()`	    | Label the x axis on the bottom row of the grid.                          |
-| `set_xticklabels()`	| Set x axis tick labels of the grid.                                      |
-| `set_ylabels()`	    | Label the y axis on the left column of the grid.                         |
-| `set_yticklabels()`	| Set y axis tick labels on the left column of the grid.                   |
-| `tight_layout()`	  | Call fig.tight_layout within rect that exclude the legend.               |
-:::
-
-
-## Adjusting labels
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-#| out-width: 66%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  aspect = 1
-).set_axis_labels(
-  "Bill Length (mm)", 
-  "Bill Depth (mm)"
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 90%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species", col = "island",
-  aspect = 1/2
-).set_axis_labels(
-  "Bill Length (mm)", 
-  "Bill Depth (mm)"
-).set_titles(
-  "{col_var} - {col_name}" 
-)
-```
-:::
-::::
-
-## FacetGrid attributes
-
-<br/><br/>
-
-| Attribute   | Description    |
-|-------------|:--------------------------------------------------------------------|
-| `ax`	      | The `matplotlib.axes.Axes` when no faceting variables are assigned. | 
-| `axes`	    | An array of the `matplotlib.axes.Axes` objects in the grid.         | 
-| `axes_dict` | A mapping of facet names to corresponding `matplotlib.axes.Axes`.   | 
-| `figure`	  | Access the `matplotlib.figure.Figure` object underlying the grid.   | 
-| `legend`    |	The `matplotlib.legend.Legend` object, if present.                  | 
-
-## Using axes to modify plots
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-#| out-width: 66%
-g = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  aspect = 1
-)
-g.ax.axvline(
-  x = penguins.bill_length_mm.mean(), c = "k"
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 90%
-h = sns.relplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species", col = "island",
-  aspect = 1/2
-)
-mean_bill_dep = penguins.bill_depth_mm.mean()
-
-[ ax.axhline(y=mean_bill_dep, c = "c") 
-  for row in h.axes for ax in row ]
-
-```
-:::
-::::
-
-
-## Why figure-level functions?
-
-<br/><br/>
-
-:::: {.columns}
-::: {.column width='50%'}
-#### Advantages:
-* Easy faceting by data variables
-* Legend outside of plot by default
-* Easy figure-level customization
-* Different figure size parameterization
-:::
-
-::: {.column width='50%'}
-#### Disadvantages:
-* Many parameters not in function signature
-* Cannot be part of a larger matplotlib figure
-* Different API from matplotlib
-* Different figure size parameterization
-:::
-::::
-
-::: {.aside}
-Details based on [seaborn docs](https://seaborn.pydata.org/tutorial/function_overview.html#relative-merits-of-figure-level-functions)
-:::
-
-
-## lmplots
-
-There is one additional figure-level plot type - `lmplot()` which is a convenient interface to fitting and ploting regression models across subsets of data,
-
-::: {.small}
-```{python}
-#| out-width: 100%
-sns.lmplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species", col = "island",
-  aspect = 1, truncate = False
-)
-```
-:::
-
-# axes-level plots
-
-## axes-level functions
-
-These functions return a `matplotlib.pyplot.Axes` object instead of a `FacetGrid`, giving more direct control over the plot using basic matplotlib tools.
-
-::: {.small}
-```{python}
-#| output-location: column
-plt.figure(figsize=(5,5))
-
-sns.scatterplot(
-  data = penguins,
-  x = "bill_length_mm",
-  y = "bill_depth_mm",
-  hue = "species"
-)
-
-plt.xlabel("Bill Length (mm)")
-plt.ylabel("Bill Depth (mm)")
-plt.title("Length vs. Depth")
-
-plt.show()
-```
-:::
-
-
-
-## subplots - pyplot style
-
-::: {.small}
-```{python}
-#| output-location: column
-plt.figure(
-  figsize=(4,6), 
-  layout = "constrained"
-)
-
-plt.subplot(211)
-sns.scatterplot(
-  data = penguins,
-  x = "bill_length_mm",
-  y = "bill_depth_mm",
-  hue = "species"
-)
-plt.legend().remove()
-
-plt.subplot(212)
-sns.countplot(
-  data = penguins,
-  x = "species"
-)
-
-plt.show()
-```
-:::
-
-
-
-## subplots - OO style
-
-::: {.small}
-```{python}
-#| output-location: column
-fig, axs = plt.subplots(
-  2, 1, figsize=(4,6), 
-  layout = "constrained",
-  sharex=True  
-)
-
-sns.scatterplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species",
-  ax = axs[0]
-)
-axs[0].get_legend().remove()
-
-sns.kdeplot(
-  data = penguins,
-  x = "bill_length_mm", hue = "species",
-  fill=True, alpha=0.5,
-  ax = axs[1]
-)
-
-plt.show()
-```
-:::
-
-
-## layering plots
-
-::: {.xsmall}
-```{python}
-#| output-location: column
-plt.figure(figsize=(5,5),
-           layout = "constrained")
-
-sns.kdeplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species"
-)
-sns.scatterplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species", alpha=0.5
-)
-sns.rugplot(
-  data = penguins,
-  x = "bill_length_mm", y = "bill_depth_mm",
-  hue = "species"
-)
-plt.legend()
-
-plt.show()
-```
-:::
-
-
-## Themes
 
 ```{python}
 #| include: false
-plt.close('all')
+
+np.random.seed(42)
+
+n = 5
+d = {
+  "id":     np.random.randint(100, 999, n),
+  "weight": np.random.normal(70, 20, n),
+  "height": np.random.normal(170, 15, n),
+  "date":   pd.date_range(start='2/1/2025', periods=n, freq='D')
+}
+
+df = pd.DataFrame(d, index = (["anna","bob","carol", "dave", "erin"]))
 ```
 
-Seaborn comes with a number of themes (`darkgrid`, `whitegrid`, `dark`, `white`, and `ticks`) which can be enabled at the figure level with `sns.set_theme()`  or at the axes level with `sns.axes_style()`.
+
+## Filtering rows
+
+The `query()` method can be used for filtering rows, it evaluates a string expression in the context of the data frame. 
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
-def sinplot():
-    plt.figure(figsize=(5,2), layout = "constrained")
-    x = np.linspace(0, 14, 100)
-    for i in range(1, 7):
-        plt.plot(x, np.sin(x + i * .5) * (7 - i))
-    plt.show()
-        
-sinplot()
+df.query('date == "2022-02-01"')
+df.query('weight > 50')
 ```
 :::
 
-
-::: {.column width='50%' .fragment}
+::: {.column width='50%'}
 ```{python}
-with sns.axes_style("darkgrid"):
-  sinplot()
+df.query('weight > 50 & height < 165')
+
+qid = 202
+df.query('id == @qid')
 ```
 :::
 ::::
+
+
+
+::: {.aside}
+For more details on query syntax see [here](https://pandas.pydata.org/docs/user_guide/indexing.html#indexing-query)
+:::
+
+## Selecting Columns
+
+Beyond the use of `loc()` and `iloc()` there is also the `filter()` method which can be used to select columns (or indices) by name with pattern matching
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+df.filter(items=["id","weight"])
+df.filter(like = "i")
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+df.filter(regex="ght$")
+df.filter(like="a", axis=0)
+```
+:::
+::::
+
+
+
+## Adding columns
+
+Indexing with assignment allows for inplace modification of a DataFrame, while `assign()` creates a new object (but is chainable)
+
+::: {.xsmall}
+```{python}
+df['student'] = [True, True, True, False, None]
+df['age'] = [19, 22, 25, None, None]
+df
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+df.assign(
+  student = lambda x: np.where(x.student, "yes", "no"),
+  rand = np.random.rand(5)
+)
+```
+:::
+
+
+## Removing columns (and rows)
+
+Columns or rows can be removed via the `drop()` method,
+
+::: {.xsmall}
+```{python error=TRUE}
+df.drop(['student'])
+df.drop(['student'], axis=1)
+df.drop(['anna','dave'])
+```
+:::
 
 ##
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-with sns.axes_style("whitegrid"):
-  sinplot()
-
-with sns.axes_style("dark"):
-  sinplot()
+::: {.xsmall}
+```{python error=TRUE}
+df.drop(columns = df.columns == "age")
+df.drop(columns = df.columns[df.columns == "age"])
+df.drop(columns = df.columns[df.columns.str.contains("ght")])
 ```
 :::
 
+
+
+## Sorting
+
+DataFrames can be sorted on one or more columns via `sort_values()`,
+
+::: {.small}
+```{python}
+df
+```
+
+```{python error=TRUE}
+df.sort_values(by=["student","id"], ascending=[True,False])
+```
+:::
+
+
+## join vs merge vs concat
+
+All three can be used to combine data frames,
+
+* `concat()` stacks DataFrames on either axis, with basic alignment based on (row) indexes. `join` argument only supports "inner" and "outer".
+
+* `merge()` aligns based on one or more shared columns. `how` supports "inner", "outer", "left", "right", and "cross".
+
+* `join()` uses `merge()` behind the scenes, but prefers to join based on (row) indexes. Also has different default `how` compared to `merge()`, "left" vs "inner".
+
+
+## Pivoting - long to wide 
+
+::: {.small}
+```{python include=FALSE}
+df = pd.DataFrame({
+   "country": ["A","A","A","A","B","B","B","B","C","C","C","C"],
+    "year":   [1999,1999,2000,2000,1999,1999,2000,2000,1999,1999,2000,2000],
+    "type":   ["cases","pop","cases","pop","cases","pop","cases","pop","cases","pop","cases","pop"],
+    "count":  ["0.7K", "19M", "2K", "20M", "37K", "172M", " 80K", "174M", "212K", "1T", "213K", "1T"]
+})
+```
+:::
+
+:::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-with sns.axes_style("white"):
-  sinplot()
+df
+```
+:::
 
-with sns.axes_style("ticks"):
-  sinplot()
+::: {.column width='50%' .fragment}
+```{python}
+df_wide = df.pivot(
+  index=["country","year"], 
+  columns="type", 
+  values="count"
+)
+df_wide
+```
+:::
+::::
+
+## pivot indexes
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df_wide.index
+df_wide.columns
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+( df_wide
+  .reset_index()
+  .rename_axis(
+    columns=None
+  )
+)
 ```
 :::
 ::::
 
 
-## Context
+## Wide to long (melt)
 
-:::: {.columns .xsmall}
+```{python include=FALSE}
+df = pd.DataFrame({
+  "country": ["A","B","C"],
+  "1999":    ["0.7K","37K","212K"],
+  "2000":    ["2K","80K","213K"]
+})
+```
+
+:::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-sns.set_context("notebook")
-sinplot()
-  
-sns.set_context("paper")
-sinplot()
+df
 ```
 :::
 
-::: {.column width='50%'}
+::: {.column width='50%' .fragment}
 ```{python}
-sns.set_context("talk")
-sinplot()
-
-sns.set_context("poster")
-sinplot()
+df_long = df.melt(
+  id_vars="country", 
+  var_name="year",
+  value_name="value"
+)
+df_long
 ```
 :::
 ::::
 
-```{python include=FALSE}
-sns.set_context("notebook")
-```
 
+## Exercise 1 - Tidying
 
-## Color palettes
+How would you tidy the following data frame so that the rate column is split into cases and population columns?
 
-```{python include=FALSE}
-def show_palette(pal=None, n=8):
-  x = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")[:n]
-  
-  plt.figure(figsize = (9,1), layout = "constrained")
-  sns.countplot(x=x, palette = sns.color_palette(pal, n))
-  plt.axis("off")
-  plt.show()
-  plt.close()
-```
-
-```{python include=FALSE}
-from io import BytesIO
-import matplotlib.image as mpimage
-
-def show_cont_palette(pal):
-  pal = sns.color_palette(pal, as_cmap=True)
-  png = BytesIO(pal._repr_png_())
-  img = mpimage.imread(png,"png")
-
-  plt.figure(figsize = (10,1), layout = "constrained")
-  plt.imshow(img)
-  plt.axis("off")
-  plt.show()
-  plt.close()
-```
-
-All of the examples below are the result of calls to `sns.color_palette()` with `as_cmap=True` for the continuous case,
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.small}
 ```{python}
-#| out-width: 75%
-show_palette()
-show_palette("tab10")
-show_palette("hls")
-
+df = pd.DataFrame({
+  "country": ["A","A","B","B","C","C"],
+  "year":    [1999, 2000, 1999, 2000, 1999, 2000],
+  "rate":    ["0.7K/19M", "2K/20M", "37K/172M", "80K/174M", "212K/1T", "213K/1T"]
+})
+df
 ```
 :::
 
-::: {.column width='50%'}
+
+
+
+# Split-Apply-Combine
+
+```{r include=FALSE}
+library(tidyverse)
+d = readr::read_csv(
+  "https://raw.githubusercontent.com/UBC-MDS/programming-in-python-for-data-science/master/data/cereal.csv"
+)
+
+d %>%
+  mutate(
+    mfr = case_when(
+      mfr == "A" ~ "Maltex",
+      mfr == "G" ~ "General Mills",
+      mfr == "K" ~ "Kellogg's",
+      mfr == "N" ~ "Nabisco",
+      mfr == "P" ~ "Post",
+      mfr == "Q" ~ "Quaker Oats",
+      mfr == "R" ~ "Ralston Purina"
+    )
+  ) %>%
+  select(-sodium, -potass, -vitamins, -shelf, -weight, -cups) %>%
+  select(-(protein:carbo)) %>%
+  write_csv("data/cereal.csv")
+```
+
+## cereal data 
+
+::: {.small}
 ```{python}
-#| out-width: 75%
-show_palette("husl")
-show_palette("Set2")
-show_palette("Paired")
+cereal = pd.read_csv("https://sta663-sp26.github.io/slides/data/cereal.csv")
+cereal
 ```
 :::
-::::
 
 ::: {.aside}
-See more examples in the color palettes [tutorial](https://seaborn.pydata.org/tutorial/color_palettes.html)
+From [UBC-MDS/programming-in-python-for-data-science](https://raw.githubusercontent.com/UBC-MDS/programming-in-python-for-data-science/master/data/)
 :::
 
-## Continuous palettes
+## groupby
 
-:::: {.columns .xsmall}
+Groups can be created within a DataFrame via `groupby()` - these groups are then used by the standard summary methods (e.g. `sum()`, `mean()`, `std()`, etc.).
+
+::: {.small}
+```{python}
+cereal.groupby("type")
+cereal.groupby("type").groups
+cereal.groupby("mfr").groups
+```
+:::
+
+## groupby and arregation methods
+
+::: {.small}
+```{python}
+#| error: true
+cereal.groupby("type").mean()
+```
+:::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python error=TRUE}
+( cereal
+  .groupby("type")
+  .mean(numeric_only=True)
+)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python error=TRUE}
+cereal.groupby("mfr").size()
+```
+:::
+::::
+
+## Selecting groups
+
+Groups can be accessed via `get_group()` 
+
+::: {.small}
+```{python error=TRUE}
+cereal.groupby("type").get_group("Hot")
+
+cereal.groupby("mfr").get_group("Post")
+```
+:::
+
+## Iterating groups
+
+`DataFrameGroupBy`'s can also be iterated over,
+
+
+::: {.xsmall}
+```{python}
+for name, group in cereal.groupby("type"):
+  print(f"# {name}\n{group}\n\n")
+```
+:::
+
+
+
+## Aggregation
+
+
+The `aggregate()` function or `agg()` method can be used to compute summary statistics for each group,
+
+::: {.small}
+```{python}
+#| error: true
+cereal.groupby("mfr").agg("mean")
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+#| error: true
+cereal.groupby("mfr").agg("mean", numeric_only = True)
+```
+:::
+
+::: {.aside}
+Think `summarize()` from dplyr.
+:::
+
+
+## Aggregation by column
+
+::: {.small}
+```{python}
+cereal.groupby("mfr").agg({
+  "calories": ['min', 'max'],
+  "sugars":   ['median'],
+  "rating":   ['sum', 'count']
+})
+```
+:::
+
+
+::: {.aside}
+Note that this results in a DataFrame with a column multiindex.
+:::
+
+## Named aggregation
+
+It is also possible to use special syntax to aggregate specific columns into a named output column,
+
+::: {.medium}
+```{python}
+cereal.groupby("mfr", as_index=False).agg(
+  min_cal = ("calories", "min"),
+  max_cal = ("calories", max),
+  med_sugar = ("sugars", "median"),
+  avg_rating = ("rating", np.mean)
+)
+```
+:::
+
+::: {.aside}
+Tuples can also be passed using `pd.NamedAgg()` but this offers no additional functionality.
+:::
+
+
+## Transformation
+
+The `transform()` method returns a DataFrame with the aggregated result matching the size (or length 1) of the input group(s),
+
+:::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-#| out-width: 75%
-show_cont_palette("viridis")
-show_cont_palette("cubehelix")
-show_cont_palette("light:b")
-show_cont_palette("dark:salmon_r")
+( cereal
+  .groupby("mfr")
+  .transform(
+    np.mean, numeric_only=True
+  )
+)
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-#| out-width: 75%
-show_cont_palette("YlOrBr")
-show_cont_palette("vlag")
-show_cont_palette("mako")
-show_cont_palette("rocket")
+( cereal
+  .groupby("type")
+  .transform(
+    "mean", numeric_only=True
+  )
+)
 ```
 :::
 ::::
 
 
-## Applying palettes
+## Practical transformation
 
-Palettes are applied via the `set_palette()` function,
+`transform()` will generally be most useful via a user defined function, the lambda is applied to each column of each group.
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.small}
 ```{python}
-sns.set_palette("Set2")
-sinplot()
-sns.set_palette("Paired")
-sinplot()
+( cereal
+  .drop(["name","type"], axis=1)
+  .groupby("mfr")
+  .transform( lambda x: (x - np.mean(x))/np.std(x, axis=0) ) 
+)
 ```
 :::
 
-::: {.column width='50%'}
+
+## Filtering groups
+
+::: {.small}
+`filter()` also respects groups and allows for the inclusion / exclusion of groups based on user specified criteria,
+:::
+
+::: {.panel-tabset}
+
+### filter 
+::: {.xsmall}
 ```{python}
-sns.set_palette("viridis")
-sinplot()
-sns.set_palette("rocket")
-sinplot()
+( cereal
+  .groupby("mfr")
+  .filter(lambda x: len(x) > 10)
+)
 ```
 :::
-::::
+
+### Group sizes
+
+::: {.columns .xsmall}
+```{python}
+( cereal
+  .groupby("mfr")
+  .size()
+)
+```
+:::
+
+
+:::
+
+# ![](imgs/polars_github_banner.svg){fig-align="center"}
+
+## polars
+
+> Polars is a blazingly fast DataFrame library for manipulating structured data. The core is written in Rust, and available for Python, R and NodeJS.
+> 
+> The goal of Polars is to provide a lightning fast DataFrame library that:
+>
+> * Utilizes all available cores on your machine.
+> * Optimizes queries to reduce unneeded work/memory allocations.
+> * Handles datasets much larger than your available RAM.
+> * A consistent and predictable API.
+> * Adheres to a strict schema (data-types should be known before running the query).
+
+::: {.small}
+```{python}
+import polars as pl
+pl.__version__
+```
+:::
+
+## Series
+
+::: {.small}
+Just like Pandas, Polars also has a `Series` type used for columns. For a complete list of polars dtypes see [here](https://docs.pola.rs/api/python/stable/reference/datatypes.html).
+:::
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+pl.Series("ints", [1, 2, 3, 4, 5])
+pl.Series("dbls", [1., 2., 3., 4., 5.])
+```
+:::
+::: {.column}
+```{python}
+pl.Series("bools", [True, False, True, False, True])
+pl.Series("strs", ["A", "B", "C", "D", "E"])
+```
+:::
+:::
+
+
+
+## Missing values
+
+::: {.small}
+In Polars, missing data is represented by the value `null`. This missing value `null` is used for all data types, including numerical types.
+:::
+
+::: {.columns .xsmall}
+::: {.column width=33%}
+```{python}
+pl.Series("ints", 
+  [1, 2, 3, None])
+pl.Series("dbls", 
+  [1., 2., 3., None])
+```
+:::
+::: {.column width=33% .fragment}
+```{python}
+pl.Series("bools", 
+  [True, False, True, None])
+pl.Series("strs", 
+  ["A", "B", "C", None])
+```
+:::
+::: {.column width=33% .fragment}
+```{python}
+#| error: true
+pl.Series("ints", 
+  [1, 2, 3, np.nan])
+pl.Series("dbls", 
+  [1., 2., 3., np.nan])
+```
+:::
+:::
+
+
+## Missing value checking
+
+Checking for missing values can be done via the `is_null()` method
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+pl.Series("ints", 
+  [1, 2, 3, None]).is_null()
+pl.Series("dbls", 
+  [1., 2., 3., None]).is_null()
+```
+:::
+::: {.column}
+```{python}
+pl.Series("dbls", 
+  [1., 2., 3., np.nan]).is_null()
+pl.Series("bools", 
+  [True, False, True, None]).is_null()
+```
+:::
+:::
+
+## DataFrames
+
+Data Frames can be constructed in the same was as Pandas, 
 
 ```{python}
 #| include: false
-sns.set_palette("tab10")
+np.random.seed(42)
+```
+
+::: {.xsmall}
+```{python}
+df = pl.DataFrame(
+  {
+    "name":   ["anna","bob","carol", "dave", "erin"],
+    "id":     np.random.randint(100, 999, 5),
+    "weight": np.random.normal(70, 20, 5),
+    "height": np.random.normal(170, 15, 5),
+    "date":   pd.date_range(start='2/1/2025', periods=5, freq='D')
+  },
+  schema_overrides = {"id": pl.UInt16, "weight": pl.Float32}
+)
+df
+```
+:::
+
+
+## Expressions
+
+Polars makes use of lazy evaluation to improve its flexibility and computational performance.
+
+```{python}
+bmi_expr = pl.col("weight") / (pl.col("height") ** 2)
+bmi_expr
+```
+
+<br/>
+
+This represents a potential computation that can be executed later. Much of the power of Polars comes from the ability to chain together / compose these expressions.
+
+## Contexts
+
+Contexts are the environments in which expressions are evaluated - examples of common contexts include: `select`, `with_columns`, `filter`, and `group_by`.
+
+::: {.columns .xsmall}
+::: {.column width=33%}
+```{python}
+df.select(bmi = bmi_expr)
+```
+:::
+::: {.column width=66%}
+```{python}
+df.with_columns(bmi = bmi_expr)
+```
+:::
+:::
+
+## `filter()`
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+df.filter(
+  pl.col("height") > 160,
+  pl.col("id") < 500
+)
+```
+:::
+::: {.column}
+```{python}
+df.filter(
+  (pl.col("height") > 160) | 
+  (pl.col("id") < 500)
+)
+```
+:::
+:::
+
+## `group_by()` & `agg()`
+
+::: {.small}
+```{python}
+df.group_by(
+  id_range = pl.col("id") - pl.col("id") % 100
+).agg(
+  pl.len(),
+  pl.col("name"),
+  bmi_expr.alias("bmi"),
+  pl.col("weight", "height").mean().name.prefix("avg_"),
+  med_height = pl.col("height").median()
+)
+```
+:::
+
+
+## More expression expansion
+
+::: {.small}
+```{python}
+num_cols = pl.col(pl.Float64, pl.Float32)
+
+df.with_columns(
+  ((num_cols - num_cols.mean())/num_cols.std()).name.suffix("_std")
+)
+```
+:::
+
+## NYC Taxi Data
+
+::: {.small}
+```{python}
+df = pl.scan_parquet(
+  "~/Scratch/nyctaxi/*_fix.parquet"
+)
+df
+```
+:::
+
+. . .
+
+::: {.small}
+
+```{python}
+df.select(pl.len()).collect()
+df.select(pl.len()).explain()
+```
+:::
+
+::: {.aside}
+These data are available on `rstudio.stat.duke.edu` in the `/data/nyctaxi` directory.
+:::
+
+## Large lazy queries
+
+::: {.xsmall}
+```{python}
+zone_lookup = pl.read_csv(
+  "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+).rename(
+  {"LocationID": "pickup_zone"}
+)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+query = (
+  df
+  .filter(pl.col("trip_distance") > 0)
+  .rename({"PULocationID": "pickup_zone"})
+  .group_by("pickup_zone")
+  .agg(
+    num_rides = pl.len(),
+    avg_fare_per_mile = (pl.col("fare_amount") / pl.col("trip_distance")).mean().round(2)
+  ).join(
+    zone_lookup.lazy(),
+    on = "pickup_zone",
+    how = "left"
+  )
+  .sort("pickup_zone")
+)
+```
+:::
+
+## Plan
+
+::: {.xsmall}
+```{python}
+query
+```
+:::
+
+## Result
+
+::: {.xsmall}
+```{python}
+query.collect()
+```
+:::
+
+
+## Performance
+
+```{python}
+#| eval: false
+%timeit query.collect()
+```
+```
+1.14 s ± 62 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 ```

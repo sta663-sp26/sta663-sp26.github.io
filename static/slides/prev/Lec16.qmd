@@ -1,5 +1,5 @@
 ---
-title: "Optimization - optax"
+title: "Optimization - SGD"
 subtitle: "Lecture 16"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -24,11 +24,8 @@ import warnings
 
 import jax
 import jax.numpy as jnp
+
 jax.config.update("jax_enable_x64", True)
-
-import optax
-
-import timeit
 
 import sklearn
 sklearn.set_config(display="text")
@@ -36,7 +33,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 
 plt.rcParams['figure.dpi'] = 200
-plt.rcParams['figure.constrained_layout.use'] = True
 
 np.set_printoptions(
   edgeitems=30, linewidth=75,
@@ -76,584 +72,350 @@ local({
 })
 ```
 
+# Stochastic Gradient Descent
 
-## SGD Libraries
-
-Most often you will be using the optimizer methods that come with your library of choice, all of the following have their own implementations:
-
-* Tensorflow / [Keras](https://keras.io/api/optimizers/)
-
-* [Torch](https://pytorch.org/docs/stable/optim.html)
-
-. . .
-
-Interestingly, JAX does not have builtin support for optimization beyond `jax.scipy.optimize.minimize()` which only supports the `BFGS` method.
-
-Google previously released [jaxopt](https://github.com/google/jaxopt/) to provide SGD and other optimization methods but this project is now deprecated with the code being merged into DeepMind's [Optax](https://github.com/google-deepmind/optax).
-
-
-
-## Optax
-
-::: {.small}
-> Optax is a gradient processing and optimization library for JAX.
-> 
-> Optax is designed to facilitate research by providing building blocks that can be easily recombined in custom ways.
-> 
-> Our goals are to
-> 
-> * Provide simple, well-tested, efficient implementations of core components.
-> 
-> * Improve research productivity by enabling to easily combine low-level ingredients into custom optimizers (or other gradient processing components).
-> 
-> * Accelerate adoption of new ideas by making it easy for anyone to contribute.
->
-> We favor focusing on small composable building blocks that can be effectively combined into custom solutions. Others may build upon these basic components in more complicated abstractions. Whenever reasonable, implementations prioritize readability and structuring code to match standard equations, over code reuse.x
-:::
-
-
-## Same regression example
+## A regression example
 
 ::: {.xsmall}
 ```{python}
-#| code-line-numbers: "|3|7,8"
+#| code-line-numbers: "|3"
 from sklearn.datasets import make_regression
 X, y, coef = make_regression(
-  n_samples=10000, n_features=20, n_informative=4, 
+  n_samples=200, n_features=20, n_informative=4, 
   bias=3, noise=1, random_state=1234, coef=True
 )
-
-X = jnp.c_[jnp.ones(len(y)), X]
-n, k = X.shape
-
-def lr_loss(beta, X, y):
-  return jnp.sum((y - X @ beta)**2)
 ```
 :::
 
+::: {.columns .xxsmall}
+::: {.column width=15%}
 ```{python}
-#| echo: false
-lm = LinearRegression(fit_intercept=False).fit(X,y)
-
-lm_loss = lr_loss(lm.coef_, X, y)
+y
 ```
-
-
-## Optax process
-
-::: {.xsmall}
-* Construct a `GradientTransformation` object, set optimizer settings
-
-  ::: {.xsmall}
-  ```{python}
-  optimizer = optax.sgd(learning_rate=0.0001); optimizer
-  ```
-  :::
-
-* Initialize the optimizer with the initial parameter values
-
-  ::: {.xsmall}
-  ```{python}
-  beta = jnp.zeros(k)
-  opt_state = optimizer.init(beta); opt_state
-  ```
-  :::
-
-* Perform iterations
-
-  * Calculate the current gradient and update for the optimizer
-
-    ::: {.xsmall}
-    ```{python}
-    f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
-    updates, opt_state = optimizer.update(grad, opt_state); updates, opt_state
-    ```
-    :::
-
-  * Apply the update to the parameter
-
-    ::: {.xsmall}
-    ```{python}
-    beta = optax.apply_updates(beta, updates); beta
-    ```
-    :::
-
+:::
+::: {.column width=70%}
+```{python}
+X
+```
+:::
+::: {.column width=15%}
+```{python}
+coef
+```
+:::
 :::
 
-
-## Basic Example - GD
-
-::: {.panel-tabset} 
-
-### Implementation
+## Minimalistic GD for LR
 
 ::: {.xsmall}
 ```{python}
-#| code-line-numbers: "|1|3,4|8,9|10"
-optimizer = optax.sgd(learning_rate=0.00001)
-
-beta = jnp.zeros(k)
-opt_state = optimizer.init(beta)
-
-gd_loss = []
-for iter in range(50):
-  f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
-  updates, opt_state = optimizer.update(grad, opt_state)
-  beta = optax.apply_updates(beta, updates)
-  gd_loss.append(f)
-
-beta
-```
-:::
-
-### Results
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-plt.plot(x, gd_loss, label = "GD")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-
-:::
-
-
-## Basic Optax Example - Adam
-
-::: {.panel-tabset} 
-
-### Implementation
-
-::: {.xsmall}
-```{python}
-optimizer = optax.adam(learning_rate=1, b1=0.9, b2=0.999, eps=1e-8)
-
-beta = jnp.zeros(k)
-opt_state = optimizer.init(beta)
-
-adam_loss = []
-for iter in range(50):
-  f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
-  updates, opt_state = optimizer.update(grad, opt_state)
-  beta = optax.apply_updates(beta, updates)
-  adam_loss.append(f)
-
-beta
-```
-:::
-
-### Results
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-plt.plot(x, gd_loss, label = "GD")
-plt.plot(x, adam_loss, label = "Adam")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-:::
-
-# A bit more on learning rate <br/> and batch size
-
-## Optax and mini batches
-
-::: {.xsmall}
-```{python}
-#| code-line-numbers: "|1|5,6|8-10,13|15-17|3,14,19-22"
-def optax_optimize(params, X, y, loss_fn, optimizer, steps=50, batch_size=1, seed=1234):
+#| code-line-numbers: "|11"
+def grad_desc_lm(X, y, beta, step, max_step=50):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
   n, k = X.shape
-  res = {"loss": [], "epoch": np.linspace(0, steps, int(steps*(n/batch_size) + 1))}
 
-  opt_state = optimizer.init(params)
-  grad_fn = jax.grad(loss_fn)
-
-  rng = np.random.default_rng(seed)
-  batches = np.array(range(n))
-  rng.shuffle(batches)
-
-  for iter in range(steps):
-    for batch in batches.reshape(-1, batch_size):
-      res["loss"].append(loss_fn(params, X, y).item())
-      grad = grad_fn(params, X[batch,:], y[batch])
-      updates, opt_state = optimizer.update(grad, opt_state)
-      params = optax.apply_updates(params, updates)
-      
-  res["params"] = params
-  res["loss"].append(loss_fn(params, X, y).item())
-
-  return(res)
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta: 2*X.T @ (X@beta - y)
+  
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  
+  for i in range(max_step):
+    beta = beta - grad(beta) * step
+    res["x"].append(beta)
+    res["loss"].append(f(beta).item())
+    res["iter"].append(res["iter"][-1]+1)
+    
+  return res
 ```
 :::
 
-## Fitting - SGD - Fixed LR (small)
 
-::: {.panel-tabset}
-
-### Implementation
+## Linear regression
 
 ::: {.xsmall}
 ```{python}
-batch_sizes = [10, 100, 1000, 10000]
-lrs = [0.00001] * 4 
-
-sgd = {
-  batch_size: optax_optimize(
-    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-    optimizer=optax.sgd(learning_rate=lr), 
-    steps=30, batch_size=batch_size, seed=1234
-  )
-  for batch_size, lr in zip(batch_sizes, lrs)
-}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
 ```
 :::
-
-### Results
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-for batch_size, lr in zip(batch_sizes, lrs):
-  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (mb={batch_size}, {lr=})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-:::
-
-## Fitting - SGD - Adjusted LR
-
-::: {.panel-tabset}
-
-### Implementation
-
-::: {.xsmall}
-```{python}
-batch_sizes = [10, 100, 1000, 10000]
-lrs = [0.005, 0.001, 0.0001, 0.00001]
-
-sgd = {
-  batch_size: optax_optimize(
-    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-    optimizer=optax.sgd(learning_rate=lr), 
-    steps=30, batch_size=batch_size, seed=1234
-  )
-  for batch_size, lr in zip(batch_sizes, lrs)
-}
-```
-:::
-
-### Full
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-for batch_size, lr in zip(batch_sizes, lrs):
-  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size}, {lr=})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-
-### Zoom
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-for batch_size in batch_sizes:
-  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-l = plt.xlim(0,3)
-plt.legend()
-plt.show()
-```
-:::
-
-
-
-## Fitting - SGD - Fixed LR, Small batch size
-
-::: {.panel-tabset} 
-
-### Implementation
-
-::: {.xsmall}
-```{python}
-batch_sizes = [10, 25, 50, 100]
-lrs = [0.001] * 4 
-
-sgd = {
-  batch_size: optax_optimize(
-    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-    optimizer=optax.sgd(learning_rate=lr), 
-    steps=2, batch_size=batch_size, seed=1234
-  )
-  for batch_size, lr in zip(batch_sizes, lrs)
-}
-```
-:::
-
-### Full
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-for batch_size, lr in zip(batch_sizes, lrs):
-  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size}, {lr=})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-
-### Zoom
-
-```{python}
-#| echo: false
-x = jnp.array(range(len(gd_loss)))
-plt.figure()
-for batch_size in batch_sizes:
-  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-l = plt.xlim(0,0.3)
-plt.legend()
-plt.show()
-```
-:::
-
-
-## Runtime per epoch
-
-::: {.panel-tabset} 
-
-### Implementation
-
-::: {.xsmall}
-```{python}
-batch_sizes = [10, 50, 100, 10000]
-lrs = [0.001] * 4 
-
-sgd_runtime = {
-  batch_size: timeit.Timer( lambda:
-    optax_optimize(
-      params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-      optimizer=optax.sgd(learning_rate=lr), 
-      steps=1, batch_size=batch_size, seed=1234
-    )
-  ).repeat(5,1)
-  for batch_size, lr in zip(batch_sizes, lrs)
-}
-```
-:::
-
-### Runtimes
-
-```{python}
-#| echo: false
-res = pd.DataFrame(sgd_runtime).melt(
-  value_name="time", var_name="batch_size"
-).merge(
-  pd.DataFrame({"batch_size": [10,50,100,10000], "scaler": [0.3,0.3,0.3,25]})
-).assign(
-  batch_size = lambda x: x.batch_size.astype(str),
-  full_time = lambda x: x.time * x.scaler
-)
-
-g = sns.catplot(
-  res, x="batch_size", y="time", aspect=1.5
-).set(
-  title="Runtime per epoch", ylabel="time (sec)"
-)
-```
-
-### Scaled
-
-```{python}
-#| echo: false
-g = sns.catplot(
-  res, x="batch_size", y="full_time", aspect=1.5
-).set(
-  title="Runtime to convergence", ylabel="time (sec)"
-)
-```
-:::
-
-## Some lessons / comments
-
-* Batch size determines both training time and computing resources
-
-* Generally there will be an inverse relationship between learning rate and batch size
-
-* Most optimizer hyperparameters are sensitive to batch size
-
-* For really large models batches are a necessity and sizing is often determined by resource / memory constraints
-
-
-# Adam 
-
-## Adam - Fixed LR
-
-::: {.panel-tabset}
-
-### Implementation
-
-::: {.xsmall}
-```{python}
-batch_sizes = [10, 25, 50, 100]
-lrs = [1]*4
-
-adam = {
-  batch_size: optax_optimize(
-    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-    optimizer=optax.adam(learning_rate=lr, b1=0.9, b2=0.999, eps=1e-8),
-    steps=2, batch_size=batch_size, seed=1234
-  )
-  for batch_size, lr in zip(batch_sizes, lrs)
-}
-```
-:::
-
-
-### Results
-
-```{python}
-#| echo: false
-plt.figure()
-for batch_size, lr in zip(batch_sizes, lrs):
-  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size}, {lr=})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-
-:::
-
-
-
-## Adam - Smaller Fixed LR
-
-::: {.panel-tabset}
-
-### Implementation
-
-::: {.xsmall}
-```{python}
-batch_sizes = [10, 25, 50, 100]
-lrs = [0.1]*4
-
-adam = {
-  batch_size: optax_optimize(
-    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-    optimizer=optax.adam(learning_rate=lr, b1=0.9, b2=0.999, eps=1e-8),
-    steps=10, batch_size=batch_size, seed=1234
-  )
-  for batch_size, lr in zip(batch_sizes, lrs)
-}
-```
-:::
-
-
-### Results
-
-```{python}
-#| echo: false
-plt.figure()
-for batch_size, lr in zip(batch_sizes, lrs):
-  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size}, {lr=})")
-plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
-plt.legend()
-plt.show()
-```
-
-:::
-
-
-## Learning rate schedules
-
-As mentioned last time, most gradient based methods are not guaranteed to converge unless their learning rates decay as a function of step number.
 
 . . .
 
 <br/>
 
-Optax supports a [large number](https://optax.readthedocs.io/en/latest/api/optimizer_schedules.html) of pre-built learning rate schedules which can be passed into any of its optimizers instead of a fixed floating point value.
-
 ::: {.xsmall}
 ```{python}
-schedule = optax.linear_schedule(
-    init_value=1., end_value=0., transition_steps=5
+gd_lm = grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=20
 )
-
-[schedule(step).item() for step in range(6)]
+gd_lm["x"][-1]
 ```
 :::
 
 
-## Adam w/ Exp Decay
+##
 
-::: {.panel-tabset}
+```{python}
+#| echo: false
+plt.plot("iter", "loss", data=gd_lm, label = "GD")
+plt.yscale("log")
+plt.xlabel("iter")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
 
-### Implementation
+## A quick analysis
+
+Lets take a quick look at the linear regression loss function and gradient descent and think a bit about its cost(s), we can define the loss function and its gradient as follows:
+
+$$
+\begin{aligned}
+f(\underset{k\times 1}{\boldsymbol{\beta}}) &=  (\underset{n \times 1}{y} - \underset{n\times k}{\boldsymbol{X}} \, \underset{k \times 1}{\boldsymbol{\beta}})^T (\underset{n \times 1}{y} - \underset{n\times k}{\boldsymbol{X}} \, \underset{k \times 1}{\boldsymbol{\beta}}) \\
+\\
+\nabla f(\underset{k\times 1}{\boldsymbol{\beta}}) &= \underset{k\times n}{2 \boldsymbol{X}^T}(\underset{n \times k}{\boldsymbol{X}}\,\underset{k\times 1}{\boldsymbol{\beta}} - \underset{n \times 1}{\boldsymbol{y}})\\
+%&= 
+%\left[ 
+%  \begin{matrix}
+%    2 \boldsymbol{X}_{\cdot 1}^T(\boldsymbol{X}_{\cdot 1}\boldsymbol{\beta}_1 - \boldsymbol{y}) \\
+%    2 \boldsymbol{X}_{\cdot 2}^T(\boldsymbol{X}_{\cdot 2}\boldsymbol{\beta}_2 - \boldsymbol{y}) \\
+%    \vdots \\
+%    2 \boldsymbol{X}_{\cdot k}^T(\boldsymbol{X}_{\cdot k}\boldsymbol{\beta}_k - \boldsymbol{y})
+%  \end{matrix} 
+%\right]
+\end{aligned}
+$$
+
+What are the costs of calculating the loss function and gradient respectively in terms of $n$ and $k$? 
+
+::: {.aside}
+*Hint* - $\underset{m \times n}{\boldsymbol{A}} \cdot \underset{n \times k}{\boldsymbol{B}}$ has complexity $O(mnk)$.
+:::
+
+. . .
+
+::: {.columns}
+::: {.column width=20%}
+:::
+::: {.column width=60%}
+* Calculating the loss costs ${O}(nk)$ 
+
+* Calculating the gradient costs ${O}(n^2k)$
+:::
+::: {.column width=20%}
+:::
+:::
+
+
+
+## Stochastic Gradient Descent
+
+This is a variant of gradient descent where rather than using all $n$ data points we randomly sample one at a time and use that single point to make our gradient step.
+
+* Sampling of observations can be done with or without replacement 
+
+* Will take more steps to converge but each step is now cheaper to compute
+
+* SGD has slower asymptotic convergence than GD, but is often faster in practice in terms of runtime
+
+* Generally requires the learning rate to shrink as a function of iteration to guarantee convergence
+
+
+## SGD - Linear Regression
 
 ::: {.xsmall}
 ```{python}
-batch_sizes = [10, 25, 50, 100]
+#| code-line-numbers: "|11-15|4,17,18|"
+def sto_grad_desc_lm(X, y, beta, step, max_step=50, seed=1234, replace=True):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:] * (X[i,:]@beta - y[i])
+  n, k = X.shape
 
-adam = {
-  batch_size: optax_optimize(
-    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-    optimizer=optax.adam(
-      learning_rate=optax.schedules.exponential_decay(
-        init_value=1,
-        transition_steps=100, 
-        decay_rate=0.9
-      ),
-      b1=0.9, b2=0.999, eps=1e-8
-    ),
-    steps=2, batch_size=batch_size, seed=1234
-  )
-  for batch_size in batch_sizes
-}
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+
+    for j in js:
+      beta = beta - grad(beta, j) * step
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
 ```
 :::
 
 
-### Results
+## Fitting
+
+::: {.xsmall}
+```{python}
+np.r_[lm.intercept_, lm.coef_]
+```
+
+```{python}
+sgd_lm_rep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=20, replace=True
+)
+sgd_lm_rep["x"][-1]
+```
+```{python}
+sgd_lm_worep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=20, replace=False
+)
+sgd_lm_worep["x"][-1]
+```
+:::
+
+
+## Learning by iteration
 
 ```{python}
 #| echo: false
 plt.figure()
-for batch_size in batch_sizes:
-  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size})")
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot("iter", "loss", data=sgd_lm_rep, label="SGD - replacement")
+plt.plot("iter", "loss", data=sgd_lm_worep, label="SGD - w/o replacement")
 plt.yscale("log")
-plt.xlabel("epoch")
-plt.ylabel("loss")
+plt.legend()
+plt.xlabel("iter")
+plt.ylabel("Loss")
+plt.show()
+```
+
+## Learning by Epochs
+
+Generally, rather than thinking in iterations we use epochs instead - an epoch is one complete pass through the data.
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+
+## A bigger example
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=10000, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
+```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+gd_lm = grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1),
+  step = 0.00005, max_step=3
+)
+gd_lm["x"][-1]
+```
+```{python}
+sgd_lm_rep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=3, replace=True
+)
+sgd_lm_rep["x"][-1]
+```
+```{python}
+sgd_lm_worep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=3, replace=False
+)
+sgd_lm_worep["x"][-1]
+```
+:::
+
+
+## Results
+
+::: {.panel-tabset} 
+
+### Full
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+lim = plt.xlim(0,0.3)
 plt.legend()
 plt.show()
 ```
@@ -661,286 +423,556 @@ plt.show()
 :::
 
 
+## Mini batch gradient descent
 
-## Runtime per epoch
+This is a further variant of stochastic gradient descent where a mini batch of $m$ data points is selected for each gradient update,
+
+* The idea is to find a balance between the cost of increasing the data size vs the speed-up of vectorized calculations.
+
+* More updates per epoch than GD, but less than SGD
+
+* Mini batch composition can be constructed by sampling data points with or without replacement
+
+## MBGD - Linear Regression
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|4|11-15|17|18,4"
+def mb_grad_desc_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, replace=True):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+
+    for j in js.reshape(-1, batch_size):
+      beta = beta - grad(beta, j) * step
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
+```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
+```
+```{python}
+sizes = [10,50,100]
+mbgd = { size: mb_grad_desc_lm(
+           X, y, np.zeros(X.shape[1]+1), batch_size=size,
+           step = 0.001, max_step=3, replace=False
+         )
+         for size in sizes }
+```
+
+```{python}
+#| echo: false
+for size in sizes:
+  print(f"Batch size: {size}")
+  print(mbgd[size]["x"][-1])
+  print("")
+
+```
+
+:::
+
+
+## Results
 
 ::: {.panel-tabset} 
 
-### Implementation
-
-::: {.xsmall}
-```{python}
-batch_sizes = [10, 25, 50, 100]
-
-adam_runtime = {
-  batch_size: timeit.Timer( lambda:
-    optax_optimize(
-      params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
-      optimizer=optax.adam(
-        learning_rate=optax.schedules.exponential_decay(
-          init_value=1,
-          transition_steps=100, 
-          decay_rate=0.9
-        ),
-        b1=0.9, b2=0.999, eps=1e-8
-      ),
-      steps=1, batch_size=batch_size, seed=1234
-    )
-  ).repeat(5,1)
-  for batch_size in batch_sizes
-}
-```
-:::
-
-### Runtimes
+### Full
 
 ```{python}
 #| echo: false
-res = pd.DataFrame(adam_runtime).melt(
-  value_name="time", var_name="batch_size"
-).merge(
-  pd.DataFrame({"batch_size": [10, 25, 50, 100], "scaler": [0.18,0.3,0.63,1.4]})
-).assign(
-  batch_size = lambda x: x.batch_size.astype(str),
-  full_time = lambda x: x.time * x.scaler
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
 )
-
-g = sns.catplot(
-  res, x="batch_size", y="time", aspect=1.5
-).set(
-  title="Runtime per epoch", ylabel="time (sec)"
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
 )
-```
-
-### Scaled
-
-```{python}
-#| echo: false
-g = sns.catplot(
-  res, x="batch_size", y="full_time", aspect=1.5
-).set(
-  title="Runtime to convergence", ylabel="time (sec)"
-)
-```
-:::
-
-
-## Some advice ... {.smaller}
-
-The following is from Google Research's [Tuning Playbook](https://github.com/google-research/tuning_playbook?tab=readme-ov-file#choosing-the-optimizer):
-
-> * No optimizer is the "best" across all types of machine learning problems and model architectures. Even just comparing the performance of optimizers is a difficult task. 🤖
->
-> * We recommend sticking with well-established, popular optimizers, especially when starting a new project.
->   * Ideally, choose the most popular optimizer used for the same type of problem.
->
-> * Be prepared to give attention to *all* hyperparameters of the chosen optimizer.
->   * Optimizers with more hyperparameters may require more tuning effort to find the best configuration.
->   * This is particularly relevant in the beginning stages of a project when we are trying to find the best values of various other hyperparameters (e.g. architecture hyperparameters) while treating optimizer hyperparameters as nuisance parameters.
->   * It may be preferable to start with a simpler optimizer (e.g. SGD with fixed momentum or Adam with fixed $\epsilon$, $\beta_1$, and $\beta_2$) in the initial stages of the project and switch to a more general optimizer later.
->
-> * Well-established optimizers that we like include (but are not limited to):
->   * SGD with momentum (we like the Nesterov variant)
->   * Adam and NAdam, which are more general than SGD with momentum. Note that Adam has 4 tunable hyperparameters and they can all matter!
-
-# Optimization in R
-
-## Basic optimization
-
-The equivalent of `scipy`'s `optimize.minimize()` for unconstrained continuous optimization problems in R is `stats::optim()` - there is nearly a 1-to-1 correspondence between the two functions and the available optimizers.
-
-::: {.small}
-```r
-optim(par, fn, gr = NULL, …,
-      method = c("Nelder-Mead", "BFGS", "CG", "L-BFGS-B", "SANN",
-                 "Brent"),
-      lower = -Inf, upper = Inf,
-      control = list(), hessian = FALSE)
-```
-:::
-
-. . .
-
-The only missing method from `scipy` is `Newton-CG` and there is the addition of the `SANN` method which is a variant of simulated annealing and does not require gradient information. However, it is slow and very sensitive to its control parameters and is not considered a general-purpose method.
-
-. . .
-
-All other tuning knobs are hidden in `control` - see the documentation for details. Most important options include: `maxit`, `abstol`, and `reltol`.
-
-
-## Return values
-
-`optim()` returns a list of results, most of which are expected: `par` the minimizer, `value` objective function at `par`, `counts` the number of function and gradient evaluations.
-
-"Success" of the optimization is reported by `convergence` which is a little bit weird (think unix exit codes):
-
-* `0` - indicates successful convergence based on the criteria specified by `control`
-
-* `1` - indicates failure due to reaching the `maxit` limit
-
-* Any other number indicates a special case depending on the method, check `message`
-
-
-## Usage
-
-::: {.xsmall}
-```{r}
-## Rosenbrock Banana function
-f = function(x) {
-  100 * (x[2] - x[1] * x[1]) ^ 2 + (1 - x[1]) ^ 2
-}
-grad = function(x) {
-  c(-400 * x[1] * (x[2] - x[1] * x[1]) - 2 * (1 - x[1]),
-    200 * (x[2] - x[1] * x[1]))
-}
-x0 = c(-1.2, 1)
-```
-:::
-
-::: {.columns .xsmall}
-::: {.column}
-```{r}
-optim(x0, f, grad, method = "BFGS")
-```
-:::
-::: {.column}
-```{r}
-optim(x0, f, grad, method = "CG")
-```
-:::
-:::
-
-## SGD related methods
-
-For any of these algorithms you will generally be depending on the underlying modeling library to make them available to you, for example:
-
-* Keras [optimizers](https://tensorflow.rstudio.com/reference/keras/#optimizers) implemented
-
-* Torch [optimizers](https://torch.mlverse.org/docs/reference/#optimizers)
-
-Details are library dependent.
-
-
-## `optimx`
-
-> optimx is an R package that extends and enhances the optim() function of base R, in particular by unifying the call to many solvers.
-
-Makes a variety of solvers from different packages available with a unified calling framework.
-
-Packages include: `pracma`, `minqa`, `dfoptim`, `lbfgs`, `lbfgsb3c`, `marqLevAlg`, `nloptr`, `dfoptim`, `BB`, `subplex`, and `ucminf`
-
-
-## `nloptr`
-
-Wrapper around the [NLopt](https://nlopt.readthedocs.io/en/latest/) library (which also has a Python interface).
-
-* Provides a large number of global and local solvers (including everything available in optim)
-
-* Provides more robust support for constrained optimization problems
-
-
-## Usage
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{r}
-## Rosenbrock Banana function
-f = function(x) {
-  100 * (x[2] - x[1] * x[1]) ^ 2 + (1 - x[1]) ^ 2
-}
-
-grad = function(x) {
-  c(-400 * x[1] * (x[2] - x[1] * x[1]) - 2 * (1 - x[1]),
-    200 * (x[2] - x[1] * x[1]))
-}
-
-x0 = c(-1.2, 1)
-```
-:::
-
-::: {.column width='50%'}
-```{r}
-nloptr::nloptr(
-  x0 = x0,
-  eval_f = f, eval_grad_f = grad,
-  opts = list(
-    "algorithm" = "NLOPT_LD_LBFGS", 
-    "xtol_rel" = 1.0e-8
+for size in sizes:
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(mbgd[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=f"MBGD ({size})"
   )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
 )
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+for size in sizes:
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(mbgd[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=f"MBGD ({size})"
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+lim = plt.xlim(0,0.125)
+plt.legend()
+plt.show()
 ```
 :::
-::::
 
 
+## A bit of theory
+
+We've talked a bit about the computational side of things, but why do these approaches work at all?
+
+. . .
+
+In statistics and machine learning many of our problems have a form that looks like,
+
+$$
+\underset{\theta}{\text{arg min}} \; \ell(\boldsymbol{X}, \theta)  = \underset{\theta}{\text{arg min}} \; \frac{1}{n} \sum_{i=1}^n \ell(\boldsymbol{X}_i, \theta)
+$$
+
+which means that the gradient of the loss function is given by
+
+$$
+\nabla \ell(\boldsymbol{X}, \theta) = \frac{1}{n} \sum_{i=1}^n \nabla \ell(\boldsymbol{X}_i, \theta)
+$$
+
+. . .
+
+$$
+\nabla \ell(\boldsymbol{X}, \theta) \approx \frac{1}{|B|} \sum_{i \in B}^n \nabla \ell(\boldsymbol{X}_i, \theta)
+$$
+
+## SGD estimator
+
+Because we are sampling $B$ randomly, then our SGD and mini batch GD approximations are unbiased estimated of the full gradient,
+
+$$
+E\left[ \frac{1}{|B|} \sum_{i \in B}^n \nabla \ell(\boldsymbol{X}_i, \theta) \right] = \frac{1}{n} \sum_{i=1}^n \nabla \ell(\boldsymbol{X}_i, \theta) = \nabla \ell(\boldsymbol{X}, \theta)
+$$
+
+Each update can be viewed as a noisy gradient descent step (gradient + zero mean noise).
+
+* The difference between mini batch and stochastic gradient descent is that by increasing the computation cost per step we are reducing the noise variance for that step
 
 
+## Limitations
+
+As mentioned previously we need to be a bit careful with learning rates and convergence for both of these methods. So far, our approach has been naive and runs for a fixed number of epochs. 
+
+If we want to use a convergence criterion we need to keep the following in mind:
+
+* Let $\theta^*$ be a global / local minimizer of our loss function $\ell(\boldsymbol{X},\theta)$, then by definition $\nabla \ell(\boldsymbol{X},\theta^*) = 0$
+
+* The issue is that our gradient approximation,
+  $$
+  \frac{1}{|B|} \sum_{i \in B}^n \nabla \ell(\boldsymbol{X}_i, \theta) \ne 0
+  $$
+  as $B$ is a subset of the data, therefore our algorithm will keep taking steps / never converge.
 
 
-## Constrained Example
-:::: {.columns}
-::: {.column width='50%'}
-![](imgs/NLopt-example-constraints.webp){width="100%" fig-align=center}
-:::
+## Solution
 
-::: {.column width='50%'}
+The practical solution to this is to implement a learning rate schedule which generally shrink the learning rate / step size over time to ensure convergence.
+
+The choice of the exact learning schedule is problem specific, and is usually about finding the balance of how quickly to shrink the step size.
+
+Some common examples:
+
+* Piecewise constant - $\eta_t = \eta_i \text{ if } t_i \leq t \leq t_{i+1}$
+
+* Exponential decay - $\eta_t = \eta_0 e^{-\lambda t}$
+
+* Polynomial decay - $\eta_t = \eta_0 (\beta t+1)^{-\alpha}$
+
+There are many more approaches including more exotic techniques that allow the learning rate to increase and decrease to help the optimizer better explore the objective function and in some cases escape local optima.
+
+
+# Adaptive updates & Momentum 
+
+## AdaGrad
+
+This approach was proposed in by Duchi, Hazan, & Singer in 2011 and is based on the idea of scaling the learning rates for the current step by the sum of the square gradients of previous steps - this has the effect of shrinking the step size of dimensions with large previous gradients.
+
 $$
 \begin{aligned}
-&\min_{x \in R^n} \sqrt{x_2} \\
-\text{s.t.} \quad  & x_2 \geq 0 \\
-&(a_1 x_1 + b_1)^3 - x_2 \leq 0 \\
-&(a_2 x_1 + b_2)^3 - x_2 \leq 0
+\boldsymbol{\theta}_{t+1} &= \boldsymbol{\theta}_t - \eta_t \frac{1}{\sqrt{\boldsymbol{s}_t + \epsilon}} \odot \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t)\\
+\boldsymbol{s}_t &= \sum_{i=1}^t \left(\nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_i)\right)^2
 \end{aligned}
 $$
 
-where $a_1 = 2$, $b_1 = 0$, $a_2 = -1$, and $b_2 = 1$.
+here $\epsilon$ is a small constant (i.e. $10^{-7}$) to avoid division by zero.
 
-:::
-::::
-
-
-
-
-::: {.aside}
-From [NLopt Tutorial](https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/) & [NLoptR vignette](https://astamm.github.io/nloptr/articles/nloptr.html#minimization-with-inequality-constraints)
-:::
 
 ## Implementation
 
 ::: {.xsmall}
-```{r}
-#| output-location: column
-# Objective function & gradient
-f = function(x, a, b) {
-  sqrt(x[2])
-}
-grad_f = function(x, a, b)  {
-  c(0, 0.5 / sqrt(x[2]))
-}
+```{python}
+#| code-line-numbers: "|10|20-23"
+def adagrad_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, replace=True, eps=1e-8):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
 
-# Constraint function
-g = function(x, a, b) {
-  (a * x[1] + b) ^ 3 - x[2]
-}
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
 
-# Jacobian of constraint
-jac_g = function(x, a, b) {
-  rbind(
-    c(3 * a[1] * (a[1] * x[1] + b[1]) ^ 2, -1.0),
-    c(3 * a[2] * (a[2] * x[1] + b[2]) ^ 2, -1.0)
-  )
-}
+  S = np.zeros(k)
 
-a = c(2, -1)
-b = c(0, 1)
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
 
-nloptr::nloptr(
-  x0 = c(1.234, 5.678),
-  eval_f = f, eval_grad_f = grad_f,
-  lb = c(-Inf, 0), ub = c(Inf, Inf),
-  eval_g_ineq = g, eval_jac_g_ineq = jac_g,
-  opts = list("algorithm" = "NLOPT_LD_MMA",
-              "xtol_rel" = 1.0e-8),
-  a = a, b = b)
+    for j in js.reshape(-1, batch_size):
+      G = grad(beta, j)
+      S += G**2
+      
+      beta = beta - step * (1/np.sqrt(S + eps)) * G
+      
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
 ```
 :::
+
+
+## A medium example
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=1000, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
+```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+sizes = [1, 25, 50, 1000]
+lrs = [10] * 4
+algos = ["AdaGrad - SGD", "AdaGrad - MBGD (25)", "AdaGrad - MBGD (50)", "AdaGrad - GD"]
+
+adagrad = { size: adagrad_lm(
+                    X, y, np.zeros(X.shape[1]+1), batch_size=size,
+                    step = lr, max_step=7, replace=True, eps=1e-8
+                  )
+            for size, lr in zip(sizes,lrs) }
+```
+
+```{python}
+#| echo: false
+for size, algo in zip(sizes, algos):
+  print(algo)
+  print(adagrad[size]["x"][-1])
+  print("")
+
+```
+:::
+
+## Results
+
+```{python}
+#| echo: false
+plt.figure()
+for size, algo in zip(sizes, algos):
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(adagrad[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=algo
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+
+## RMSProp
+
+With AdaGrad the denominator involving $\boldsymbol{s}_t$ gets larger as $t$ increases, but in some cases it gets too large too fast to effectively explore the loss function. An alternative is to use a moving average of the past squared gradients instead.
+
+RMSProp replaces AdaGrad's $\boldsymbol{s}_t$ with the following,
+
+$$
+\boldsymbol{s}_t = \beta \, \boldsymbol{s}_{t-1} + (1-\beta) \, (\nabla \ell(\boldsymbol{X},\boldsymbol{\theta}_t))^2 \\
+\boldsymbol{s}_0 = \boldsymbol{0}
+$$
+
+in practice a value of $\beta \approx 0.9$ is often used.
+
+
+## Implementation
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|21"
+def rmsprop_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, replace=True, eps=1e-8, b=0.9):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+  
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+  
+  S = np.zeros(k)
+  
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+    
+    for j in js.reshape(-1, batch_size):
+      G = grad(beta, j)
+      S = b*S + (1-b) * G**2
+      
+      beta = beta - step * (1/np.sqrt(S + eps)) * G
+      
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
+```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+sizes = [1, 25, 50, 1000]
+lrs = [0.01, 0.1, 0.25, 1]
+algos = ["RMSProp - SGD", "RMSProp - MBGD (25)", "RMSProp - MBGD (50)", "RMSProp - GD"]
+
+rmsprop = { size: rmsprop_lm(
+                    X, y, np.zeros(X.shape[1]+1), batch_size=size,
+                    step = lr, max_step=25, replace=True
+                  )
+            for size, lr in zip(sizes,lrs) }
+```
+
+```{python}
+#| echo: false
+for size, algo in zip(sizes, algos):
+  print(algo)
+  print(rmsprop[size]["x"][-1])
+  print("")
+
+```
+:::
+
+## Results
+
+```{python}
+#| echo: false
+plt.figure()
+for size, algo in zip(sizes, algos):
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(rmsprop[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=algo
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+## Momentum
+
+Rather then just using the gradient information at our current location it may be benefitial to use information from our previous steps as well. A general setup for this type approach looks like,
+
+$$
+\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \, \boldsymbol{m}_t \\
+\boldsymbol{m}_t = \beta \, \boldsymbol{m}_{t-1} + (1-\beta) \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t)
+$$
+
+where $\eta$ is our step size and $\beta$ determines the weighting of the current gradient and the previous gradients.
+
+If you have taken a course on time series, this has a flavor that looks a lot like moving average models,
+
+$$
+\boldsymbol{m}_t = (1-\beta) \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t) + \beta(1-\beta) \, \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_{t-1}) + \beta^2(1-\beta) \, \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_{t-2}) + \cdots
+$$
+
+## Adam
+
+The "adaptive moment estimation" algorithm is a combination of momentum with RMSProp,
+
+$$
+\begin{aligned}
+\theta_{t+1} &= \theta_t - \eta_t \frac{\boldsymbol{m_t}}{\sqrt{\boldsymbol{s}_t + \epsilon}} \\
+\boldsymbol{m}_t &= \beta_1 \, \boldsymbol{m}_{t-1} + (1-\beta_1) \, \nabla \ell(\boldsymbol{X}, \theta_t) \\
+\boldsymbol{s}_t &= \beta_2 \, \boldsymbol{s}_{t-1} + (1-\beta_2) \, (\nabla \ell(\boldsymbol{X},\boldsymbol{\theta}_t))^2 \\
+\end{aligned}
+$$
+
+Note that RMSProp is a special case of Adam when $\beta_1 = 0$.
+
+Adam is widely used in practice is and is commonly available within tools like Torch for fitting NN models. 
+
+In typical use $\beta_1=0.9$, $\beta_2=0.999$, $\epsilon=10^{-6}$, and $\eta_t=0.001$ are used. As the learning rate is not guaranteed to decrease over time, the algorithm is not guaranteed to converge.
+
+## Bias corrections
+
+One small alteration that was suggested by the original others and is commonly used is to correct for the bias towards small values in the initial estimates of $\boldsymbol{m}_t$ and $\boldsymbol{s}_t$. In which case they are replaced with,
+
+$$
+\begin{aligned}
+{\hat{\boldsymbol{m}}}_t &= \boldsymbol{m}_t / (1-{\beta_1}^t) \\
+{\hat{\boldsymbol{s}}}_t &=\boldsymbol{s}_t / (1-{\beta_2}^t) \\
+\end{aligned}
+$$
+
+## Implementation
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|10-12|22-25|27,28|30"
+def adam_lm(X, y, beta, step=0.001, batch_size = 10, max_step=50, seed=1234, replace=True, eps=1e-6, b1=0.9, b2=0.999):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+  
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+  
+  S = np.zeros(k)
+  M = np.zeros(k)
+  t = 0
+  
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+    
+    for j in js.reshape(-1, batch_size):
+      t += 1
+      G = grad(beta, j)
+      S = b2*S + (1-b2) * G**2
+      M = b1*M + (1-b1) * G
+      
+      M_hat = M / (1-b1**t)
+      S_hat = S / (1-b2**t)
+      
+      beta = beta - step * (M_hat / np.sqrt(S_hat + eps))
+      
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(t)
+    
+  return res
+
+```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+sizes = [1, 25, 50, 1000]
+lrs = [0.01, 0.5, 0.75, 1]
+algos = ["Adam - SGD", "Adam - MBGD (25)", "Adam - MBGD (50)", "Adam - GD"]
+
+adam = { size: adam_lm(
+                 X, y, np.zeros(X.shape[1]+1), batch_size=size,
+                 step=lr, max_step=25, replace=True
+               )
+         for size, lr in zip(sizes,lrs) }
+```
+
+```{python}
+#| echo: false
+for size, algo in zip(sizes, algos):
+  print(algo)
+  print(adam[size]["x"][-1])
+  print("")
+
+```
+:::
+
+## Results
+
+```{python}
+#| echo: false
+plt.figure()
+for size, algo in zip(sizes, algos):
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(adam[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=algo
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```

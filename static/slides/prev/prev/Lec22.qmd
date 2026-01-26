@@ -1,6 +1,6 @@
 ---
 title: "Apache Arrow"
-subtitle: "Lecture 21"
+subtitle: "Lecture 22"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:

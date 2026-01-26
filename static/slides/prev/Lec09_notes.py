@@ -1,15 +1,35 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 
-x = np.linspace(0, 2, 201)
-y = np.sin(2 * np.pi * x) + 1
+## Exercise 1
 
-plt.figure(layout="constrained")
+# Opt 1
 
-plt.plot(x, y)
-plt.title("About as simple as it gets, folks")
-plt.xlabel("time (s)")
-plt.ylabel("voltage (mV)")
-plt.grid(True)
+df.assign(
+  counts = lambda d: d.rate.str.split("/").str[0],
+  pop    = lambda d: d.rate.str.split("/").str[1]
+)
 
-plt.show()
+df.assign(
+  rate = lambda d: d.rate.str.split("/"),
+  counts = lambda d: d.rate.str[0],
+  pop    = lambda d: d.rate.str[1]
+).drop("rate", axis=1)
+
+# Opt 2
+
+( df.assign(
+    rate = lambda d: d.rate.str.split("/")
+  )
+  .explode("rate")
+  .assign(
+    type = lambda d: ["cases", "pop"] * 
+                     int(d.shape[0]/2)
+  )
+  .pivot(
+    index=["country","year"], 
+    columns="type", 
+    values="rate"
+  )
+  .reset_index()
+)

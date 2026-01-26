@@ -1,3 +1,30 @@
+## Regression example
+
+### Setup
+
+import numpy as np
+
+rng = np.random.default_rng(1234)
+n = 1000
+
+## Create Data
+
+X = np.hstack(
+      [np.ones((n,1)), 
+       rng.random((n,5))]
+    )
+beta = np.array([3.5, 1.8, -7.5, 0, 3, 9.8])
+err = rng.normal(0, 0.1, size = n)
+
+y = X @ beta + err
+
+### Fit regression model - beta_hat =  (X^T X)^-1 X^Ty
+
+np.linalg.inv(X.T @ X) @ X.T @ y
+
+np.linalg.solve(X.T @ X, X.T @ y)
+
+
 ## Exercise 1
 
 x = np.arange(16).reshape((4,4)); x
@@ -22,58 +49,3 @@ y[f == np.min(f)]
 min_i = np.argmin(f, axis=None)
 x.reshape(-1)[min_i]
 y.reshape(-1)[min_i]
-
-
-## Exercise 3
-
-#   A (128 x 128 x 3) + B (3):
-#
-#   A    128 x 128 x 3
-#   B                3
-#   ------------------
-#   A+B  128 x 128 x 3 
-
-
-#   A (8 x 1 x 6 x 1) + B (7 x 1 x 5)
-#
-#   A    8 x 1 x 6 x 1
-#   B        7 x 1 x 5
-#   ------------------
-#   A+B  8 x 7 x 6 x 5
-
-
-#   A (2 x 1) + B (8 x 4 x 3)
-#
-#   A            2 x 1
-#   B        8 x 4 x 3
-#   ------------------
-#   A+B         Error
-
-
-#   A (3 x 1) + B (15 x 3 x 5)
-#
-#   A            3 x 1
-#   B       15 x 3 x 5
-#   ------------------
-#   A+B     15   3   5
-
-
-#   A (3) + B (4)
-#
-#   A       3
-#   B       4
-#   --------------
-#   A+B   Error
-
-
-## Demo 1
-
-rng = np.random.default_rng(1234)
-
-d = rng.normal(loc=[-1,0,1], scale=[1,2,3], size=(1000,3))
-d.mean(axis=0)
-d.std(axis=0)
-
-ds = (d - d.mean(axis=0)) / d.std(axis=0)
-ds.mean(0)
-ds.std(0)

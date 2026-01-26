@@ -1,6 +1,6 @@
 ---
 title: "MCMC - Performance"
-subtitle: "Lecture 25"
+subtitle: "Lecture 26"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:
@@ -100,17 +100,17 @@ generated quantities {
 
 ::: {.xsmall}
 ::: {.code-file .sourceCode .cell-code}
-&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/bernoulli.stan`
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/bernoulli.stan`
 :::
 ```stan
-{{< include Lec25/bernoulli.stan >}}
+{{< include Lec26/bernoulli.stan >}}
 ```
 
 ::: {.code-file .sourceCode .cell-code}
-&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/bernoulli.json`
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/bernoulli.json`
 :::
 ```json
-{{< include Lec25/bernoulli.json >}}
+{{< include Lec26/bernoulli.json >}}
 ```
 :::
 
@@ -119,11 +119,11 @@ generated quantities {
 ::: {.xsmall}
 ```{python}
 from cmdstanpy import CmdStanModel
-model = CmdStanModel(stan_file='Lec25/bernoulli.stan')
+model = CmdStanModel(stan_file='Lec26/bernoulli.stan')
 ```
 
 ```{python}
-fit = model.sample(data='Lec25/bernoulli.json', show_progress=False)
+fit = model.sample(data='Lec26/bernoulli.json', show_progress=False)
 ```
 :::
 
@@ -207,10 +207,10 @@ print(fit.diagnose())
 
 ::: {.xsmall}
 ::: {.code-file .sourceCode .cell-code}
-&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/gp.stan`
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/gp.stan`
 :::
 ```stan
-{{< include Lec25/gp.stan >}}
+{{< include Lec26/gp.stan >}}
 ```
 :::
 
@@ -224,7 +224,7 @@ d["N"] = len(d["x"])
 ```
 ```{python}
 #| warning: true
-gp = CmdStanModel(stan_file='Lec25/gp.stan')
+gp = CmdStanModel(stan_file='Lec26/gp.stan')
 gp_fit = gp.sample(data=d, show_progress=False)
 ```
 :::
@@ -283,7 +283,7 @@ The `nutpie` package can also be used to compile and run stan models, it uses a 
 ::: {.small}
 ```{python}
 import nutpie
-m = nutpie.compile_stan_model(filename="Lec25/gp.stan")
+m = nutpie.compile_stan_model(filename="Lec26/gp.stan")
 m = m.with_data(x=d["x"],y=d["y"],N=len(d["x"]))
 gp_fit_nutpie = nutpie.sample(m, chains=4)
 ```
@@ -326,10 +326,10 @@ gp_fit_nutpie = nutpie.sample(m, chains=4, progress_bar=False)
 
 ::: {.xxsmall}
 ::: {.code-file .sourceCode .cell-code}
-&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec25/gp2.stan`
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/gp2.stan`
 :::
 ```stan
-{{< include Lec25/gp2.stan >}}
+{{< include Lec26/gp2.stan >}}
 ```
 :::
 
@@ -344,7 +344,7 @@ d2["Np"] = 121
 ```
 ```{python}
 #| warning: true
-gp2 = CmdStanModel(stan_file='Lec25/gp2.stan')
+gp2 = CmdStanModel(stan_file='Lec26/gp2.stan')
 gp2_fit = gp2.sample(data=d2, show_progress=False)
 ```
 :::

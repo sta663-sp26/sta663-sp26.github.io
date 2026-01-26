@@ -1,5 +1,5 @@
 ---
-title: "Optimization (cont.)"
+title: "Optimization"
 subtitle: "Lecture 14"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -20,11 +20,27 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import warnings
 
-import timeit
+import jax
+import jax.numpy as jnp
+
+import sklearn
+sklearn.set_config(display="text")
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
 
 plt.rcParams['figure.dpi'] = 200
-pd.set_option('display.width', 120)
+
+np.set_printoptions(
+  edgeitems=30, linewidth=75,
+  precision = 4, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 100)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 4)
 
 from scipy import optimize
 ```
@@ -52,14 +68,337 @@ local({
     hook_warn_old(x, options)
   })
 })
-
-options(width=90)
 ```
 
-```{python utility}
-#| include: false
+## Optimization
 
+Optimization problems underlie nearly everything we do in Machine
+Learning and Statistics. Most models can be formulated as 
+
+$$
+P \; : \; \underset{\boldsymbol{x} \in \boldsymbol{D}}{\text{arg min}} f(\boldsymbol{x}) 
+$$
+
+. . .
+
+* Formulating a problem $P$ is not the same as being able to solve $P$ in practice
+
+* Many different algorithms exist for optimization but their performance varies widely depending the exact nature of the problem
+
+
+
+
+
+
+# Gradient Descent
+
+## Naive Gradient Descent
+
+The basic idea behind this approach is that the gradient of a function tells us the direction of steepest ascent (or descent). Therefore, to find the minimum we should take our next step in the direction of the negative gradient to most quickly approach the nearest minima.
+
+<br/>
+
+Given an $n$-dimensional function $f(x_1, \ldots, x_n)$, and an initial position $\boldsymbol{x}_k$ then our update rule becomes,
+
+$$
+\boldsymbol{x}_{k+1} = \boldsymbol{x}_{k} - \alpha \nabla f(\boldsymbol{x}_k)
+$$
+
+here $\alpha$ refers to the step length or the learning rate which determines how big a step we will take.
+
+
+
+## Implementation
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|1|2|6|7,8|5,16,17"
+def grad_desc_1d(x, f, grad, step, max_step=100, tol = 1e-6):
+  res = {"x": [x], "f": [f(x)]}
+
+  try:
+    for i in range(max_step): 
+      x = x - grad(x) * step
+      if np.abs(x - res["x"][-1]) < tol: 
+        break
+
+      res["f"].append( f(x) )
+      res["x"].append( x )
+      
+  except OverflowError as err:
+    print(f"{type(err).__name__}: {err}")
+  
+  if i == max_step-1:
+    warnings.warn("Failed to converge!", RuntimeWarning)
+  
+  return res
+```
+:::
+
+```{python include=FALSE}
+def plot_1d_traj(x, f, traj, title="", figsize=(5,3)):
+  plt.figure(figsize=figsize, layout="constrained")
+  
+  x_range = x[1]-x[0]
+
+  x_focus = np.linspace(x[0], x[1], 101)
+  x_ext = np.linspace(x[0]-0.2*x_range, x[1]+0.2*x_range, 141)
+
+  plt.plot(x_focus, f(x_focus), "-k")
+  
+  xlim = plt.xlim()
+  ylim = plt.ylim()
+  
+  plt.plot(x_ext, f(x_ext), "-k")
+
+  plt.plot(traj["x"], traj["f"], ".-b", ms = 10)
+  plt.plot(traj["x"][0], traj["f"][0], ".r", ms = 15)
+  plt.plot(traj["x"][-1], traj["f"][-1], ".c", ms = 15)
+
+  plt.xlim(xlim)
+  plt.ylim(ylim)
+  
+  plt.show()
+  
+  plt.close('all')
+```
+
+## A basic example
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+$$
+\begin{aligned}
+f(x) &= x^2 \\
+\nabla f(x) &= 2x
+\end{aligned}
+$$
+:::
+
+::: {.column width='50%'}
+```{python}
+f = lambda x: x**2
+grad = lambda x: 2*x
+```
+:::
+::::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 90%
+opt = grad_desc_1d(-2., f, grad, step=0.25)
+plot_1d_traj( (-2, 2), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| out-width: 90%
+opt = grad_desc_1d(-2., f, grad, step=0.5)
+plot_1d_traj( (-2, 2), f, opt )
+```
+:::
+::::
+
+
+## Where can it go wrong?
+
+If you pick a bad step size ...
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 90%
+opt = grad_desc_1d(-2, f, grad, step=0.9)
+plot_1d_traj( (-2,2), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| out-width: 90%
+opt = grad_desc_1d(-2, f, grad, step=1)
+plot_1d_traj( (-2,2), f, opt )
+```
+:::
+::::
+
+
+
+## Local minima
+
+The function now has multiple minima, both starting point and step size affect the solution we obtain,
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+$$
+\begin{aligned}
+f(x) &= x^4 + x^3 -x^2 - x \\
+\nabla f(x) &= 4x^3 + 3x^2 - 2x - 1
+\end{aligned}
+$$
+:::
+
+::: {.column width='50%'}
+```{python}
+f = lambda x: x**4 + x**3 - x**2 - x 
+grad = lambda x: 4*x**3 + 3*x**2 - 2*x - 1
+```
+:::
+::::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+
+```{python out.width="90%", error=TRUE}
+opt = grad_desc_1d(-1.5, f, grad, step=0.2)
+plot_1d_traj( (-1.5, 1.5), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python out.width="90%", error=TRUE}
+opt = grad_desc_1d(-1.5, f, grad, step=0.25)
+plot_1d_traj( (-1.5, 1.5), f, opt)
+```
+:::
+::::
+
+
+## Alternative starting points
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python out.width="90%", error=TRUE}
+opt = grad_desc_1d(1.5, f, grad, step=0.2)
+plot_1d_traj( (-1.75, 1.5), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python out.width="90%", error=TRUE}
+opt = grad_desc_1d(1.25, f, grad, step=0.2)
+plot_1d_traj( (-1.75, 1.5), f, opt)
+```
+:::
+::::
+
+
+## Problematic step sizes
+
+If the step size is too large it is possible for the algorithm to overflow,
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+
+```{python out.width="90%", error=TRUE}
+opt = grad_desc_1d(-1.5, f, grad, step=0.75)
+plot_1d_traj( (-3, 3), f, opt)
+```
+:::
+
+::: {.column width='50%'}
+```{python out.width="90%", error=TRUE}
+opt['x']
+opt['f']
+```
+:::
+::::
+
+##  Gradient Descent w/ backtracking
+
+As we have just seen having too large of a step can 
+be problematic, one solution is to allow the step size
+to adapt.
+
+Backtracking involves checking if the proposed move is
+advantageous (i.e. $f(x_k+\alpha p_k) < f(x_k)$),
+
+* If it is downhill then accept
+  $x_{k+1} = x_k+\alpha p_k$.
+
+* If not, adjust $\alpha$ by a factor $\tau$ (e.g. 0.5)
+  and check again.
+  
+Pick larger $\alpha$ to start (but not so large so as to overflow) and then let the backtracking tune things.
+
+::: {.aside}
+This is a simplified (hand wavy) version of the [Armijo-Goldstein condition](https://en.wikipedia.org/wiki/Backtracking_line_search) <br/>
+Check $f(x_k-\alpha \nabla f(x_k)) \leq f(x_k) - c \alpha (\nabla f(x_k))^2$.
+:::
+
+## Implementation
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|6-11"
+def grad_desc_1d_bt(x, f, grad, step, tau=0.5, max_step=100, max_back=10, tol = 1e-6):
+  res = {"x": [x], "f": [f(x)]}
+  
+  for i in range(max_step):
+    grad_f = grad(x)
+    for j in range(max_back):
+      x = res["x"][-1] - step * grad_f
+      f_x = f(x)
+      if (f_x < res["f"][-1]): 
+        break
+      step = step * tau
+    
+    if np.abs(x - res["x"][-1]) < tol: 
+      break
+    res["x"].append(x)
+    res["f"].append(f_x)
+    
+  if i == max_step-1:
+    warnings.warn("Failed to converge!", RuntimeWarning)
+  
+  return res
+```
+:::
+
+
+
+##
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| error: true
+#| out-width: 90%
+opt = grad_desc_1d_bt(
+  -1.5, f, grad, step=0.75, tau=0.5
+)
+plot_1d_traj( (-1.5, 1.5), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| error: true
+#| out-width: 90%
+opt = grad_desc_1d_bt(
+  1.5, f, grad, step=0.25, tau=0.5
+)
+plot_1d_traj( (-1.5, 1.5), f, opt)
+```
+:::
+::::
+
+
+
+
+## A 2d cost function
+
+```{python include=FALSE}
 # Code from https://scipy-lectures.org/ on optimization
+
 def mk_quad(epsilon, ndim=2):
   def f(x):
     x = np.asarray(x)
@@ -80,7 +419,7 @@ def mk_quad(epsilon, ndim=2):
   
   return f, gradient, hessian
 
-def mk_rosenbrock(y=None):
+def mk_rosenbrock():
   def f(x):
     x = np.asarray(x)
     y = 4*x
@@ -117,7 +456,29 @@ def mk_rosenbrock(y=None):
     return 4*4*H
   
   return f, gradient, hessian
+```
 
+
+We will be using `mk_quad()` to create quadratic functions with varying conditioning (as specified by the `epsilon` parameter).
+
+$$
+\begin{align}
+f(x,y) &= 0.33(x^2 + \epsilon^2 y^2 ) \\
+\nabla f(x,y) &= \left[ \begin{matrix}
+0.66 \, x \\
+0.66 \, \epsilon^2 \, y 
+\end{matrix} \right] \\
+\nabla^2 f(x,y) &= \left[\begin{array}{cc}
+0.66  & 0 \\
+0     & 0.66 \, \epsilon^2
+\end{array}\right]
+\end{align}
+$$
+
+
+## Examples
+
+```{python include=FALSE}
 def super_fmt(value):
     if value > 1:
         if np.abs(int(value) - value) < .1:
@@ -133,10 +494,7 @@ def super_fmt(value):
         else:
             out = '%.2e' % value
     return out
-```
 
-```{python}
-#| include: false
 def plot_2d_traj(x, y, f, traj=None, title="", figsize=(5,5)):
   x_min, x_max = x
   y_min, y_max = y
@@ -183,71 +541,746 @@ def plot_2d_traj(x, y, f, traj=None, title="", figsize=(5,5)):
   
   plt.show()
   plt.close('all')
-
+  
 ```
 
-```{python newtons}
-#| include: false
-def newtons_method(
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 100%
+f, grad, hess = mk_quad(0.7)
+plot_2d_traj(
+  (-1,2), (-1,2), f, title="ε=0.7"
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 100%
+f, grad, hess = mk_quad(0.05)
+plot_2d_traj(
+  (-1,2), (-1,2), f, title="ε=0.05"
+)
+```
+:::
+::::
+
+## $n$-d gradient descent w/ backtracking
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|14,15"
+def grad_desc(x, f, grad, step, tau=0.5, max_step=100, max_back=10, tol = 1e-8):
+  res = {"x": [x], "f": [f(x)]}
+  
+  for i in range(max_step):
+    grad_f = grad(x)
+    
+    for j in range(max_back):
+      x = res["x"][-1] - grad_f * step
+      f_x = f(x)
+      if (f_x < res["f"][-1]): 
+        break
+      step = step * tau
+
+    if np.sqrt(np.sum((x - res["x"][-1])**2)) < tol: 
+      break  
+    
+    res["x"].append(x)
+    res["f"].append(f_x)
+      
+  if i == max_step-1:
+    warnings.warn("Failed to converge!", RuntimeWarning)
+    
+  return res
+```
+:::
+
+
+## Well conditioned cost function
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.7)
+opt = grad_desc((1.6, 1.1), f, grad, step=1)
+plot_2d_traj(
+  (-1,2), (-1,2), f, title="ε=0.7", traj=opt
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.7)
+opt = grad_desc((1.6, 1.1), f, grad, step=2)
+plot_2d_traj(
+  (-1,2), (-1,2), f, title="ε=0.7", traj=opt
+)
+```
+:::
+::::
+
+
+## Ill-conditioned cost function
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.05)
+opt = grad_desc((1.6, 1.1), f, grad, step=1)
+plot_2d_traj(
+  (-1,2), (-1,2), f, title="ε=0.05", traj=opt
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.05)
+opt = grad_desc((1.6, 1.1), f, grad, step=2)
+plot_2d_traj(
+  (-1,2), (-1,2), f, title="ε=0.05", traj=opt
+)
+```
+:::
+::::
+
+## Rosenbrock function (very ill conditioned)
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = grad_desc((1.6, 1.1), f, grad, step=0.25)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = grad_desc((-0.5, 0), f, grad, step=0.25)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
+```
+:::
+::::
+
+## Some regression examples
+
+::: {.xsmall}
+```{python}
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=200, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
+```
+:::
+
+::: {.columns .xxsmall}
+::: {.column width=15%}
+```{python}
+y
+```
+:::
+::: {.column width=70%}
+```{python}
+X
+```
+:::
+::: {.column width=15%}
+```{python}
+coef
+```
+:::
+:::
+
+## A jax implementation of GD
+
+::: {.xsmall}
+```{python}
+def grad_desc_jax(x, f, step, tau=0.5, max_step=100, max_back=10, tol = 1e-8):
+  grad_f = jax.grad(f)
+  f_x = f(x)
+  converged = False
+
+  for i in range(max_step):
+    grad_f_x = grad_f(x)
+    
+    for j in range(max_back):
+      new_x = x - grad_f_x * step
+      new_f_x = f(new_x)
+      if (new_f_x < f_x): 
+        break
+      step *= tau
+
+    cur_tol = jnp.sqrt(jnp.sum((x - new_x)**2))
+
+    x = new_x 
+    f_x = new_f_x
+
+    if cur_tol < tol: 
+      converged = True
+      break
+  
+  if not converged:
+    warnings.warn("Failed to converge!", RuntimeWarning)
+
+  return {
+    "x": x,
+    "n_iter": i,
+    "converged": converged,
+    "final_tol": tol,
+    "final_step": step
+  }
+```
+:::
+
+
+## Linear regression
+
+::: {.xsmall}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+def jax_linear_regression(X, y, beta):
+  Xb = jnp.c_[jnp.ones(X.shape[0]), X]
+  return jnp.sum((y - Xb @ beta)**2)
+
+grad_desc_jax(
+  np.zeros(X.shape[1]+1), 
+  lambda beta: jax_linear_regression(X,y,beta), 
+  step = 1, tau = 0.5
+)
+```
+:::
+
+
+## Ridge regression
+
+::: {.xsmall}
+```{python}
+r = GridSearchCV(Ridge(), param_grid = {"alpha": np.logspace(-3,0)}).fit(X,y)
+r.best_estimator_
+np.r_[r.best_estimator_.intercept_, r.best_estimator_.coef_]
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+def jax_ridge(X, y, beta, alpha):
+  Xb = jnp.c_[jnp.ones(X.shape[0]), X]
+  ls_loss = jnp.sum((y - Xb @ beta)**2)
+  coef_loss = alpha * jnp.sum(beta[1:]**2)
+  return ls_loss + coef_loss
+
+grad_desc_jax(
+  np.zeros(X.shape[1]+1), 
+  lambda beta: jax_ridge(X, y, beta, r.best_estimator_.alpha), 
+  step = 1, tau = 0.5, tol=1e-8
+)
+```
+:::
+
+## Lasso
+
+::: {.xsmall}
+```{python}
+ls = GridSearchCV(Lasso(), param_grid = {"alpha": np.logspace(-3,0)}).fit(X,y)
+ls.best_estimator_
+np.r_[ls.best_estimator_.intercept_, ls.best_estimator_.coef_]
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+def jax_lasso(X, y, beta, alpha):
+  n = X.shape[0]
+  Xb = jnp.c_[jnp.ones(n), X]
+  ls_loss = (1/(2*n))*jnp.sum((y - Xb @ beta)**2)
+  coef_loss = alpha * jnp.sum(jnp.abs(beta[1:]))
+  return ls_loss + coef_loss
+
+grad_desc_jax(
+  np.zeros(X.shape[1]+1), 
+  lambda beta: jax_lasso(X, y, beta, ls.best_estimator_.alpha), 
+  step = 1, tau = 0.5, tol=1e-10
+)
+```
+:::
+
+
+## Limitation of gradient descent
+
+* GD is deterministic
+
+* GD finds *local* minima 
+
+* GD is sensitive to starting location
+
+* GD can be computationally expensive because Gradients are often computationally expensive to calculate
+
+* GD is sensitive to choices of learning rates
+
+* GD treats all directions in parameter space uniformly
+
+
+# Newton's Method
+
+
+## Newton's Method in 1d
+
+Lets assume we have a 1d function $f(x)$ we are trying to optimize, our current guess is $x$ and we want to know how to generate our next step $\Delta x$.
+
+We start by constructing the 2nd order Taylor approximation of our function at $x+\Delta x$,
+
+$$
+f(x + \Delta x) \approx \widehat{f}(x + \Delta x) = f(x) + \Delta x f'(x) + \frac{1}{2} (\Delta x)^2 f''(x)
+$$
+
+. . .
+
+
+![](imgs/boyd_newton_step.png){width=50% fig-align="center"}
+
+::: {.aside}
+Figure 9.16 from Boyd & Vandenberghe (2004)
+:::
+
+## Finding the Newton step
+
+Our optimal step then becomes the value of $\Delta x$ that minimizes the quadratic given by our Taylor approximation.
+
+$$
+\frac{\partial}{\partial \Delta x} \widehat{f}(x+\Delta x) = 0 \\
+\frac{\partial}{\partial \Delta x} \left(f(x) + \Delta x f'(x) + \frac{1}{2} (\Delta x)^2 f''(x) \right) = 0\\
+f'(x) + \Delta x f''(x) = 0\\
+\Delta x = -\frac{f'(x)}{f''(x)}
+$$
+
+which suggests an iterative update rule of 
+
+$$
+x_{k+1} = x_{k} -\frac{f'(x_k)}{f''(x_k)}
+$$
+
+
+## Generalizing to $n$d
+
+Based on the same argument we can see the follow result for a function in $\mathbb{R}^n$,
+
+$$
+f(\boldsymbol{x} + \boldsymbol{\Delta x}) \approx \widehat{f}(\boldsymbol{x}) = f(\boldsymbol{x}) + \boldsymbol{\Delta x}^T \nabla f(\boldsymbol{x}) + \frac{1}{2} \boldsymbol{\Delta x}^T \, \nabla^2 f(\boldsymbol{x}) \,\boldsymbol{\Delta x}
+$$
+
+::: {.columns}
+::: {.column}
+then
+
+$$
+\frac{\partial}{\partial \boldsymbol{\Delta x}} \widehat{f}(\boldsymbol{x}) = 0 \\
+\nabla f(\boldsymbol{x}) + \nabla^2 f(\boldsymbol{x}) \,  \boldsymbol{\Delta  x} = 0\\
+\boldsymbol{\Delta x} = -\left(\nabla^2 f(\boldsymbol{x})\right)^{-1} \nabla f(\boldsymbol{x})
+$$
+:::
+::: {.column}
+where 
+
+* $\nabla f(\boldsymbol{x})$ is the $n \times 1$ gradient vector 
+
+* and $\nabla^2 f(\boldsymbol{x})$ is the $n \times n$ Hessian matrix.
+:::
+:::
+
+based on these results our $n$d update rule is
+
+$$
+\boldsymbol{x}_{k+1} = \boldsymbol{x}_{k} - (\nabla^2 f(\boldsymbol{x}_k))^{-1} \, \nabla f(\boldsymbol{x}_k)
+$$
+
+
+## Implementation
+
+::: {.small}
+```{python}
+#| code-line-numbers: "|7"
+def newtons_method(x, f, grad, hess, max_iter=100, tol=1e-8):
+    x = np.array(x)
+    s = x.shape
+    res = {"x": [x], "f": [f(x)]}
+    
+    for i in range(max_iter):
+      x = x - np.linalg.solve(hess(x), grad(x))
+      x = x.reshape(s)
+
+      if np.sqrt(np.sum((x - res["x"][-1])**2)) < tol:
+        break
+
+      res["x"].append(x)
+      res["f"].append(f(x))
+    
+    return res
+```
+:::
+
+
+
+
+
+
+
+
+## A basic example
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+$$
+\begin{aligned}
+f(x) &= x^2 \\
+\nabla f(x) &= 2x \\
+\nabla^2 f(x) &= 2
+\end{aligned}
+$$
+:::
+
+::: {.column width='50%'}
+```{python}
+f = lambda x: np.array(x**2)
+grad = lambda x: np.array([2*x])
+hess = lambda x: np.array([[2]])
+```
+:::
+::::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 90%
+opt = newtons_method(-2., f, grad, hess)
+plot_1d_traj( (-2, 2), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| out-width: 90%
+opt = newtons_method(1., f, grad, hess)
+plot_1d_traj( (-2, 2), f, opt )
+```
+:::
+::::
+
+
+## 1d Cubic
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+$$
+\begin{aligned}
+f(x) &= x^4 + x^3 -x^2 - x \\
+\nabla f(x) &= 4x^3 + 3x^2 - 2x - 1 \\
+\nabla&2 f(x) &= 12x^2 + 6x^ - 2
+\end{aligned}
+$$
+:::
+
+::: {.column width='50%'}
+```{python}
+f = lambda x: x**4 + x**3 - x**2 - x 
+grad = lambda x: np.array([4*x**3 + 3*x**2 - 2*x - 1])
+hess = lambda x: np.array([[12*x**2 + 6*x - 2]])
+```
+:::
+::::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+
+```{python out.width="90%", error=TRUE}
+opt = newtons_method(-1.5, f, grad, hess)
+plot_1d_traj( (-1.5, 1.5), f, opt )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python out.width="90%", error=TRUE}
+opt = newtons_method(1.5, f, grad, hess)
+plot_1d_traj( (-1.5, 1.5), f, opt)
+```
+:::
+::::
+
+
+
+
+
+
+
+
+
+
+
+## 2d quadratic cost function
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.7)
+opt = newtons_method((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-1,2), (-1,2), f, traj=opt)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.05)
+opt = newtons_method((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-1,2), (-1,2), f, traj=opt)
+```
+:::
+::::
+
+
+## Rosenbrock function
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = newtons_method((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = newtons_method((-0.5, 0), f, grad, hess)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
+```
+:::
+::::
+
+
+
+
+## Damped / backtracking implementation
+
+::: {.xsmall}
+```{python}
+def newtons_method_damped(
   x, f, grad, hess, max_iter=100, max_back=10, tol=1e-8,
   alpha=0.5, beta=0.75
 ):
-    res = {
-      "x": [x], 
-      "f": [f],
-      "nit": 0,
-      "nfev": 0,
-      "njev": 0,
-      "nhev": 0,
-      "success": False
-    }
+    res = {"x": [x], "f": [f(x)]}
     
     for i in range(max_iter):
       grad_f = grad(x)
       step = - np.linalg.solve(hess(x), grad_f) 
-
-      res["njev"] += 1
-      res["nhev"] += 1
-      
       t = 1
       for j in range(max_back):
-        res["nfev"] += 2
         if f(x+t*step) < f(x) + alpha * t * grad_f @ step:
           break
         t = t * beta
       
       x = x + t * step
 
-      res["nit"] += 1
-
       if np.sqrt(np.sum((x - res["x"][-1])**2)) < tol:
         break
-      
+
       res["x"].append(x)
       res["f"].append(f(x))
     
     return res
 ```
+:::
 
-```{python cg}
-#| include: false
 
+## 2d quadratic cost function
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.7)
+opt = newtons_method_damped((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-1,2), (-1,2), f, traj=opt)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_quad(0.05)
+opt = newtons_method_damped((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-1,2), (-1,2), f, traj=opt)
+```
+:::
+::::
+
+
+## Rosenbrock function
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = newtons_method_damped((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = newtons_method_damped((-0.5, 0), f, grad, hess)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
+```
+:::
+::::
+
+
+# Conjugate gradients
+
+## Conjugate gradients
+
+is a general approach for solving a system of linear equations with the form $\boldsymbol{A} \boldsymbol{x}=\boldsymbol{b}$ where $\boldsymbol{A}$ is an $n \times n$ symmetric positive definite matrix and $\boldsymbol{b}$ is $n \times 1$ with $\boldsymbol{x}$ the unknown vector of interest.
+
+<br/>
+
+This type of problem can also be expressed as a quadratic minimization problem of the form,
+
+$$
+\underset{x}{\text{arg min}} \; f(x) = \underset{x}{\text{arg min}} \; \frac{1}{2} \boldsymbol{x}^T \, \boldsymbol{A} \, \boldsymbol{x} - \boldsymbol{x}^T \boldsymbol{b}
+$$
+
+since the solution is given by
+
+$$
+\nabla f(\boldsymbol{x}) = \boldsymbol{A}\boldsymbol{x} - \boldsymbol{b} = 0 
+$$
+
+## A? Conjugate?
+
+Taking things one step further we can also see that the matrix $\boldsymbol{A}$ is given by the hessian of $f(x)$
+
+$$
+\nabla^2 f(x) = \boldsymbol{A}
+$$
+
+. . .
+
+<br/>
+
+Additionally recall, two non-zero vectors $\boldsymbol{u}$ and $\boldsymbol{v}$ are conjugate with respect to $\boldsymbol{A}$ if 
+
+$$\boldsymbol{u}^{T} \boldsymbol{A} \boldsymbol{v} = 0$$
+
+Our goal then is to find $n$ conjugate vectors $P = \{\boldsymbol{p}_1, \ldots, \boldsymbol{p}_n\}$ to use as "optimal" step directions to traverse our objective function. 
+ 
+## As line search
+
+Restated, our goal is to find $n$ conjugate vectors 
+
+$$
+\boldsymbol{p}^T_i \, \boldsymbol{A} \, \boldsymbol{p}_j = 0 \qquad \text{for all $i \neq j$}
+$$  
+
+and their coefficients (step sizes) such that our minimization solution ($\boldsymbol{x}^*$) is given by
+
+$$ 
+\boldsymbol{x}^* = \boldsymbol{x}_0+\sum_{i=1}^n \alpha_i \, \boldsymbol{p}_i 
+$$
+
+where the $\alpha_i$'s are our step sizes.
+
+## Algorithm Sketch
+
+::: {.medium}
+For the $k$th step:
+
+* Define the residual $\boldsymbol{r}_k = \boldsymbol{b} - \boldsymbol{A} \boldsymbol{x}_k$
+
+* Define conjugate vector $\boldsymbol{p}_k$ using current residual and all previous search directions
+$$
+\boldsymbol{p}_k = \boldsymbol{r}_k - \sum_{i<k} \frac{\boldsymbol{r}_k^T \boldsymbol{A} \boldsymbol{p}_i}{\boldsymbol{p}_i^T \boldsymbol{A} \boldsymbol{p}_i} \boldsymbol{p}_i
+$$
+
+* Define step size $\alpha_k$ using
+$$
+\alpha_k = \frac{\boldsymbol{p}_k^T\boldsymbol{r}_k}{\boldsymbol{p}_k^T \boldsymbol{A} \boldsymbol{p}_k}
+$$
+
+* Update $\boldsymbol{x}_{k+1} = \boldsymbol{x}_k + \alpha_k \boldsymbol{p}_k$
+:::
+
+::: {.aside}
+It can be helpful to think of the process as being analogous to Gram-Schmidt orthonormalization
+:::
+
+## Algorithm in practice
+
+:::: {.columns}
+::: {.column width='50%' .small}
+Given $x_0$ we set the following initial values,
+$$
+\begin{align}
+r_0 &= \nabla f(x_0) \\
+p_0 &= -r_0 \\
+k &= 0
+\end{align}
+$$
+
+while $\|r_k\|_2 > \text{tol}$,
+$$
+\begin{align}
+\alpha_k &= \frac{r_k^T \, p_k}{p_k^T \, \nabla^2 f(x_k) \, p_k} \\
+x_{k+1} &= x_k + \alpha_k \, p_k \\
+r_{k+1} &= \nabla f(x_{k+1}) \\
+\beta_{k+1} &= \frac{ r^T_{k+1} \, \nabla^2 f(x_k)  \, p_{k} }{p_k^T \, \nabla^2 f(x_k) \, p_k} \\
+p_{k+1} &= -r_{k+1} + \beta_{k} \, p_k \\
+k &= k+1
+\end{align}
+$$
+
+:::
+
+::: {.column width='50%' .xsmall}
+```{python}
 def conjugate_gradient(x, f, grad, hess, max_iter=100, tol=1e-8):
-    res = {
-      "x": [x], 
-      "f": [f],
-      "nit": 0,
-      "nfev": 0,
-      "njev": 0,
-      "nhev": 0,
-      "success": False
-    }
-
+    res = {"x": [x], "f": [f]}
     r = grad(x)
     p = -r
     
-    res["njev"] +=1
-
     for i in range(max_iter):
       H = hess(x)
       a = - r.T @ p / (p.T @ H @ p)
@@ -256,12 +1289,7 @@ def conjugate_gradient(x, f, grad, hess, max_iter=100, tol=1e-8):
       b = (r.T @ H @ p) / (p.T @ H @ p)
       p = -r + b * p
       
-      res["njev"] += 1
-      res["nhev"] += 1
-      res["nit"] += 1
-
       if np.sqrt(np.sum(r**2)) < tol:
-        res["success"] = True
         break
 
       res["x"].append(x) 
@@ -269,1086 +1297,56 @@ def conjugate_gradient(x, f, grad, hess, max_iter=100, tol=1e-8):
   
     return res
 ```
-
-# Method Variants
-
-## Method: CG in scipy
-
-Scipy's optimize module implements the conjugate gradient algorithm using a variant proposed by Polak and Ribiere, this version does not use the Hessian when calculating the next step. The specific changes are:
-
-* $\alpha_k$ is calculated via a line search along the direction $p_k$
-
-* and the $\beta_{k+1}$ calculation is replaced as follows
-
-$$
-\beta_{k+1} = \frac{ r^T_{k+1} \, \nabla^2 f(x_k)  \, p_{k} }{p_k^T \, \nabla^2 f(x_k) \, p_k} 
-\qquad \Rightarrow \qquad
-\beta_{k+1}^{PR} = \frac{\nabla f(x_{k+1}) \left(\nabla f(x_{k+1}) - \nabla f(x_{k})\right)}{\nabla f(x_k)^T \, \nabla f(x_k)}
-$$
-
-
-## Method: Newton-CG & BFGS
-
-These are both variants of Newton's method but do not require the Hessian (but can be used by the former if provided).
-
-* Newton-Conjugate Gradient (Netwon-CG) algorithm uses a conjugate gradient algorithm to (approximately) invert the local Hessian
-
-* The Broyden-Fletcher-Goldfarb-Shanno (BFGS) algorithm iteratively approximates the inverse Hessian
-
-    * Gradient is also not required and can similarly be approximated using finite differences
-    
-
-
-## Method: Nelder-Mead
-
-This is a gradient free method that uses a series of simplexes which are used to iteratively bracket the minimum.
-
-<iframe data-src="https://rundel.github.io/nelder-mead/" width="100%" height="450px" style="border:1px solid;border-radius: 5px;" data-external="1">
-</iframe>
-
-::: {.aside}
-This js implementation comes from [greg-rychlewski/nelder-mead](https://github.com/greg-rychlewski/nelder-mead)
-:::
-
-
-## Method Summary
-
-<br/>
-
-::: {.small}
-
-| SciPy Method     | Description                                                    | Gradient | Hessian  |
-|:-----------------|:---------------------------------------------------------------|:--------:|:--------:|
-|  ---             | Gradient Descent (naive w/ backtracking)                       |    ✓     |    ✗     |
-|  ---             | Newton's method (naive w/ backtracking)                        |    ✓     |    ✓     |
-|  ---             | Conjugate Gradient (naive)                                     |    ✓     |    ✓     |
-| `"CG"`           | Nonlinear Conjugate Gradient (Polak and Ribiere variation)     |    ✓     |    ✗     |
-| `"Newton-CG"`    | Truncated Newton method (Newton w/ CG step direction)          |    ✓     | Optional |
-| `"BFGS"`         | Broyden, Fletcher, Goldfarb, and Shanno (Quasi-newton method)  | Optional |    ✗     |
-| `"L-BFGS-B"`     | Limited-memory BFGS (Quasi-newton method)                      | Optional |    ✗     |
-| `"Nelder-Mead"`  | Nelder-Mead simplex reflection method                          |    ✗     |    ✗     |
-| 
-
-:::
-
-## Methods collection
-
-::: {.small}
-```{python}
-def define_methods(x, f, grad, hess, tol=1e-8):
-  return {
-    "naive_newton":   lambda: newtons_method(x, f, grad, hess, tol=tol),
-    "naive_cg":       lambda: conjugate_gradient(x, f, grad, hess, tol=tol),
-    "CG":             lambda: optimize.minimize(f, x, jac=grad, method="CG", tol=tol),
-    "newton-cg":      lambda: optimize.minimize(f, x, jac=grad, hess=None, method="Newton-CG", tol=tol),
-    "newton-cg w/ H": lambda: optimize.minimize(f, x, jac=grad, hess=hess, method="Newton-CG", tol=tol),
-    "bfgs":           lambda: optimize.minimize(f, x, jac=grad, method="BFGS", tol=tol),
-    "bfgs w/o G":     lambda: optimize.minimize(f, x, method="BFGS", tol=tol),
-    "l-bfgs-b":       lambda: optimize.minimize(f, x, method="L-BFGS-B", tol=tol),
-    "nelder-mead":    lambda: optimize.minimize(f, x, method="Nelder-Mead", tol=tol)
-  }
-```
-:::
-
-
-## Method Timings
-
-::: {.xsmall}
-```{python}
-x = (1.6, 1.1)
-f, grad, hess = mk_quad(0.7)
-methods = define_methods(x, f, grad, hess)
-df = pd.DataFrame({
-  key: timeit.Timer(methods[key]).repeat(10, 100) for key in methods
-})
-```
-:::
-
-```{python}
-#| echo: false
-g = sns.catplot(data=df.melt(), y="variable", x="value", aspect=1.8)
-g.ax.set_xlabel("Time (sec)")
-g.ax.set_ylabel("")
-plt.show()
-```
-
-## Timings across cost functions
-
-::: {.xsmall}
-```{python}
-def time_cost_func(n, x, name, cost_func, *args):
-  f, grad, hess = cost_func(*args)
-  methods = define_methods(x, f, grad, hess)
-  
-  return ( pd.DataFrame({
-      key: timeit.Timer(
-        methods[key]
-      ).repeat(n, n) 
-      for key in methods
-    })
-    .melt()
-    .assign(cost_func = name)
-  )
-
-x = (1.6, 1.1)  
-
-time_cost_df = pd.concat([
-  time_cost_func(10, x, "Well-cond quad", mk_quad, 0.7),
-  time_cost_func(10, x, "Ill-cond quad", mk_quad, 0.02),
-  time_cost_func(10, x, "Rosenbrock", mk_rosenbrock)
-])
-```
-:::
-
-
-##
-
-```{python}
-#| echo: false
-g = sns.catplot(data=time_cost_df, y="variable", x="value", hue="cost_func", alpha=0.5, aspect=2)
-g.ax.set_xlabel("Time (sec)")
-g.ax.set_ylabel("")
-plt.show()
-```
-
-
-## Random starting locations
-
-:::: {.tiny}
-```{python}
-pts = np.random.default_rng(seed=1234).uniform(-2,2, (20,2))
-
-df = pd.concat([
-  pd.concat([
-    time_cost_func(3, x, "Well-cond quad", mk_quad, 0.7),
-    time_cost_func(3, x, "Ill-cond quad", mk_quad, 0.02),
-    time_cost_func(3, x, "Rosenbrock", mk_rosenbrock)
-  ])
-  for x in pts
-])
-```
-::::
-
-```{python}
-#| echo: false
-g = sns.catplot(data=df, y="variable", x="value", hue="cost_func", alpha=0.5, aspect=2)
-g.ax.set_xlabel("Time (3 iter)")
-g.ax.set_ylabel("")
-plt.show()
-``` 
-
-
-## Profiling - BFGS (cProfile)
-
-::: {.xsmall}
-```{python}
-import cProfile
-
-f, grad, hess = mk_quad(0.7)
-def run():
-  for i in range(500):
-    optimize.minimize(fun = f, x0 = (1.6, 1.1), jac=grad, method="BFGS", tol=1e-11)
-
-cProfile.run('run()', sort="tottime")
-```
-:::
-
-## Profiling - BFGS (pyinstrument)
-
-::: {.xsmall}
-```{python}
-from pyinstrument import Profiler
-
-f, grad, hess = mk_quad(0.7)
-
-profiler = Profiler(interval=0.00001)
-
-profiler.start()
-opt = optimize.minimize(fun = f, x0 = (1.6, 1.1), jac=grad, method="BFGS", tol=1e-11)
-p = profiler.stop()
-
-profiler.write_html("Lec14_bfgs_quad.html")
-```
-:::
-
-##
-
-<iframe data-src="Lec14_bfgs_quad.html" width="100%" height="600px" style="border:1px solid;border-radius: 5px;" data-external="1">
-</iframe>
-
-
-
-## Profiling - Nelder-Mead
-
-::: {.small}
-```{python}
-from pyinstrument import Profiler
-
-f, grad, hess = mk_quad(0.7)
-
-profiler = Profiler(interval=0.00001)
-
-profiler.start()
-opt = optimize.minimize(fun = f, x0 = (1.6, 1.1), method="Nelder-Mead", tol=1e-11)
-p = profiler.stop()
-
-profiler.write_html("Lec14_nm_quad.html")
-```
-:::
-
-
-##
-
-<iframe data-src="Lec14_nm_quad.html" width="100%" height="600px" style="border:1px solid;border-radius: 5px;" data-external="1">
-</iframe>
-
-
-## `optimize.minimize()` output
-
-::: {.xsmall}
-```{python}
-f, grad, hess = mk_quad(0.7)
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  fun = f, x0 = (1.6, 1.1), 
-  jac=grad, method="BFGS"
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  fun = f, x0 = (1.6, 1.1), 
-  jac=grad, hess=hess, method="Newton-CG"
-)
-```
-:::
-::::
-
-## `optimize.minimize()` output (cont.)
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  fun = f, x0 = (1.6, 1.1), 
-  jac=grad, method="CG"
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  fun = f, x0 = (1.6, 1.1), 
-  jac=grad, method="Nelder-Mead"
-)
-```
-:::
-::::
-
-
-## Collect
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-def run_collect(name, x0, cost_func, *args, tol=1e-8, skip=[]):
-  f, grad, hess = cost_func(*args)
-  methods = define_methods(x0, f, grad, hess, tol)
-  
-  res = []
-  for method in methods:
-    if method in skip: continue
-    
-    x = methods[method]()
-    time = timeit.Timer(methods[method]).repeat(10, 25)
-
-    d = {
-      "name":    name,
-      "method":  method,
-      "nit":     x["nit"],
-      "nfev":    x["nfev"],
-      "njev":    x.get("njev"),
-      "nhev":    x.get("nhev"),
-      "success": x["success"],
-      "time":    [time]
-    }
-    res.append( pd.DataFrame(d, index=[1]) )
-  
-  return pd.concat(res)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df = pd.concat([
-  run_collect(
-    name, (1.6, 1.1), 
-    cost_func, 
-    arg, 
-    skip=['naive_newton', 'naive_cg']
-  ) 
-  for name, cost_func, arg in zip(
-    ("Well-cond quad", "Ill-cond quad", "Rosenbrock"), 
-    (mk_quad, mk_quad, mk_rosenbrock), 
-    (0.7, 0.02, None)
-  )
-])
-```
-:::
-::::
-
-##
-
-::: {.panel-tabset}
-
-### Runtimes
-
-```{python}
-#| echo: false
-g = sns.catplot(data=time_cost_df.query("variable != 'naive_newton' & variable != 'naive_cg'"), y="variable", x="value", hue="cost_func", alpha=0.5, aspect=2)
-g.ax.set_xlabel("Time (10 iter)")
-g.ax.set_ylabel("")
-plt.show()
-```
-
-### Function calls
-
-```{python}
-#| echo: false
-g = sns.catplot(
-  y = "method", x = "value", hue = "variable", col="name", kind="bar",
-  data = df.melt(id_vars=["name","method"], 
-  value_vars=["nit", "nfev", "njev", "nhev"]).astype({"value": "float64"}),
-  height=5, aspect=2./3.
-).set_xlabels("n")
-```
-
-:::
-
-
-## Exercise 1
-
-Try minimizing the following function using different optimization methods starting from $x_0 = [0,0]$, which method(s) appear to work best?
-
-$$
-\begin{align}
-f(x) = \exp(x_1-1) + \exp(-x_2+1) + (x_1-x_2)^2
-\end{align}
-$$
-```{python}
-#| echo: false
-#| out-width: 40%
-f = lambda x: np.exp(x[0]-1) + np.exp(-x[1]+1) + (x[0]-x[1])**2
-plot_2d_traj((-2,3), (-2,3), f)
-```
-
-# MVN Example
-
-## MVN density cost function
-
-:::: {.columns}
-::: {.column width='50%' .small}
-
-For an $n$-dimensional multivariate normal we define <br/>
-the $n \times 1$ vectors $x$ and $\mu$ and the $n \times n$ <br/>
-covariance matrix $\Sigma$,
-
-$$
-\begin{align}
-f(x) =& \det(2\pi\Sigma)^{-1/2} \\
-      & \exp \left[-\frac{1}{2} (x-\mu)^T \Sigma^{-1} (x-\mu) \right] \\
-\\
-\nabla f(x) =& -f(x) \Sigma^{-1}(x-\mu) \\
-\\
-\nabla^2 f(x) =& f(x) \left( \Sigma^{-1}(x-\mu)(x-\mu)^T\Sigma^{-1} - \Sigma^{-1}\right) \\
-\end{align}
-$$
-
-Our goal will be to find the mode (maximum) of this density.
-:::
-
-::: {.column width='50%' .xsmall}
-```{python}
-def mk_mvn(mu, Sigma):
-  Sigma_inv = np.linalg.inv(Sigma)
-  norm_const = 1 / (np.sqrt(np.linalg.det(2*np.pi*Sigma)))
-  
-  # Returns the negative density (since we want the max not min)
-  def f(x):
-    x_m = x - mu
-    return -(norm_const * 
-      np.exp( 
-        -0.5 * x_m.T @ Sigma_inv @ x_m
-      ) 
-    ).item()
-  
-  def grad(x):
-    return (-f(x) * Sigma_inv @ (x - mu))
-  
-  def hess(x):
-    n = len(x)
-    x_m = x - mu
-    return f(x) * (
-      (Sigma_inv @ x_m).reshape((n,1)) 
-      @ (x_m.T @ Sigma_inv).reshape((1,n))
-      - Sigma_inv
-    )
-  
-  return f, grad, hess
-```
 :::
 ::::
 
 ::: {.aside}
-From Section 8.1.1 of the [Matrix Cookbook](https://www.math.uwaterloo.ca/~hwolkowi/matrixcookbook.pdf)
+From Alg 5.1 from Chapter 5 of [Numerical Optimization](https://find.library.duke.edu/catalog/DUKE99119539061108501) 2006
 :::
 
 
-## Gradient checking
-
-::: {.medium}
-One of the most common issues when implementing an optimizer is to get the gradient calculation wrong which can produce problematic results. It is possible to numerically check the gradient function by comparing results between the gradient function and finite differences from the objective function via `optimize.check_grad()`.
-:::
-
+## Trajectory
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
-# 5d
-f, grad, hess = mk_mvn(
-  np.zeros(5), np.eye(5,5)
-)
-```
-
-```{python}
-optimize.check_grad(f, grad, np.zeros(5))
-optimize.check_grad(f, grad, np.ones(5))
+#| out-width: 95%
+f, grad, hess = mk_quad(0.7)
+opt = conjugate_gradient((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-1,2), (-1,2), f, title="$\\epsilon=0.7$", traj=opt)
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-# 10d
-f, grad, hess = mk_mvn(
-  np.zeros(10), np.eye(10)
-)
-```
-
-```{python}
-optimize.check_grad(f, grad, np.zeros(10))
-optimize.check_grad(f, grad, np.ones(10))
+#| out-width: 95%
+f, grad, hess = mk_quad(0.05)
+opt = conjugate_gradient((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-1,2), (-1,2), f, title="$\\epsilon=0.05$", traj=opt)
 ```
 :::
 ::::
 
-## Gradient checking (wrong gradient)
 
-::: {.xsmall}
-```{python}
-wrong_grad = lambda x: 5*grad(x)
-```
-:::
+## Rosenbrock's function 
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
-# 5d
-f, grad, hess = mk_mvn(
-  np.zeros(5), np.eye(5)
-)
-```
-
-```{python}
-optimize.check_grad(f, wrong_grad, np.zeros(5))
-optimize.check_grad(f, wrong_grad, np.ones(5))
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = conjugate_gradient((1.6, 1.1), f, grad, hess)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-# 10d
-f, grad, hess = mk_mvn(
-  np.zeros(10), np.eye(10)
-)
-```
-
-```{python}
-optimize.check_grad(f, wrong_grad, np.zeros(10))
-optimize.check_grad(f, wrong_grad, np.ones(10))
+#| out-width: 95%
+f, grad, hess = mk_rosenbrock()
+opt = conjugate_gradient((-0.5, 0), f, grad, hess)
+plot_2d_traj((-2,2), (-2,2), f, traj=opt)
 ```
 :::
 ::::
 
-. . .
-
-<br/>
-
-::: {.center .large}
-Why does `np.ones()` detect an issue but `np.zeros()` does not?
-:::
-
-
-## Hessian checking
-
-Note since the gradient of the gradient is the hessian we can use this function to check our implementation of the hessian as well, just use `grad()` as `func` and `hess()` as `grad`.
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-# 5d
-f, grad, hess = mk_mvn(np.zeros(5), np.eye(5))
-```
-
-```{python}
-optimize.check_grad(grad, hess, np.zeros(5))
-optimize.check_grad(grad, hess, np.ones(5))
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-# 10d
-f, grad, hess = mk_mvn(np.zeros(10), np.eye(10))
-```
-
-```{python}
-optimize.check_grad(grad, hess, np.zeros(10))
-optimize.check_grad(grad, hess, np.ones(10))
-```
-:::
-::::
-
-
-## Unit MVNs
-
-::: {.xsmall}
-```{python}
-rng = np.random.default_rng(seed=1234)
-runif = rng.uniform(-1,1, size=25)
-
-df = pd.concat([
-  run_collect(
-    name, runif[:n], mk_mvn, 
-    np.zeros(n), np.eye(n), 
-    tol=1e-10, 
-    skip=['naive_newton', 'naive_cg', 'bfgs w/o G', 'newton-cg w/ H', 'l-bfgs-b', 'nelder-mead']
-  ) 
-  for name, n in zip(
-    ("5d", "10d", "25d"), 
-    (5, 10, 25)
-  )
-])
-```
-:::
-
-## Performance (Unit MVNs)
-
-::: {.panel-tabset}
-
-### Run times
-
-```{python}
-#| echo: false
-g = sns.catplot(
-    data=(df[["name","method","time"]]
-        .explode("time")
-    ),
-    y="method", 
-    x="time", 
-    hue="name", 
-    alpha=0.5, 
-    aspect=2
-)
-g.ax.set_xlabel("Time (secs)")
-g.ax.set_ylabel("")
-plt.show()
-```
-
-### Function calls
-
-```{python}
-#| echo: false
-g = sns.catplot(
-  y = "method", x = "value", hue = "variable", col="name", kind="bar",
-  col_wrap=3,
-  data = df.melt(
-    id_vars=["name","method"], 
-    value_vars=["nit", "nfev", "njev", "nhev"]).astype({"value": "float64"}
-  ),
-  aspect=0.75
-).set_xlabels("n").set(xscale="log")
-```
-
-:::
-
-
-
-## What's going on? (good)
-
-::: {.xsmall}
-```{python}
-n = 5
-f, grad, hess = mk_mvn(np.zeros(n), np.eye(n))
-```
-:::
-
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="newton-cg", tol=1e-10
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="bfgs", tol=1e-10
-)
-```
-:::
-::::
-
-
-## What's going on? (okay)
-
-::: {.xsmall}
-```{python}
-n = 10
-f, grad, hess = mk_mvn(np.zeros(n), np.eye(n))
-```
-:::
-
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="newton-cg", tol=1e-10
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="bfgs", tol=1e-10
-)
-```
-:::
-::::
-
-
-## What's going on? (bad)
-
-::: {.xsmall}
-```{python}
-n = 25
-f, grad, hess = mk_mvn(np.zeros(n), np.eye(n))
-```
-:::
-
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="newton-cg", tol=1e-10
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="bfgs", tol=1e-10
-)
-```
-:::
-::::
-
-
-## All bad?
-
-::: {.xsmall}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="nelder-mead", tol=1e-10
-)
-```
-:::
-
-
-
-## Options (newton-cg)
-
-::: {.xsmall}
-```{python}
-optimize.show_options(solver="minimize", method="newton-cg")
-```
-:::
-
-## Options (bfgs)
-
-::: {.xsmall}
-```{python}
-optimize.show_options(solver="minimize", method="bfgs")
-```
-:::
-
-## Options (Nelder-Mead)
-
-::: {.xsmall}
-```{python}
-optimize.show_options(solver="minimize", method="newton-cg")
-```
-:::
-
-
-## SciPy implementation
-
-The following code comes from SciPy's `minimize()` implementation:
-
-::: {.small}
-```{python}
-#| eval: false
-if tol is not None:
-  options = dict(options)
-  if meth == 'nelder-mead':
-      options.setdefault('xatol', tol)
-      options.setdefault('fatol', tol)
-  if meth in ('newton-cg', 'powell', 'tnc'):
-      options.setdefault('xtol', tol)
-  if meth in ('powell', 'l-bfgs-b', 'tnc', 'slsqp'):
-      options.setdefault('ftol', tol)
-  if meth in ('bfgs', 'cg', 'l-bfgs-b', 'tnc', 'dogleg',
-              'trust-ncg', 'trust-exact', 'trust-krylov'):
-      options.setdefault('gtol', tol)
-  if meth in ('cobyla', '_custom'):
-      options.setdefault('tol', tol)
-  if meth == 'trust-constr':
-      options.setdefault('xtol', tol)
-      options.setdefault('gtol', tol)
-      options.setdefault('barrier_tol', tol)
-```
-:::
-
-::: {.aside}
-See code in context on GitHub [here](https://github.com/scipy/scipy/blob/a438ba6ef4061c28d79657b525ed2378154dfea8/scipy/optimize/_minimize.py#L610-L627)
-:::
-
-
-
-## Fixing our tolerances?
-
-::: {.xsmall}
-```{python}
-n = 25
-f, grad, hess = mk_mvn(np.zeros(n), np.eye(n))
-```
-:::
-
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="newton-cg", tol=1e-16
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="bfgs", tol=1e-16
-)
-```
-:::
-::::
-
-
-## Limits of floating point precision
-
-Every type of floating point value has finite precision due to the limitations of how it is represented. This value is typically refered to as the machine epsilon value, this is the smallest possible spacing between 1.0 and the next representable floating-point number.
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-np.finfo(np.float64).eps
-np.finfo(np.float32).eps
-np.finfo(np.float16).eps
-```
-
-:::
-
-::: {.column width='50%'}
-```{python}
-1+np.finfo(np.float64).eps > 1
-1+np.finfo(np.float64).eps/2 > 1
-```
-:::
-::::
-
-
-## Fixes?
-
-::: {.xsmall}
-```{python}
-def mk_prop_mvn(mu, Sigma):
-  Sigma_inv = np.linalg.inv(Sigma)
-  #norm_const = 1 / (np.sqrt(np.linalg.det(2*np.pi*Sigma)))
-  norm_const = 1
-  
-  # Returns the negative density (since we want the max not min)
-  def f(x):
-    x_m = x - mu
-    return -(norm_const * 
-      np.exp( 
-        -0.5 * x_m.T @ Sigma_inv @ x_m
-      ) 
-    ).item()
-  
-  def grad(x):
-    return (-f(x) * Sigma_inv @ (x - mu))
-  
-  def hess(x):
-    n = len(x)
-    x_m = x - mu
-    return f(x) * (
-      (Sigma_inv @ x_m).reshape((n,1)) 
-      @ (x_m.T @ Sigma_inv).reshape((1,n))
-      - Sigma_inv
-    )
-  
-  return f, grad, hess
-```
-:::
-
-## 
-
-::: {.xsmall}
-```{python}
-n = 25
-f, grad, hess = mk_prop_mvn(np.zeros(n), np.eye(n))
-```
-:::
-
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="newton-cg", tol=1e-10
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-optimize.minimize(
-  f, runif[:n], jac=grad, 
-  method="bfgs", tol=1e-10
-)
-```
-:::
-::::
-
-
-## Performance 
-
-```{python}
-#| include: false
-rng = np.random.default_rng(seed=1234)
-runif = rng.uniform(-1,1, size=25)
-
-df = pd.concat([
-  run_collect(
-    name, runif[:n], mk_prop_mvn, 
-    np.zeros(n), np.eye(n), 
-    tol=1e-10, 
-    skip=['naive_newton', 'naive_cg', 'bfgs w/o G', 'newton-cg w/ H', 'l-bfgs-b', 'nelder-mead']
-  ) 
-  for name, n in zip(
-    ("5d", "10d", "25d"), 
-    (5, 10, 25)
-  )
-])
-```
-
-
-::: {.panel-tabset}
-
-### Run times
-
-```{python}
-#| echo: false
-g = sns.catplot(
-    data=(df[["name","method","time"]]
-        .explode("time")
-    ),
-    y="method", 
-    x="time", 
-    hue="name", 
-    alpha=0.5, 
-    aspect=2
-)
-g.ax.set_xlabel("Time (secs)")
-g.ax.set_ylabel("")
-plt.show()
-```
-
-### Function calls
-
-```{python}
-#| echo: false
-g = sns.catplot(
-  y = "method", x = "value", hue = "variable", col="name", kind="bar",
-  col_wrap=3,
-  data = df.melt(
-    id_vars=["name","method"], 
-    value_vars=["nit", "nfev", "njev", "nhev"]).astype({"value": "float64"}
-  ),
-  aspect=0.75
-).set_xlabels("n").set(xscale="log")
-```
-
-:::
-
-
-
-
-
-
-## Some general advice
-
-* Having access to the gradient is almost always helpful / necessary
-
-* Having access to the hessian can be helpful, but usually does not significantly improve things
-
-* The curse of dimensionality is real 
-
-  * Be careful with `tol` - it means different things for different methods
-  
-* In general, **BFGS** or **L-BFGS** should be a first choice for most problems (either well- or ill-conditioned)
-
-  * **CG** can perform better for well-conditioned problems with cheap function evaluations
-
-
-# Maximum Likelihood example
-
-## Normal MLE
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-from scipy.stats import norm
-
-n = norm(-3.2, 1.25)
-x = n.rvs(size=100, random_state=1234)
-{'µ': x.mean(), 'σ': x.std()}
-```
-```{python}
-mle_norm = lambda θ: -np.sum(
-  norm.logpdf(x, loc=θ[0], scale=θ[1])
-)
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-mle_norm([0,1])
-mle_norm([-3, 1])
-mle_norm([-3.2, 1.25])
-mle_norm([-3.3, 1.25])
-```
-:::
-::::
-
-
-## Minimizing
-
-::: {.small}
-```{python}
-optimize.minimize(mle_norm, x0=[0,1], method="bfgs")
-```
-:::
-
-## Adding constraints
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-def mle_norm2(θ): 
-  if θ[1] <= 0:
-    return np.inf
-  else:
-    return -np.sum(
-      norm.logpdf(x, loc=θ[0], scale=θ[1])
-    )
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-optimize.minimize(mle_norm2, x0=[0,1], method="bfgs")
-```
-:::
-::::
-
-. . .
-
-::: {.xsmall}
-```{python}
-{'µ': x.mean(), 'σ': x.std()}
-```
-:::
-
-
-## Specifying Bounds
-
-It is also possible to specify bounds via `bounds` but this is only available for certain optimization methods (i.e. Nelder-Mead & L-BFGS-B).
-
-::: {.small}
-```{python}
-optimize.minimize(
-  mle_norm, x0=[0,1], method="l-bfgs-b",
-  bounds = [(-1e16, 1e16), (1e-16, 1e16)]
-)
-```
-:::
-
-
-## Exercise 2
-
-Using `optimize.minimize()` recover the shape and scale parameters for these data using MLE.
-
-::: {.small}
-```{python}
-from scipy.stats import gamma
-
-g = gamma(a=2.0, scale=2.0)
-x = g.rvs(size=100, random_state=1234)
-x.round(2)
-```
-:::

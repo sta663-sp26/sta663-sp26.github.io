@@ -1,5 +1,5 @@
 ---
-title: "scikit-learn"
+title: "matplotlib / pyplot <br/> & seaborn"
 subtitle: "Lecture 10"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -9,27 +9,14 @@ format:
     transition: fade
     slide-number: true
     self-contained: true
-execute: 
+execute:
   echo: true
-  warning: true
 ---
 
-```{python setup}
-#| include: false
-import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
-
-plt.rcParams['figure.dpi'] = 200
-```
-
-```{r r_setup}
+```{r setup}
 #| include: false
 knitr::opts_chunk$set(
-  fig.align="center",
-  cache=FALSE
+  fig.align="center"
 )
 
 local({
@@ -50,1066 +37,1162 @@ local({
 })
 ```
 
+```{python}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import polars as pl
+```
 
-## scikit-learn
+## matplotlib & pyplot
 
-> Scikit-learn is an open source machine learning library that supports supervised and unsupervised learning. It also provides various tools for model fitting, data preprocessing, model selection, model evaluation, and many other utilities.
->
-> * Simple and efficient tools for predictive data analysis
-> * Accessible to everybody, and reusable in various contexts
-> * Built on NumPy, SciPy, and matplotlib
-> * Open source, commercially usable - BSD license
+> matplotlib is a comprehensive library for creating static, animated, and interactive visualizations in Python.
 
-
-::: {.aside}
-This is one of several other "scikits" (e.g. scikit-image) which are scientific toolboxes built on top of scipy. For a more complete list see [here](https://pypi.org/search/?q=scikit).
-:::
-
-## Submodules
-
-The `sklearn` package contains a large number of submodules which are specialized for different tasks / models,
-
-:::: {.columns .tiny}
-::: {.column width='50%'}
-- `sklearn.base` - Base classes and utility functions
-- `sklearn.calibration` - Probability Calibration
-- `sklearn.cluster` - Clustering
-- `sklearn.compose` - Composite Estimators
-- `sklearn.covariance` - Covariance Estimators
-- `sklearn.cross_decomposition` - Cross decomposition
-- `sklearn.datasets` - Datasets
-- `sklearn.decomposition` - Matrix Decomposition
-- `sklearn.discriminant_analysis` - Discriminant Analysis
-- `sklearn.ensemble` - Ensemble Methods
-- `sklearn.exceptions` - Exceptions and warnings
-- `sklearn.experimental` - Experimental
-- `sklearn.feature_extraction` - Feature Extraction
-- `sklearn.feature_selection` - Feature Selection
-- `sklearn.gaussian_process` - Gaussian Processes
-- `sklearn.impute` - Impute
-- `sklearn.inspection` - Inspection
-- `sklearn.isotonic` - Isotonic regression
-- `sklearn.kernel_approximation` - Kernel Approximation
-:::
-
-::: {.column width='50%'}
-- `sklearn.kernel_ridge` - Kernel Ridge Regression
-- `sklearn.linear_model` - Linear Models
-- `sklearn.manifold` - Manifold Learning
-- `sklearn.metrics` - Metrics
-- `sklearn.mixture` - Gaussian Mixture Models
-- `sklearn.model_selection` - Model Selection
-- `sklearn.multiclass` - Multiclass classification
-- `sklearn.multioutput` - Multioutput regression and classification
-- `sklearn.naive_bayes` - Naive Bayes
-- `sklearn.neighbors` - Nearest Neighbors
-- `sklearn.neural_network` - Neural network models
-- `sklearn.pipeline` - Pipeline
-- `sklearn.preprocessing` - Preprocessing and Normalization
-- `sklearn.random_projection` - Random projection
-- `sklearn.semi_supervised` - Semi-Supervised Learning
-- `sklearn.svm` - Support Vector Machines
-- `sklearn.tree` - Decision Trees
-- `sklearn.utils` - Utilities
-:::
-::::
+```{python}
+import matplotlib as mpl
+```
 
 
-# Model Fitting
+> `matplotlib.pyplot` is a collection of functions that make matplotlib work like MATLAB. Each `pyplot` function makes some change to a figure: e.g., creates a figure, creates a plotting area in a figure, plots some lines in a plotting area, decorates the plot with labels, etc.
 
-## Sample data
+```{python}
+import matplotlib.pyplot as plt
+```
 
-To begin, we will examine a simple data set on the size and weight of a number of books. The goal is to model the weight of a book using some combination of the other features in the data. 
+
+
+## Plot anatomy
 
 :::: {.columns}
 ::: {.column width='50%'}
-The included columns are:
-
-* `volume` - book volumes in cubic centimeters
-
-* `weight` - book weights in grams
-
-* `cover` - a categorical variable with levels `"hb"` hardback, `"pb"` paperback
-:::
-
-::: {.column width='50%' .xsmall}
-```{python}
-books = pd.read_csv("data/daag_books.csv"); books
-```
-:::
-::::
-
-::: {.aside}
-These data come from the `allbacks` data set from the `DAAG` package in R
-:::
-
-##
-
-::: {.small}
-```{python}
-#| out-width: 50%
-g = sns.relplot(data=books, x="volume", y="weight", hue="cover")
+```{r echo=FALSE, fig.align="center", out.width="95%"}
+knitr::include_graphics("imgs/anatomy.webp")
 ```
 :::
 
-## Linear regression
-
-scikit-learn uses an object oriented system for implementing the various modeling approaches, the class for `LinearRegression` is part of the `linear_model` submodule.
-
-::: {.small}
-```{python}
-from sklearn.linear_model import LinearRegression 
-```
-:::
-
-. . .
-
-Each modeling class needs to be constructed (potentially with options) and then the resulting object will provide attributes and methods. 
-
-. . .
-
-:::: {.columns .small}
 ::: {.column width='50%'}
-```{python}
-lm = LinearRegression()
+* **Figure** - The entire plot (including subplots)
 
-m = lm.fit(
-  X = books[["volume"]],
-  y = books.weight
-)
-```
+* **Axes** - Subplot attached to a figure, contains the region for plotting data and x & y axis
 
-```{python}
-m.coef_
-m.intercept_
-```
-:::
+* **Axis** - Set the scale and limits, generate ticks and ticklabels
 
-::: {.column width='50%' .fragment}
-Note `lm` and `m` are labels for the same underlying `LinearRegression` object,
-
-```{python}
-lm.coef_
-lm.intercept_
-```
+* **Artist** - Everything visible on a figure: text, lines, axis, axes, etc.  
 :::
 ::::
 
 
-## A couple of considerations
-
-When fitting a model, scikit-learn expects `X` to be a 2d array-like object (e.g. a `np.array` or `pd.DataFrame`), so it will not accept objects like a `pd.Series` or 1d `np.array`.
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-#| error: true
-lm.fit(
-  X = books.volume,
-  y = books.weight
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| error: true
-lm.fit(
-  X = np.array(books.volume),
-  y = books.weight
-)
-```
-:::
-::::
-
-. . .
-
-:::: {.xsmall}
-```{python}
-#| eval: false
-lm.fit(
-  X = np.array(books.volume).reshape(-1,1),
-  y = books.weight
-)
-```
-:::
-
-
-
-## Model parameters
-
-Depending on the model being used, there will be a number of parameters that can be configured when creating the model object or via the `set_params()` method.
-
-::: {.small}
-```{python}
-lm.get_params()
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-lm.set_params(fit_intercept = False)
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-lm = lm.fit(X = books[["volume"]], y = books.weight)
-lm.intercept_
-lm.coef_
-```
-:::
-
-## Model prediction
-
-Once the model coefficients have been fit, it is possible to predict from the model via the `predict()` method, this method requires a matrix-like `X` as input and in the case of `LinearRegression` returns an array of predicted y values. 
-
-::: {.small}
-```{python}
-lm.predict(X = books[["volume"]])
-```
-
-```{python}
-books = books.assign(
-  weight_lm_pred = lambda x: lm.predict(X = x[["volume"]])
-)
-books
-```
-:::
-
-##
-
-::: {.small}
-```{python}
-plt.figure()
-sns.scatterplot(data=books, x="volume", y="weight", hue="cover")
-sns.lineplot(data=books, x="volume", y="weight_lm_pred", color="c")
-plt.show()
-```
-:::
-
-
-## Residuals?
-
-There is no built in functionality for calculating residuals, so this needs to be done by hand.
-
-::: {.small}
-```{python}
-books["resid_lm_pred"] = books["weight"] - books["weight_lm_pred"]
-```
-
-```{python}
-#| out-width: 66%
-plt.figure(layout="constrained")
-ax = sns.scatterplot(data=books, x="volume", y="resid_lm_pred", hue="cover")
-ax.axhline(c="k", ls="--", lw=1)
-plt.show()
-```
-:::
-
-
-## Categorical variables?
-
-Scikit-learn expects that the model matrix be numeric before fitting,
-
-::: {.small}
-```{python error=TRUE}
-lm = lm.fit(
-  X = books[["volume", "cover"]],
-  y = books.weight
-)
-```
-:::
-
-. . .
-
-the solution here is to dummy code the categorical variables - this can be done with pandas via `pd.get_dummies()` or with a scikit-learn preprocessor.
-
-::: {.small}
-```{python}
-pd.get_dummies(books[["volume", "cover"]])
-```
-:::
-
-
-## Dummy coded model
-
-
-
-::: {.small}
-```{python}
-lm = LinearRegression().fit(
-  X = pd.get_dummies(books[["volume", "cover"]]),
-  y = books.weight
-)
-```
-
-```{python}
-lm.intercept_
-lm.coef_
-```
-:::
-
-Do the above results look reasonable? What went wrong?
-
-
-## Quick comparison with R
-
-::: {.xsmall}
-```{r}
-d = read.csv('data/daag_books.csv')
-d['cover_hb'] = ifelse(d$cover == "hb", 1, 0)
-d['cover_pb'] = ifelse(d$cover == "pb", 1, 0)
-lm = lm(weight~volume+cover_hb+cover_pb, data=d)
-summary(lm)
-```
-:::
-
-
-## Avoiding co-linearity
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-lm1 = LinearRegression(
-  fit_intercept = False
-).fit(
-  X = pd.get_dummies(
-    books[["volume", "cover"]]
-  ),
-  y = books.weight
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-lm2 = LinearRegression(
-  fit_intercept = True
-).fit(
-  X = pd.get_dummies(
-    books[["volume", "cover"]], 
-    drop_first=True
-  ),
-  y = books.weight
-)
-```
-:::
-::::
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-lm1.intercept_
-lm1.coef_
-lm1.feature_names_in_
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-lm2.intercept_
-lm2.coef_
-lm2.feature_names_in_
-```
-:::
-::::
-
-
-# Preprocessors
-
-## Preprocessors
-
-These are a collection of transformer classes present in the `sklearn.preprocessing` submodule that are designed to help with the preparation of raw feature data into quantities more suitable for downstream modeling tools.
-
-Like the modeling classes, they have an object oriented design that shares a common interface (methods and attributes) for bringing in data, transforming it, and returning it.
-
-
-## OneHotEncoder
-
-For dummy coding we can use the `OneHotEncoder` preprocessor, the default is to use one hot encoding but standard dummy coding can be achieved via the `drop` parameter.
+## Basic plot - pyplot style
 
 ::: {.xsmall}
 ```{python}
-from sklearn.preprocessing import OneHotEncoder
+#| fig-align: center
+x = np.linspace(0, 2*np.pi, 100)
+y1 = np.sin(x)
+y2 = np.cos(x)
+
+plt.figure(figsize=(6, 3))
+plt.plot(x, y1, label="sin(x)")
+plt.plot(x, y2, label="cos(x)")
+plt.title("Simple Plot")
+plt.legend()
 ```
 :::
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+
+## Basic plot - OO style
+
+::: {.xsmall}
 ```{python}
-enc = OneHotEncoder(sparse_output=False)
-enc.fit(X = books[["cover"]])
-enc.transform(X = books[["cover"]])
+#| fig-align: center
+x = np.linspace(0, 2*np.pi, 100)
+y1 = np.sin(x)
+y2 = np.cos(x)
+
+fig, ax = plt.subplots(figsize=(6, 3))
+ax.plot(x, y1, label="sin(x)")
+ax.plot(x, y2, label="cos(x)")
+ax.set_title("Simple Plot")
+ax.legend()
 ```
 :::
 
-::: {.column width='50%' .fragment}
+
+
+
+
+## Subplots (OO)
+
+::: {.xsmall}
 ```{python}
-enc = OneHotEncoder(sparse_output=False, drop="first")
-enc.fit_transform(X = books[["cover"]])
+#| fig-align: center
+#| output-location: column
+#| code-line-numbers: "|5-7|9|11-13|15-17"
+x = np.linspace(0, 2*np.pi, 30)
+y1 = np.sin(x)
+y2 = np.cos(x)
+
+fig, (ax1, ax2) = plt.subplots(
+  2, 1, figsize=(6, 6)
+)
+
+fig.suptitle("Main title")
+
+ax1.plot(x, y1, "--b", label="sin(x)")
+ax1.set_title("subplot 1")
+ax1.legend()
+
+ax2.plot(x, y2, ".-r", label="cos(x)")
+ax2.set_title("subplot 2")
+ax2.legend()
 ```
+:::
+
+
+## Subplots (pyplot)
+
+::: {.xsmall}
+```{python}
+#| fig-align: center
+#| output-location: column
+#| code-line-numbers: "|9-12|14-17"
+x = np.linspace(0, 2*np.pi, 30)
+y1 = np.sin(x)
+y2 = np.cos(x)
+
+plt.figure(figsize=(6, 6))
+
+plt.suptitle("Main title")
+
+plt.subplot(211)
+plt.plot(x, y1, "--b", label="sin(x)")
+plt.title("subplot 1")
+plt.legend()
+
+plt.subplot(2,1,2)
+plt.plot(x, y2, ".-r", label="cos(x)")
+plt.title("subplot 2")
+plt.legend()
+
+plt.show()
+```
+:::
+
+## More subplots
+
+::: {.xsmall}
+```{python}
+#| fig-align: center
+#| output-location: column
+#| code-line-numbers: "|3-6|10-13|15"
+x = np.linspace(-2, 2, 101)
+
+fig, axs = plt.subplots(
+  2, 2, 
+  figsize=(5, 5)
+)
+
+fig.suptitle("More subplots")
+
+axs[0,0].plot(x, x, "b", label="linear")
+axs[0,1].plot(x, x**2, "r", label="quadratic")
+axs[1,0].plot(x, x**3, "g", label="cubic")
+axs[1,1].plot(x, x**4, "c", label="quartic")
+
+[ax.legend() for row in axs for ax in row]
+```
+:::
+
+
+::: {.aside}
+`axs` here is a 2x2 numpy array of axes
+:::
+
+
+## Fancy subplots (mosaic)
+
+::: {.xsmall}
+```{python}
+#| output-location: column
+#| code-line-numbers: "|3-7|9,13|10,14|11,15"
+x = np.linspace(-2, 2, 101)
+
+fig, axd = plt.subplot_mosaic(
+  [['upleft', 'right'],
+   ['lowleft', 'right']],
+  figsize=(5, 5)
+)
+
+axd['upleft' ].plot(x, x,    "b", label="linear")
+axd['lowleft'].plot(x, x**2, "r", label="quadratic")
+axd['right'  ].plot(x, x**3, "g", label="cubic")
+
+axd['upleft'].set_title("Linear")
+axd['lowleft'].set_title("Quadratic")
+axd['right'].set_title("Cubic")
+```
+:::
+
+
+::: {.aside}
+`axd` here is a *dictionary* of axes
+:::
+
+## Format strings
+
+For quick formatting of plots (scatter and line) format strings are a useful shorthand, generally they use the format `'[marker][line][color]'`,
+
+<br/>
+
+:::: {.columns .small}
+::: {.column width='33%'}
+| character | shape          |
+|:---------:|----------------|
+| `.`       | point          |
+| `,`       | pixel          |
+| `o`       | circle         |
+| `v`       | triangle down  |
+| `^`       | triangle up    |
+| `<`       | triangle left  |
+| `>`       | triangle right |
+| ...       | + more         |
+:::
+
+::: {.column width='33%'}
+| character | line style |
+|:---------:|------------|
+| `-`       | solid      |
+| `--`      | dashed     |
+| `-.`      | dash-dot   |
+| `:`       | dotted     |
+:::
+
+::: {.column width='33%'}
+| character |	color   |
+|:---------:|---------|
+| `b`       |	blue    |
+| `g`       |	green   |
+| `r`       |	red     |
+| `c`       |	cyan    |
+| `m`       |	magenta |
+| `y`       |	yellow  |
+| `k`       |	black   |
+| `w`       |	white   |    
 :::
 ::::
 
 
-## Other useful bits
+::: {.aside}
+See Notes section of [pyplot.plot](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html) docs
+:::
 
-```{python, include=FALSE}
-enc = OneHotEncoder(sparse_output=False)
-enc.fit(X = books[["cover"]])
-```
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+## Plotting data
+
+Beyond creating plots for arrays (and lists), addressable objects like dicts and DataFrames can be used via `data`,
+
+::: {.xsmall}
 ```{python}
-enc.get_feature_names_out()
-f = enc.transform(X = books[["cover"]])
-f
+#| fig-align: center
+#| output-location: column
+np.random.seed(19680801)
+d = {'x': np.arange(50),
+     'color': np.random.randint(0, 50, 50),
+     'size': np.abs(np.random.randn(50)) * 100}
+d['y'] = d['x'] + 10 * np.random.randn(50)
+
+
+plt.figure(figsize=(6, 3))
+plt.scatter(
+  'x', 'y', c='color', s='size', 
+  data=d
+)
+plt.xlabel("x-axis")
+plt.ylabel("y-axis")
+
+plt.show()
 ```
 :::
 
-::: {.column width='50%' .fragment}
+
+::: {.aside}
+Example from [Basic Usage](https://matplotlib.org/stable/tutorials/introductory/usage.html#types-of-inputs-to-plotting-functions) guide
+:::
+
+
+## Constrained layout
+
+To fix the axis label clipping we can use the "constrained" layout to adjust automatically,
+
+::: {.xsmall}
 ```{python}
-enc.inverse_transform(f)
+#| fig-align: center
+#| output-location: column
+np.random.seed(19680801)
+d = {'x': np.arange(50),
+     'color': np.random.randint(0, 50, 50),
+     'size': np.abs(np.random.randn(50)) * 100}
+d['y'] = d['x'] + 10 * np.random.randn(50)
+
+
+plt.figure(
+  figsize=(6, 3), 
+  layout="constrained"
+)
+plt.scatter(
+  'x', 'y', c='color', s='size', 
+  data=d
+)
+plt.xlabel("x-axis")
+plt.ylabel("y-axis")
+
+plt.show()
 ```
 :::
-::::
 
 
+## pyplot w/ pandas
 
-## A cautionary note
+Data can also come from DataFrame objects or series, 
 
-Unlike `pd.get_dummies()` it is not safe to use `OneHotEncoder` with both numerical and categorical features, as the former will also be transformed.
 
 ::: {.small}
 ```{python}
-enc = OneHotEncoder(sparse_output=False)
-X = enc.fit_transform(X = books[["volume", "cover"]])
-pd.DataFrame(data=X, columns = enc.get_feature_names_out())
-```
-:::
-
-
-## Putting it together
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-cover = OneHotEncoder(
-  sparse_output=False
-).fit_transform(
-  books[["cover"]]
-)
-X = np.c_[books.volume, cover]
-
-lm2 = LinearRegression(
-  fit_intercept=False
-).fit(
-  X = X,
-  y = books.weight
+#| output-location: slide
+rho = 0.75
+df = pd.DataFrame({
+  "x": np.random.normal(size=10000)
+}).assign(
+  y = lambda d: np.random.normal(rho*d.x, np.sqrt(1-rho**2), size=10000)
 )
 
-lm2.coef_
+fig, ax = plt.subplots(figsize=(5,5))
+
+ax.scatter('x', 'y', c='k', data=df, alpha=0.1, s=0.5)
+
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_title(f"Bivariate normal ($\\rho={rho}$)")
 ```
 :::
 
-::: {.column width='50%' .fragment}
+## pyplot w/ polars
+
+Data can also come from DataFrame objects or series, 
+
+
+::: {.small}
 ```{python}
-books["weight_lm2_pred"] = lm2.predict(X=X)
-books.drop(
-  ["weight_lm_pred", "resid_lm_pred"], 
-  axis=1
+#| output-location: slide
+rho = -0.95
+df = pl.DataFrame({
+  "x": np.random.normal(size=10000)
+}).with_columns(
+  y = rho*pl.col("x") + np.random.normal(0, np.sqrt(1-rho**2), size=10000)
 )
+
+fig, ax = plt.subplots(figsize=(5,5))
+
+ax.scatter('x', 'y', c='k', data=df, alpha=0.1, s=0.5)
+
+ax.set_xlabel('x')
+ax.set_ylabel('y')
+ax.set_title(f"Bivariate normal ($\\rho={rho}$)")
 ```
 :::
-::::
 
-::: {.aside}
-We'll see a more elegant way of doing this in the near future
-:::
 
-## Model fit
+## Scales
 
+Axis scales can be changed via `plt.xscale()`, `plt.yscale()`, `ax.set_xscale()`, or `ax.set_yscale()`, supported values are "linear", "log", "symlog", and "logit".
+
+::: {.xsmall}
 ```{python}
-#| echo: false
-plt.figure()
-sns.scatterplot(data=books, x="volume", y="weight", hue="cover")
-sns.lineplot(data=books, x="volume", y="weight_lm2_pred", hue="cover")
-plt.show()
-```
-
-## Model residuals
-
-```{python}
-#| echo: false
-books["resid_lm2_pred"] = books["weight"] - books["weight_lm2_pred"]
+#| output-location: slide
+y = np.sort( np.random.sample(size=1000) )
+x = np.arange(len(y))
 
 plt.figure(layout="constrained")
-ax = sns.scatterplot(data=books, x="volume", y="resid_lm2_pred", hue="cover")
-ax.axhline(c="k", ls="--", lw=1)
+
+scales = ['linear', 'log', 'symlog', 'logit']
+for i, scale in enumerate(scales):
+  plt.subplot(221+i)
+  plt.plot(x, y)
+  plt.grid(True)
+  if scale == 'symlog':
+    plt.yscale(scale, linthresh=0.01)
+  else:
+    plt.yscale(scale)
+  plt.title(scale)
+
+
 plt.show()
+```
+:::
+
+
+## Categorical data
+
+::: {.small}
+```{python}
+#| output-location: column
+df = pd.DataFrame({
+  "cat": ["A", "B", "C", "D", "E"],
+  "value": np.exp(range(5))
+})
+
+plt.figure(figsize=(4, 6), layout="constrained")
+
+plt.subplot(321)
+plt.scatter("cat", "value", data=df)
+plt.subplot(322)
+plt.scatter("value", "cat", data=df)
+
+plt.subplot(323)
+plt.plot("cat", "value", data=df)
+plt.subplot(324)
+plt.plot("value", "cat", data=df)
+
+plt.subplot(325)
+b = plt.bar("cat", "value", data=df)
+plt.subplot(326)
+b = plt.bar("value", "cat", data=df)
+
+plt.show()
+```
+:::
+
+```{python echo=FALSE}
+#| echo: false
+plt.clf()
 ```
 
 
-## Model performance
-
-Scikit-learn comes with a number of builtin functions for measuring model performance in the `sklearn.metrics` submodule - these are generally just functions that take the vectors `y_true` and `y_pred` and return a scalar score.
+## Histograms
 
 ::: {.xsmall}
 ```{python}
-import sklearn.metrics as metrics 
+#| output-location: column
+df = pd.DataFrame({
+  "x1": np.random.normal(size=100),
+  "x2": np.random.normal(1,2, size=100)
+})
+
+plt.figure(figsize=(4, 6), layout="constrained")
+
+plt.subplot(311)
+h = plt.hist("x1", bins=10, data=df, alpha=0.5)
+h = plt.hist("x2", bins=10, data=df, alpha=0.5)
+
+plt.subplot(312)
+h = plt.hist(df, alpha=0.5)
+
+plt.subplot(313)
+h = plt.hist(df, stacked=True, alpha=0.5)
+
+plt.show()
 ```
 :::
 
-. . .
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-metrics.r2_score(books.weight, books.weight_lm_pred)
-metrics.mean_squared_error(
-  books.weight, books.weight_lm_pred
-)
-metrics.root_mean_squared_error(
-  books.weight, books.weight_lm_pred
-)
-```
-:::
+## Other Plot Types
 
-::: {.column width='50%'}
-```{python}
-metrics.r2_score(books.weight, books.weight_lm2_pred)
-metrics.mean_squared_error(
-  books.weight, books.weight_lm2_pred
-) 
-metrics.root_mean_squared_error(
-  books.weight, books.weight_lm2_pred
-)
-```
-:::
-::::
+<iframe data-src="https://matplotlib.org/stable/plot_types/index.html" width="100%" height="550px" style="border:1px solid;border-radius: 5px;" data-external="1"></iframe>
 
 ::: {.aside}
-See [API Docs](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics) for a list of available metrics
+[matplotlib.org/stable/plot_types/](https://matplotlib.org/stable/plot_types/index.html)
 :::
 
 
 ## Exercise 1
 
-Create and fit a model for the `books` data that includes an interaction effect between `volume` and `cover`. 
+To the best of your ability recreate the following plot,
 
-You will need to do this manually with `pd.getdummies()` and some additional data munging.
-
-The data can be read into pandas with,
-```{python}
-#| eval: false
-books = pd.read_csv(
-  "https://sta663-sp26.github.io/slides/data/daag_books.csv"
-)
+```{r echo=FALSE, out.width="50%"}
+knitr::include_graphics("imgs/pyplot_simple.webp")
 ```
 
-
-
-# Other transformers
-
-## Polynomial regression
-
-We will now look at another flavor of regression model, that involves preprocessing and a hyperparameter - namely polynomial regression.
-
-```{python, out.width="40%"}
-df = pd.read_csv("data/gp.csv")
-sns.relplot(data=df, x="x", y="y")
-```
-
-
-## By hand
-
-It is certainly possible to construct the necessary model matrix by hand (or even use a function to automate the process), but this is less then desirable generally - particularly if we want to do anything fancy (e.g. cross validation)
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-X = np.c_[
-    np.ones(df.shape[0]),
-    df.x,
-    df.x**2,
-    df.x**3
-]
-
-plm = LinearRegression(
-  fit_intercept = False
-).fit(
-  X=X, y=df.y
-)
-
-plm.coef_
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-df["y_pred"] = plm.predict(X=X)
-
-plt.figure(layout="constrained")
-sns.scatterplot(data=df, x="x", y="y")
-sns.lineplot(data=df, x="x", y="y_pred", color="k")
-plt.show()
-```
-:::
-::::
-
-##
-
-::: {.columns .xsmall}
-```{python}
-X = np.c_[
-    np.ones(df.shape[0]), df.x,
-    df.x**2, df.x**3,
-    df.x**4, df.x**5
-]
-
-plm = LinearRegression(
-  fit_intercept = False
-).fit(
-  X=X, y=df.y
-)
-df["y_pred"] = plm.predict(X=X)
-```
+::: {.aside}
+From matplotlib [examples](https://matplotlib.org/stable/gallery/index.html)
 :::
 
 
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-sns.scatterplot(data=df, x="x", y="y")
-sns.lineplot(data=df, x="x", y="y_pred", color="k")
-plt.show()
-```
+# Seaborn
 
+## seaborn
 
-## PolynomialFeatures
+> Seaborn is a library for making statistical graphics in Python. It builds on top of **matplotlib** and integrates closely with **pandas** data structures.
+> <br/><br/>
+> Seaborn helps you explore and understand your data. Its plotting functions operate on dataframes and arrays containing whole datasets and internally perform the necessary semantic mapping and statistical aggregation to produce informative plots. Its dataset-oriented, declarative API lets you focus on what the different elements of your plots mean, rather than on the details of how to draw them.
 
 ::: {.small}
-This is another transformer class from `sklearn.preprocessing` that simplifies the process of constructing polynormial features for your model matrix. Usage is similar to that of `OneHotEncoder`.
-:::
-
-::: {.xsmall}
 ```{python}
-from sklearn.preprocessing import PolynomialFeatures
-X = np.array(range(6)).reshape(-1,1)
+import seaborn as sns
 ```
 :::
+
+## Penguins data
+
+::: {.small}
+```{python}
+penguins = sns.load_dataset("penguins")
+penguins
+```
+:::
+
+
+## Basic plots
 
 :::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-pf = PolynomialFeatures(degree=3)
-pf = pf.fit(X)
-pf.transform(X)
-pf.get_feature_names_out()
+#| out-width: 75%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", 
+  y = "bill_depth_mm"
+)
 ```
 :::
 
 ::: {.column width='50%' .fragment}
 ```{python}
-pf = PolynomialFeatures(
-  degree=2, include_bias=False
+#| out-width: 75%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", 
+  y = "bill_depth_mm",
+  hue = "species"
 )
-pf.fit_transform(X)
-pf.get_feature_names_out()
 ```
 :::
 ::::
 
 
-## Interactions
+## A more complex plot
 
-If the feature matrix `X` has more than one column than `PolynomialFeatures` transformer will include interaction terms with total degree up to `degree`.
+```{python}
+#| output-location: slide
+#| out-width: 60%
+sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  col = "island", row = "species"
+)
+```
 
-:::: {.columns .xsmall}
+
+## Figure-level vs. axes-level functions
+
+```{r out.width = "66%", echo=FALSE}
+knitr::include_graphics("imgs/seaborn_levels.png")
+```
+
+::: {.aside}
+These are not the only axes-level functions - we will see additional plotting functions today
+:::
+
+
+## displots
+
+:::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-X.reshape(-1, 2)
-
-pf = PolynomialFeatures(
-  degree=2, include_bias=False
+#| out-width: 75%
+g = sns.displot(
+  data = penguins,
+  x = "bill_length_mm", 
+  hue = "species",
+  alpha = 0.5, aspect = 1.5
 )
-pf.fit_transform(
-  X.reshape(-1, 2)
-)
-pf.get_feature_names_out()
 ```
 :::
 
-::: {.column width='50%' .fragment}
+::: {.column width='50%'}
 ```{python}
-X.reshape(-1, 3)
-
-pf = PolynomialFeatures(
-  degree=2, include_bias=False
+#| out-width: 75%
+g = sns.displot(
+  data = penguins,
+  x = "bill_length_mm", hue = "species",
+  kind = "kde", fill=True,
+  alpha = 0.5, aspect = 1
 )
-pf.fit_transform(
-  X.reshape(-1, 3)
-)
-pf.get_feature_names_out()
 ```
 :::
 ::::
 
 
-## Modeling with PolynomialFeatures
+## catplots
 
-:::: {.columns .xsmall}
+:::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-def poly_model(X, y, degree):
-  X  = PolynomialFeatures(
-    degree=degree, include_bias=False
-  ).fit_transform(
-    X=X
-  )
-  y_pred = LinearRegression(
-  ).fit(
-    X=X, y=y
-  ).predict(
-    X
-  )
-  return metrics.root_mean_squared_error(y, y_pred)
-```
-
-```{python}
-poly_model(X = df[["x"]], y = df.y, degree = 2)
-poly_model(X = df[["x"]], y = df.y, degree = 3)
+#| out-width: 75%
+g = sns.catplot(
+  data = penguins,
+  x = "species", 
+  y = "bill_length_mm",
+  hue = "sex"
+)
 ```
 :::
 
-::: {.column width='50%' .fragment}
+::: {.column width='50%'}
+```{python}
+#| out-width: 75%
+g = sns.catplot(
+  data = penguins,
+  x = "species", 
+  y = "bill_length_mm",
+  hue = "sex",
+  kind = "box"
+)
+```
+:::
+::::
+
+
+## figure-level plot size
+
+To adjust the size of plots generated via a figure-level plotting function adjust the `aspect` and `height` arguments, figure width is `aspect * height`.
+
+:::: {.columns .small}
+::: {.column width='50%'}
 ```{python}
 #| out-width: 66%
-degrees = range(1,10)
-rmses = [
-  poly_model(X=df[["x"]], y=df.y, degree=d) 
-  for d in degrees
-]
-g = sns.relplot(x=degrees, y=rmses)
-```
-:::
-::::
-
-##
-
-```{python}
-#| echo: false
-res = df.copy().drop("y_pred", axis=1)
-for d in range(1,10):
-  X  = PolynomialFeatures(
-    degree=d, include_bias=False
-  ).fit_transform(
-    X=res[["x"]]
-  )
-  res[str(d)] = LinearRegression().fit(X=X, y=res.y).predict(X)
-
 g = sns.relplot(
-  data = res.melt(id_vars=["x","y"], var_name="degree"),
-  x = "x", y="value", col = "degree",
-  col_wrap=3, kind="line", color="k"
-)
-
-[ ax.scatter(res.x, res.y, alpha=0.3)  for ax in g.axes ]
-```
-
-
-
-# Pipelines
-
-
-## Pipelines
-
-You may have noticed that `PolynomialFeatures` takes a model matrix as input and returns a new model matrix as output which is then used as the input for `LinearRegression`. This is not an accident, and by structuring the library in this way sklearn is designed to enable the connection of these steps together, into what sklearn calls a *pipeline*.
-
-::: {.columns .xsmall}
-::: {.column}
-```{python}
-from sklearn.pipeline import make_pipeline
-
-p = make_pipeline(
-  PolynomialFeatures(degree=4),
-  LinearRegression()
-)
-```
-:::
-::: {.column}
-```{python}
-p
-```
-:::
-:::
-
-
-## Using Pipelines
-
-Once constructed, this object can be used just like our previous `LinearRegression` model (i.e. fit to our data and then used for prediction)
-
-::: {.small}
-```{python}
-p = p.fit(X = df[["x"]], y = df.y)
-p.predict(X = df[["x"]])
-```
-:::
-
-##
-
-::: {.small}
-```{python}
-plt.figure(layout="constrained")
-sns.scatterplot(data=df, x="x", y="y")
-sns.lineplot(x=df.x, y=p.predict(X = df[["x"]]), color="k")
-plt.show()
-```
-:::
-
-
-## Model coefficients (or other attributes)
-
-The attributes of pipeline steps are not directly accessible, but can be accessed via the `steps` or `named_steps` attributes,
-
-::: {.small}
-```{python, error=TRUE}
-p.coef_
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-p.steps
-p.steps[1][1].coef_
-p.named_steps["linearregression"].intercept_
-```
-:::
-
-## Other useful bits
-
-::: {.small}
-```{python}
-p.steps[0][1].get_feature_names_out()
-p.steps[1][1].get_params()
-```
-:::
-
-
-
-Anyone notice a problem?
-
-. . .
-
-::: {.small}
-```{python}
-p.steps[1][1].rank_
-p.steps[1][1].n_features_in_
-```
-:::
-
-
-
-
-## What about step parameters?
-
-By accessing each step we can adjust their parameters (via `set_params()`),
-
-::: {.small}
-```{python}
-p.named_steps["linearregression"].get_params()
-```
-:::
-
-. . .
-
-::: {.columns .xsmall}
-::: {.column}
-```{python}
-#| results: false
-p.named_steps["linearregression"].set_params(
-  fit_intercept=False
-)
-p.fit(X = df[["x"]], y = df.y)
-```
-:::
-::: {.column .fragment}
-```{python}
-p.named_steps["linearregression"].intercept_
-p.named_steps["linearregression"].coef_
-```
-:::
-:::
-
-
-## Pipeline parameter names
-
-These parameters can also be directly accessed at the pipeline level, names are constructed as step name + `__` + parameter name:
-
-::: {.xsmall}
-```{python}
-p.get_params()
-p.set_params(
-  linearregression__fit_intercept=True, 
-  polynomialfeatures__include_bias=False
-)
-```
-:::
-
-##
-
-::: {.xsmall}
-```{python}
-p.fit(X = df[["x"]], y = df.y)
-p.named_steps["polynomialfeatures"].get_feature_names_out()
-p.named_steps["linearregression"].intercept_
-p.named_steps["linearregression"].coef_
-```
-:::
-
-
-# Column Transformers
-
-```{python}
-#| include: false
-books = pd.read_csv("data/daag_books.csv"); books
-```
-
-## Column Transformers
-
-Are a tool for selectively applying transformer(s) to column(s) of an array or DataFrame, they function in a way that is similar to a pipeline and similarly have a `make_` helper function.
-
-::: {.xsmall}
-```{python}
-from sklearn.compose import make_column_transformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-ct = make_column_transformer(
-  (StandardScaler(), ["volume"]),
-  (OneHotEncoder(), ["cover"]),
-).fit(
-  books
-)
-ct.get_feature_names_out()
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-ct.transform(books)
-```
-:::
-::::
-
-
-## Keeping or dropping other columns
-
-One addition important argument is `remainder` which determines what happens to unspecified columns. The default is `"drop"` which is why `weight` was removed, the alternative is `"passthrough"` which retains untransformed columns.
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-ct = make_column_transformer(
-  (StandardScaler(), ["volume"]),
-  (OneHotEncoder(), ["cover"]),
-  remainder = "passthrough"
-).fit(
-  books
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  aspect = 1, height = 3
 )
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-ct.get_feature_names_out()
-```
-:::
-::::
-
-::: {.xsmall}
-```{python}
-ct.transform(books)
-```
-:::
-
-
-## Column selection
-
-One lingering issue with the above approach is that we've had to hard code the column names (or use indexes). Often we want to select columns based on their dtype (e.g. categorical vs numerical) this can be done via pandas or sklearn,
-
-::: {.xsmall}
-```{python}
-from sklearn.compose import make_column_selector
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-ct = make_column_transformer(
-  ( StandardScaler(), 
-    make_column_selector(
-      dtype_include=np.number
-    )
-  ),
-  ( OneHotEncoder(), 
-    make_column_selector(
-      dtype_include=[object, bool]
-    )
-  )
-)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-ct = make_column_transformer(
-  ( StandardScaler(), 
-    books.select_dtypes(
-      include=['number']
-    ).columns
-  ),
-  ( OneHotEncoder(), 
-    books.select_dtypes(
-      include=['object']
-    ).columns
-  )
+#| out-width: 66%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  aspect = 1, height = 5
 )
 ```
 :::
 ::::
 
 ::: {.aside}
-`make_column_selector()` also supports selecting via `pattern` or excluding via `dtype_exclude`
+Note this is the size of a facet (Axes) not the figure
 :::
+
+
+## figure-level plots
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+#| out-width: 66%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  aspect = 1
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 90%
+h = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species", col = "island",
+  aspect = 1/2
+)
+```
+:::
+::::
+
+## figure-level plot objects
+
+Figure-level plotting methods return a `FacetGrid` object (which is a wrapper around lower level pyplot figure(s) and axes).
+
+```{python}
+print(g)
+print(h)
+```
+
+
+
+## FacetGird methods
+
+::: {.small}
+| Method              | Description     |
+|---------------------|:-------------------------------------------------------------------------|
+| `add_legend()`      | Draw a legend, maybe placing it outside axes and resizing the figure     |
+| `despine()`	        | Remove axis spines from the facets.                                      |
+| `facet_axis()`    	| Make the axis identified by these indices active and return it.          |
+| `facet_data()`	    | Generator for name indices and data subsets for each facet.              |
+| `map()`	            | Apply a plotting function to each facet’s subset of the data.            |
+| `map_dataframe()`	  | Like `.map()` but passes args as strings and inserts data in kwargs.     |
+| `refline()`	        | Add a reference line(s) to each facet.                                   |
+| `savefig()`	        | Save an image of the plot.                                               |
+| `set()`	            | Set attributes on each subplot Axes.                                     |
+| `set_axis_labels()`	| Set axis labels on the left column and bottom row of the grid.           |
+| `set_titles()`	    | Draw titles either above each facet or on the grid margins.              |
+| `set_xlabels()`	    | Label the x axis on the bottom row of the grid.                          |
+| `set_xticklabels()`	| Set x axis tick labels of the grid.                                      |
+| `set_ylabels()`	    | Label the y axis on the left column of the grid.                         |
+| `set_yticklabels()`	| Set y axis tick labels on the left column of the grid.                   |
+| `tight_layout()`	  | Call fig.tight_layout within rect that exclude the legend.               |
+:::
+
+
+## Adjusting labels
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 66%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  aspect = 1
+).set_axis_labels(
+  "Bill Length (mm)", 
+  "Bill Depth (mm)"
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 90%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species", col = "island",
+  aspect = 1/2
+).set_axis_labels(
+  "Bill Length (mm)", 
+  "Bill Depth (mm)"
+).set_titles(
+  "{col_var} - {col_name}" 
+)
+```
+:::
+::::
+
+## FacetGrid attributes
+
+<br/><br/>
+
+| Attribute   | Description    |
+|-------------|:--------------------------------------------------------------------|
+| `ax`	      | The `matplotlib.axes.Axes` when no faceting variables are assigned. | 
+| `axes`	    | An array of the `matplotlib.axes.Axes` objects in the grid.         | 
+| `axes_dict` | A mapping of facet names to corresponding `matplotlib.axes.Axes`.   | 
+| `figure`	  | Access the `matplotlib.figure.Figure` object underlying the grid.   | 
+| `legend`    |	The `matplotlib.legend.Legend` object, if present.                  | 
+
+## Using axes to modify plots
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 66%
+g = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  aspect = 1
+)
+g.ax.axvline(
+  x = penguins.bill_length_mm.mean(), c = "k"
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 90%
+h = sns.relplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species", col = "island",
+  aspect = 1/2
+)
+mean_bill_dep = penguins.bill_depth_mm.mean()
+
+[ ax.axhline(y=mean_bill_dep, c = "c") 
+  for row in h.axes for ax in row ]
+
+```
+:::
+::::
+
+
+## Why figure-level functions?
+
+<br/><br/>
+
+:::: {.columns}
+::: {.column width='50%'}
+#### Advantages:
+* Easy faceting by data variables
+* Legend outside of plot by default
+* Easy figure-level customization
+* Different figure size parameterization
+:::
+
+::: {.column width='50%'}
+#### Disadvantages:
+* Many parameters not in function signature
+* Cannot be part of a larger matplotlib figure
+* Different API from matplotlib
+* Different figure size parameterization
+:::
+::::
+
+::: {.aside}
+Details based on [seaborn docs](https://seaborn.pydata.org/tutorial/function_overview.html#relative-merits-of-figure-level-functions)
+:::
+
+
+## lmplots
+
+There is one additional figure-level plot type - `lmplot()` which is a convenient interface to fitting and ploting regression models across subsets of data,
+
+::: {.small}
+```{python}
+#| out-width: 100%
+sns.lmplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species", col = "island",
+  aspect = 1, truncate = False
+)
+```
+:::
+
+# axes-level plots
+
+## axes-level functions
+
+These functions return a `matplotlib.pyplot.Axes` object instead of a `FacetGrid`, giving more direct control over the plot using basic matplotlib tools.
+
+::: {.small}
+```{python}
+#| output-location: column
+plt.figure(figsize=(5,5))
+
+sns.scatterplot(
+  data = penguins,
+  x = "bill_length_mm",
+  y = "bill_depth_mm",
+  hue = "species"
+)
+
+plt.xlabel("Bill Length (mm)")
+plt.ylabel("Bill Depth (mm)")
+plt.title("Length vs. Depth")
+
+plt.show()
+```
+:::
+
+
+
+## subplots - pyplot style
+
+::: {.small}
+```{python}
+#| output-location: column
+plt.figure(
+  figsize=(4,6), 
+  layout = "constrained"
+)
+
+plt.subplot(211)
+sns.scatterplot(
+  data = penguins,
+  x = "bill_length_mm",
+  y = "bill_depth_mm",
+  hue = "species"
+)
+plt.legend().remove()
+
+plt.subplot(212)
+sns.countplot(
+  data = penguins,
+  x = "species"
+)
+
+plt.show()
+```
+:::
+
+
+
+## subplots - OO style
+
+::: {.small}
+```{python}
+#| output-location: column
+fig, axs = plt.subplots(
+  2, 1, figsize=(4,6), 
+  layout = "constrained",
+  sharex=True  
+)
+
+sns.scatterplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species",
+  ax = axs[0]
+)
+axs[0].get_legend().remove()
+
+sns.kdeplot(
+  data = penguins,
+  x = "bill_length_mm", hue = "species",
+  fill=True, alpha=0.5,
+  ax = axs[1]
+)
+
+plt.show()
+```
+:::
+
+
+## layering plots
+
+::: {.xsmall}
+```{python}
+#| output-location: column
+plt.figure(figsize=(5,5),
+           layout = "constrained")
+
+sns.kdeplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species"
+)
+sns.scatterplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species", alpha=0.5
+)
+sns.rugplot(
+  data = penguins,
+  x = "bill_length_mm", y = "bill_depth_mm",
+  hue = "species"
+)
+plt.legend()
+
+plt.show()
+```
+:::
+
+
+## Themes
+
+```{python}
+#| include: false
+plt.close('all')
+```
+
+Seaborn comes with a number of themes (`darkgrid`, `whitegrid`, `dark`, `white`, and `ticks`) which can be enabled at the figure level with `sns.set_theme()`  or at the axes level with `sns.axes_style()`.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+def sinplot():
+    plt.figure(figsize=(5,2), layout = "constrained")
+    x = np.linspace(0, 14, 100)
+    for i in range(1, 7):
+        plt.plot(x, np.sin(x + i * .5) * (7 - i))
+    plt.show()
+        
+sinplot()
+```
+:::
+
+
+::: {.column width='50%' .fragment}
+```{python}
+with sns.axes_style("darkgrid"):
+  sinplot()
+```
+:::
+::::
 
 ##
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
-ct.fit_transform(books)
-ct.get_feature_names_out()
+with sns.axes_style("whitegrid"):
+  sinplot()
+
+with sns.axes_style("dark"):
+  sinplot()
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-ct.fit_transform(books)
-ct.get_feature_names_out()
+with sns.axes_style("white"):
+  sinplot()
+
+with sns.axes_style("ticks"):
+  sinplot()
 ```
 :::
 ::::
+
+
+## Context
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+sns.set_context("notebook")
+sinplot()
+  
+sns.set_context("paper")
+sinplot()
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+sns.set_context("talk")
+sinplot()
+
+sns.set_context("poster")
+sinplot()
+```
+:::
+::::
+
+```{python include=FALSE}
+sns.set_context("notebook")
+```
+
+
+## Color palettes
+
+```{python include=FALSE}
+def show_palette(pal=None, n=8):
+  x = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")[:n]
+  
+  plt.figure(figsize = (9,1), layout = "constrained")
+  sns.countplot(x=x, palette = sns.color_palette(pal, n))
+  plt.axis("off")
+  plt.show()
+  plt.close()
+```
+
+```{python include=FALSE}
+from io import BytesIO
+import matplotlib.image as mpimage
+
+def show_cont_palette(pal):
+  pal = sns.color_palette(pal, as_cmap=True)
+  png = BytesIO(pal._repr_png_())
+  img = mpimage.imread(png,"png")
+
+  plt.figure(figsize = (10,1), layout = "constrained")
+  plt.imshow(img)
+  plt.axis("off")
+  plt.show()
+  plt.close()
+```
+
+All of the examples below are the result of calls to `sns.color_palette()` with `as_cmap=True` for the continuous case,
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 75%
+show_palette()
+show_palette("tab10")
+show_palette("hls")
+
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 75%
+show_palette("husl")
+show_palette("Set2")
+show_palette("Paired")
+```
+:::
+::::
+
+::: {.aside}
+See more examples in the color palettes [tutorial](https://seaborn.pydata.org/tutorial/color_palettes.html)
+:::
+
+## Continuous palettes
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| out-width: 75%
+show_cont_palette("viridis")
+show_cont_palette("cubehelix")
+show_cont_palette("light:b")
+show_cont_palette("dark:salmon_r")
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| out-width: 75%
+show_cont_palette("YlOrBr")
+show_cont_palette("vlag")
+show_cont_palette("mako")
+show_cont_palette("rocket")
+```
+:::
+::::
+
+
+## Applying palettes
+
+Palettes are applied via the `set_palette()` function,
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+sns.set_palette("Set2")
+sinplot()
+sns.set_palette("Paired")
+sinplot()
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+sns.set_palette("viridis")
+sinplot()
+sns.set_palette("rocket")
+sinplot()
+```
+:::
+::::
+
+```{python}
+#| include: false
+sns.set_palette("tab10")
+```

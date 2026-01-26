@@ -1,5 +1,5 @@
 ---
-title: "custom transformers + <br/> patsy & statsmodels"
+title: "scikit-learn<br/>Cross-validation &<br/>Classification"
 subtitle: "Lecture 12"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -24,22 +24,21 @@ import seaborn as sns
 import sklearn
 sklearn.set_config(display="text")
 
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold, train_test_split
-from sklearn.metrics import classification_report
 
 plt.rcParams['figure.dpi'] = 200
 
 np.set_printoptions(
-  edgeitems=30, linewidth=75,
-  precision = 4, suppress=True
+  edgeitems=30, linewidth=90,
+  precision = 5, suppress=True
   #formatter=dict(float=lambda x: "%.5g" % x)
 )
 
-pd.set_option("display.width", 100)
-pd.set_option("display.max_columns", 10)
-pd.set_option("display.precision", 4)
+books = pd.read_csv("data/daag_books.csv")
+
+
+from sklearn.metrics import mean_squared_error, root_mean_squared_error, classification_report
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 ```
 
 ```{r r_setup}
@@ -48,9 +47,6 @@ knitr::opts_chunk$set(
   fig.align="center",
   cache=FALSE
 )
-
-library(lme4)
-
 
 local({
   hook_err_old <- knitr::knit_hooks$get("error")  # save the old hook
@@ -71,112 +67,145 @@ local({
 ```
 
 
-# Custom sklearn transformers
+# Cross validation &<br/>hyper parameter tuning
 
-## FunctionTransformer
+## Ridge regression
 
-The simplest way to create a new transformer is to use `FunctionTransformer()` from the preprocessing submodule which allows for converting a Python function into a transformer.
+One way to expand on the idea of least squares regression is to modify the loss function. One such approach is known as Ridge regression, which adds a scaled penalty for the sum of the squared $\beta$s to the least squares loss. 
+
+::: {.small}
+$$ \underset{\boldsymbol{\beta}}{\text{argmin}} \; \lVert \boldsymbol{y} - \boldsymbol{X} \boldsymbol{\beta} \rVert^2 + \lambda (\boldsymbol{\beta}^T\boldsymbol{\beta}) $$
+:::
 
 ::: {.xsmall}
 ```{python}
-from sklearn.preprocessing import FunctionTransformer
-X = pd.DataFrame({"x1": range(1,6), "x2": range(5, 0, -1)})
+d = pd.read_csv("data/ridge.csv"); d
 ```
 :::
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-log_transform = FunctionTransformer(np.log)
-lt = log_transform.fit(X)
-lt
-lt.transform(X)
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-lt.get_params()
-dir(lt)
-```
-:::
-::::
-
-
-## Input types
-
-::: {.xsmall}
-```{python, error=TRUE}
-def interact(X, y = None):
-  return np.c_[X, X[:,0] * X[:,1]]
-X = pd.DataFrame({"x1": range(1,6), "x2": range(5, 0, -1)})
-Z = np.array(X)
-```
-:::
-
-. . .
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python, error=TRUE}
-FunctionTransformer(
-  interact
-).fit_transform(X)
-```
-:::
-
-::: {.column width='50%'}
-```{python, error=TRUE}
-FunctionTransformer(
-  interact
-).fit_transform(Z)
-```
-:::
-::::
-
-. . .
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python, error=TRUE}
-FunctionTransformer(
-  interact, validate=True
-).fit_transform(X)
-```
-:::
-
-::: {.column width='50%'}
-```{python, error=TRUE}
-FunctionTransformer(
-  interact, validate=True
-).fit_transform(Z)
-```
-:::
-::::
-
-::: {.aside}
-The `validate` argument both checks that `X` is 2d as well as converts it to a np.array
-:::
-
-
-## Build your own transformer
-
-For a more full featured transformer, it is possible to construct it as a class that inherits from `BaseEstimator` and `TransformerMixin` classes from the `base` submodule.
+## dummy coding
 
 ::: {.small}
 ```{python}
-from sklearn.base import BaseEstimator, TransformerMixin
+d = pd.get_dummies(d); d
+```
+:::
 
-class scaler(BaseEstimator, TransformerMixin):
-  def __init__(self, m = 1, b = 0):
-    self.m = m
-    self.b = b
-  
-  def fit(self, X, y=None):
-    return self
-  
-  def transform(self, X, y=None):
-    return X*self.m + self.b
+
+## Fitting a ridge regession model
+
+The `linear_model` submodule also contains the `Ridge` model which can be used to fit a ridge regression. Usage is identical other than `Ridge()` takes the parameter `alpha` to specify the regularization parameter.
+
+::: {.xsmall}
+```{python}
+from sklearn.linear_model import Ridge, LinearRegression
+
+X, y = d.drop(["y"], axis=1), d.y
+
+lm = LinearRegression(fit_intercept=False).fit(X, y)
+rg = Ridge(fit_intercept=False, alpha=10).fit(X, y)
+```
+:::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+lm.coef_
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+root_mean_squared_error(y, lm.predict(X))
+```
+:::
+::::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+rg.coef_
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+root_mean_squared_error(y, rg.predict(X))
+```
+:::
+::::
+
+
+::: {.aside}
+Generally for a Ridge (or Lasso) model it is important to scale the features before fitting (i.e. `StandardScaler()`) - in this case this is not necessary as $x_1,\ldots,x_4$ all have mean of ~0 and std dev of ~1 
+:::
+
+
+## Test-Train split
+
+The most basic form of CV is to split the data into a testing and training set, this can be achieved using `train_test_split` from the `model_selection` submodule.
+
+::: {.xsmall}
+```{python}
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+  X, y, test_size=0.2, random_state=1234
+)
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+X.shape
+X_train.shape
+X_test.shape
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+y.shape
+y_train.shape
+y_test.shape
+```
+:::
+::::
+
+
+## Train vs Test rmse
+
+::: {.xsmall}
+```{python}
+#| output-location: column
+alpha = np.logspace(-2,1, 100)
+train_rmse = []
+test_rmse = []
+
+for a in alpha:
+    rg = Ridge(alpha=a).fit(
+      X_train, y_train
+    )
+    train_rmse.append( 
+     root_mean_squared_error(
+        y_train, rg.predict(X_train)
+      ) 
+    )
+    test_rmse.append( 
+      root_mean_squared_error(
+        y_test, rg.predict(X_test)
+      ) 
+    )
+
+res = pd.DataFrame(
+  data = {"alpha": alpha, 
+          "train": train_rmse, 
+          "test": test_rmse}
+)
+res
 ```
 :::
 
@@ -184,456 +213,141 @@ class scaler(BaseEstimator, TransformerMixin):
 
 ::: {.xsmall}
 ```{python}
-X = pd.DataFrame({
-  "x1": range(1,6), 
-  "x2": range(5, 0, -1)}
-); X
-```
-:::
-
-::: {.columns .xsmall}
-::: {.column}
-```{python}
-double = scaler(2)
-double.get_params()
-double.fit_transform(X)
-```
-:::
-::: {.column .fragment}
-```{python}
-double.set_params(b=-3).fit_transform(X)
-```
-:::
-:::
-
-
-
-
-## What else do we get?
-
-```{python}
-#| include: false
-np.set_printoptions(
-  linewidth=80
-)
-```
-
-::: {.small}
-```{python}
-print(
-  np.array(dir(double))
+g = sns.relplot(
+  x="alpha", y="rmse", hue="variable", data = pd.melt(res, id_vars=["alpha"],value_name="rmse")
+).set(
+  xscale="log"
 )
 ```
 :::
 
-# Demo - Interaction Transformer
+
+## Best alpha?
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+min_i = np.argmin(res.train)
+min_i
+
+res.iloc[[min_i],:]
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+min_i = np.argmin(res.test)
+min_i
+
+res.iloc[[min_i],:]
+```
+:::
+::::
 
 
-## Useful methods
+## k-fold cross validation
 
-We employed a couple of special methods that are worth mentioning in a little more detail.
-
-* `validate_data()` & `_check_feature_names()` are functions from `sklearn.base.validate` they are responsible for setting and checking the `n_features_in_` and the `feature_names_in_` attributes respectively.
-
-* In general one or both is run during `fit()` with `reset=True` in which case the respective attribute will be set.
-
-* Later, in `transform()` one or both will again be called with `reset=False` and the properties of `X` will be checked against the values in the attribute.
-
-* These are worth using as they promote an interface consistent with sklearn and also provide convenient error checking with useful warning / error messages.
-
-
-
-## `check_is_fitted()`
-
-This is another useful helper function from `sklearn.utils` - it is fairly simplistic in that it checks for the existence of a specified attribute. If no attribute is given then it checks for any attributes ending in `_` that do not begin with `__`.
-
-Again this is useful for providing a consistent interface and useful error / warning messages.
-
-See also the other `check*()` functions in `sklearn.utils`.
-
-
-## Other custom estimators
-
-If you want to implement your own custom modeling function it is possible, there are different Mixin base classes in `sklearn.base` that provide the common core interface.
-
-| Class                       | Description                               |
-|-----------------------------|-------------------------------------------|
-| `base.BiclusterMixin`       | Mixin class for all bicluster estimators  |
-| `base.ClassifierMixin`      | Mixin class for all classifiers           |
-| `base.ClusterMixin`         | Mixin class for all cluster estimators    |
-| `base.DensityMixin`         | Mixin class for all density estimators    |
-| `base.RegressorMixin`       | Mixin class for all regression estimators |
-| `base.TransformerMixin`     | Mixin class for all transformers          |
-| `base.OneToOneFeatureMixin` | Provides get_feature_names_out for simple transformers |
-
-
-# patsy
-
-## patsy
-
-> `patsy` is a Python package for describing statistical models (especially linear models, or models that have a linear component) and building design matrices. It is closely inspired by and compatible with the formula mini-language used in R and S.
-> 
->
->
-> ...
->
->
->
-> Patsy’s goal is to become the standard high-level interface to describing statistical models in Python, regardless of what particular model or library is being used underneath.
-
-
-## Formulas
+The previous approach was relatively straight forward, but it required a fair bit of bookkeeping  to implement and we only examined a single test/train split. If we would like to perform k-fold cross validation we can use `cross_val_score` from the `model_selection` submodule. 
 
 ::: {.small}
 ```{python}
-from patsy import ModelDesc
-```
+from sklearn.model_selection import cross_val_score
 
-```{python}
-ModelDesc.from_formula("y ~ a + a:b + np.log(x)")
-ModelDesc.from_formula("y ~ a*b + np.log(x) - 1")
-```
-:::
-
-::: {.aside}
-This general syntax is known as [Wilkinson Notation](https://www.mathworks.com/help/stats/wilkinson-notation.html) and come from Wilkinson and Rogers. "Symbolic description of factorial models for analysis of variance." J. Royal Statistics Society 22, pp. 392–399, 1973.
-:::
-
-
-## Model matrix
-
-
-::: {.xsmall}
-```{python}
-from patsy import demo_data, dmatrix, dmatrices
-```
-:::
-
-:::: {.columns .xxsmall}
-::: {.column width='35%'}
-```{python}
-data = demo_data(
-  "y", "a", "b", "x1", "x2"
+cross_val_score(
+  Ridge(alpha=0.59, fit_intercept=False), 
+  X, y,
+  cv=5, 
+  scoring="neg_root_mean_squared_error"
 )
-pd.DataFrame(data)
-```
-:::
-
-::: {.column width='65%' .fragment}
-```{python}
-dmatrix("a + a:b + np.exp(x1)", data)
-```
-:::
-::::
-
-::: {.aside}
-Note the `T.` in `a[T.a2]` is there to indicate treatment coding (i.e. typical dummy coding)
-:::
-
-
-## Model matrices
-
-::: {.xsmall}
-```{python}
-y, X  = dmatrices("y ~ a + a:b + np.exp(x1)", data)
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='33%'}
-```{python}
-y
-```
-:::
-
-::: {.column width='66%'}
-```{python}
-X
-```
-:::
-::::
-
-
-## as DataFrames
-
-::: {.small}
-```{python}
-dmatrix("a + a:b + np.exp(x1)", data, return_type='dataframe')
-```
-:::
-
-
-## Formula Syntax
-
-<br/>
-
-::: {.small}
-| Code     | Description                                       | Example                |
-|:--------:|:--------------------------------------------------|:-------------------------------|
-| `+`      | unions terms on the left and right                | `a+a` ⇒ `a` |
-| `-`      | removes terms on the right from terms on the left | `a+b-a` ⇒ `b` |
-|`:`       | constructs interactions between each term on the<br/>left and right | `(a+b):c` ⇒  `a:c + b:c`|
-| `*`      | short-hand for terms and their interactions       | `a*b` ⇒ `a + b + a:b` |
-| `/`      | short-hand for left terms and their interactions with<br/>right terms | `a/b` ⇒ `a + a:b` |
-| `I()`    | used for arithmetic calculations                  | `I(x1 + x2)` |
-| `Q()`    | used to quote column names, e.g. columns with<br/>spaces or symbols | `Q('bad name!')` |
-| `C()`    | used for categorical data coding                  |  `C(a, Treatment('a2'))` |
-:::
-
-## Examples
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-dmatrix("x:y", demo_data("x","y","z"))
-dmatrix("x*y", demo_data("x","y","z"))
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-dmatrix("x/y", demo_data("x","y","z"))
-```
-:::
-::::
-
-##
-
-::: {.xsmall}
-```{python}
-dmatrix("x*(y+z)", demo_data("x","y","z"))
-```
-:::
-
-## Intercept Examples (-1)
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-dmatrix("x", demo_data("x","y","z"))
-dmatrix("x-1", demo_data("x","y","z"))
-
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-dmatrix("-1 + x", demo_data("x","y","z"))
-```
-:::
-::::
-
-## Intercept Examples (0)
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-dmatrix("x+0", demo_data("x","y","z"))
-dmatrix("x-0", demo_data("x","y","z"))
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-dmatrix("x - (-0)", demo_data("x","y","z"))
-```
-:::
-::::
-
-
-## Design Info
-
-One of the key features of the design matrix object is that it retains all the necessary details (including stateful transforms) that are necessary to apply to new data inputs (e.g. for prediction).
-
-::: {.xsmall}
-```{python}
-d = dmatrix("a + a:b + np.exp(x1)", data, return_type='dataframe')
-d.design_info
-```
-:::
-
-
-## Stateful transforms
-
-::: {.xsmall}
-```{python}
-data = {"x1": np.random.normal(size=10)}
-new_data = {"x1": np.random.normal(size=10)}
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-d = dmatrix("scale(x1)", data)
-d
-np.mean(d, axis=0)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-pred = dmatrix(d.design_info, new_data)
-pred
-np.mean(pred, axis=0)
-```
-:::
-::::
-
-
-## scikit-learn + Patsy
-
-The state of affairs here is a bit of a mess at the moment - previously the `sklego` package implemented a `PatsyTransformer` class that has since been deprecated in favor of the `FormulaicTransformer` which uses the `formulaic` package for formula handling.
-
-. . .
-
-::: {.center style="font-size: 200px"}
-🤷
-:::
-
-## A PatsyTransformer
-
-::: {.xsmall}
-```{python}
-from patsy import dmatrix, build_design_matrices
-from sklearn.utils.validation import check_is_fitted
-from sklearn.base import BaseEstimator, TransformerMixin
-
-class PatsyTransformer(TransformerMixin, BaseEstimator):
-    def __init__(self, formula):
-        self.formula = formula
-
-    def fit(self, X, y=None):
-        m = dmatrix(self.formula, X)
-        assert np.array(m).shape[0] == np.array(X).shape[0]
-        self.design_info_ = m.design_info
-        return self
-
-    def transform(self, X):
-        check_is_fitted(self, 'design_info_')
-        return build_design_matrices([self.design_info_], X)[0]
 ```
 :::
 
 
 ::: {.aside}
-Based on [`koaning/scikit-lego`](https://github.com/koaning/scikit-lego/commit/85c5074d94b54b4948bb2a662ee80c87a8f80df0)
+🚩🚩🚩 Note that the default k-fold cross validation used here does not shuffle the data which can be massively problematic if the data is ordered 🚩🚩🚩 
 :::
 
-##
+## Controlling k-fold behavior
 
-::: {.xxsmall}
+Rather than providing `cv` as an integer, it is better to specify a cross-validation scheme directly (with additional options). Here we will use the `KFold` class from the `model_selection` submodule. 
+
+::: {.small}
 ```{python}
-df = pd.DataFrame({
-  "y": [2, 2, 4, 4, 6], "x": [1, 2, 3, 4, 5],
-  "a": ["yes", "yes", "no", "no", "yes"]
-})
-X, y = df[["x", "a"]], df[["y"]].values
+from sklearn.model_selection import KFold
+
+cross_val_score(
+  Ridge(alpha=0.59, fit_intercept=False), 
+  X, y, 
+  cv = KFold(n_splits=5, shuffle=True, random_state=1234), 
+  scoring="neg_root_mean_squared_error"
+)
 ```
 :::
 
-:::: {.columns .xxsmall}
-::: {.column width='47%'}
+
+## KFold object
+
+`KFold()` returns a class object which provides the method `split()` which in turn is a generator that returns a tuple with the indexes of the training and testing selects for each fold given a model matrix `X`,
+
+::: {.xsmall}
 ```{python}
-pt = PatsyTransformer("x*a + np.log(x)")
-pt.fit_transform(X)
+ex = pd.DataFrame(data = list(range(10)), columns=["x"])
 ```
 :::
 
-::: {.column width='53%' .fragment}
+:::: {.columns .xsmall}
+::: {.column width='50%'}
 ```{python}
-make_pipeline(
-  PatsyTransformer("x*a + np.log(x)"),
-  StandardScaler()
-).fit_transform(X)
+cv = KFold(5)
+for train, test in cv.split(ex):
+  print(f'Train: {train} | test: {test}')
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+cv = KFold(5, shuffle=True, random_state=1234)
+for train, test in cv.split(ex):
+  print(f'Train: {train} | test: {test}')
 ```
 :::
 ::::
 
+## `scoring`
 
-
-# statsmodels
-
-## statsmodels
-
-> statsmodels is a Python module that provides classes and functions for the estimation of many different statistical models, as well as for conducting statistical tests, and statistical data exploration. An extensive list of result statistics are available for each estimator. The results are tested against existing statistical packages to ensure that they are correct.
-
-::: {.small}
-
-```{python}
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
-import statsmodels.tsa.api as tsa
-```
-
-:::
-
-. . .
-
-`statsmodels` uses slightly different terminology for referring to `y` (dependent / response) and `x`  (independent / explanatory) variables. Specifically it uses `endog` and `exog` to refer to `y` and `x` variable(s) respectively.
-
-This is particularly important when using the main API, less so when using the formula API.
-
-
-## OpenIntro Loans data
-
-::: {.small}
-> This data set represents thousands of loans made through the Lending Club platform, which is a platform that allows individuals to lend to other individuals. Of course, not all loans are created equal. Someone who is a essentially a sure bet to pay back a loan will have an easier time getting a loan with a low interest rate than someone who appears to be riskier. And for people who are very risky? They may not even get a loan offer, or they may not have accepted the loan offer due to a high interest rate. It is important to keep that last part in mind, since this data set only represents loans actually made, i.e. do not mistake this data for loan applications!
-
-For the full data dictionary see [here](https://www.openintro.org/data/index.php?data=loan50). We have removed some of the columns to make the data set more reasonably sized and also droped any rows with missing values.
-:::
+For most of the cross validation functions we pass in a string instead of a scoring function from the metrics submodule - if you are interested in seeing the names of the possible metrics, these are available via `sklearn.metrics.get_scorer_names()`,
 
 ::: {.xsmall}
 ```{python}
-loans = pd.read_csv("data/openintro_loans.csv")
-loans
-print(loans.columns)
+np.array( sklearn.metrics.get_scorer_names() )
 ```
 :::
 
 
-```{python echo=FALSE, out.width="66%"}
-sns.pairplot(data = loans[["loan_amount","homeownership", "annual_income", "debt_to_income", "interest_rate", "public_record_bankrupt"]], hue="homeownership", corner=True)
-```
-
-
-## OLS
+## Train vs Test rmse (again)
 
 ::: {.small}
-```{python error=TRUE}
-y = loans["loan_amount"]
-X = loans[["homeownership", "annual_income", "debt_to_income", "interest_rate", "public_record_bankrupt"]]
-
-model = sm.OLS(endog=y, exog=X)
-```
-:::
-
-## What do you think the issue is here?
-
-. . .
-
-The error occurs because `X` contains mixed types - specifically we have categorical data columns which cannot be directly converted to a numeric dtype so we need to take care of the dummy coding for statsmodels (with this interface).
-
-. . .
-
-::: {.xsmall}
 ```{python}
-#| error: true
-X_dc = pd.get_dummies(X)
-model = sm.OLS(endog=y, exog=X_dc)
-```
+alpha = np.logspace(-2,1, 30)
+test_mean_rmse = []
+test_rmse = []
+cv = KFold(n_splits=5, shuffle=True, random_state=1234)
 
-```{python}
-X_dc.dtypes
-```
-:::
+for a in alpha:
+    rg = Ridge(fit_intercept=False, alpha=a)
+    
+    scores = -1 * cross_val_score(
+      rg, X_train, y_train, 
+      cv = cv, 
+      scoring="neg_root_mean_squared_error"
+    )
+    test_mean_rmse.append(np.mean(scores))
+    test_rmse.append(scores)
 
-. . .
-
-::: {.xsmall}
-```{python}
-X_dc = pd.get_dummies(X, dtype='int')
-model = sm.OLS(endog=y, exog=X_dc)
+res = pd.DataFrame(
+    data = np.c_[alpha, test_mean_rmse, test_rmse],
+    columns = ["alpha", "mean_rmse"] + ["fold" + str(i) for i in range(1,6) ]
+)
 ```
 :::
 
@@ -641,352 +355,611 @@ model = sm.OLS(endog=y, exog=X_dc)
 
 ::: {.xsmall}
 ```{python}
-model
-np.array(dir(model))
+res
 ```
 :::
 
-
-## Fitting and summary
+##
 
 ::: {.small}
 ```{python}
-res = model.fit()
-print(res.summary())
-```
-:::
-
-
-## Formula interface
-
-::: {.small}
-Most of the modeling interfaces are also provided by `smf` (`statsmodels.formula.api`), in which case `patsy` is used to construct the model matrices.
-:::
-
-::: {.tiny}
-```{python}
-model = smf.ols(
-  "loan_amount ~ homeownership + annual_income + debt_to_income + interest_rate + public_record_bankrupt",
-  data = loans  
+g = sns.relplot(
+  x="alpha", y="rmse", hue="variable", data=res.melt(id_vars=["alpha"], value_name="rmse"), 
+  marker="o", kind="line"
+).set(
+  xscale="log"
 )
-res = model.fit()
-print(res.summary())
 ```
 :::
 
 
-## Result values and model parameters
+## Grid Search
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+We can further reduce the amount of code needed if there is a specific set of parameter values we would like to explore using cross validation. This is done using the `GridSearchCV` function from the `model_selection` submodule.
+
+::: {.small}
 ```{python}
-res.params
-res.bse
+#| code-line-numbers: "|4|5|6|7"
+from sklearn.model_selection import GridSearchCV
+
+gs = GridSearchCV(
+  Ridge(fit_intercept=False),
+  {"alpha": np.logspace(-2, 1, 30)},
+  cv = KFold(5, shuffle=True, random_state=1234),
+  scoring = "neg_root_mean_squared_error"
+).fit(
+  X, y
+)
 ```
 :::
 
-::: {.column width='50%'}
+## `best_*` attributes
+
+`GridSearchCV()`'s return object contains attributes with details on the "best" model based on the chosen scoring metric.
+
 ```{python}
-res.rsquared
-res.aic
-res.bic
-res.predict()
+gs.best_index_
+gs.best_params_
+gs.best_score_
+```
+
+## `best_estimator_` attribute
+
+If `refit = True` (default) with `GridSearchCV()` then the `best_estimator_` attribute will be available which gives direct access to the "best" model or pipeline object. This model is constructed by using the parameter(s) that achieved the minimum score and refitting the model to the complete data set.
+
+::: {.xsmall}
+```{python}
+gs.best_estimator_
+
+gs.best_estimator_.coef_
+
+gs.best_estimator_.predict(X)
 ```
 :::
-::::
 
-## Diagnostic plots
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-*QQ Plot*
+## `cv_results_` attribute
+
+Other useful details about the grid search process are stored as a dictionary in the `cv_results_` attribute which includes things like average test scores, fold level test scores, test ranks, test runtimes, etc.
+
+::: {.xsmall}
 ```{python}
-plt.figure()
-sm.graphics.qqplot(res.resid, line="s")
+gs.cv_results_.keys()
+```
+
+```{python}
+gs.cv_results_["mean_test_score"]
+gs.cv_results_["param_alpha"]
+```
+:::
+
+##
+
+::: {.small}
+```{python}
+#| output-location: slide
+#| code-line-numbers: "|1|2|3|4|7,9-14"
+alpha = np.array(gs.cv_results_["param_alpha"], dtype="float64")
+score = -gs.cv_results_["mean_test_score"]
+score_std = gs.cv_results_["std_test_score"]
+n_folds = gs.cv.get_n_splits()
+
+plt.figure(layout="constrained")
+ax = sns.lineplot(x=alpha, y=score)
+ax.set_xscale("log")
+plt.fill_between(
+  x = alpha,
+  y1 = score + 1.96*score_std / np.sqrt(n_folds),
+  y2 = score - 1.96*score_std / np.sqrt(n_folds),
+  alpha = 0.2
+)
 plt.show()
 ```
 :::
 
-::: {.column width='50%'}
-*Leverage plot*
-```{python}
-plt.figure()
-sm.graphics.plot_leverage_resid2(res)
-plt.show()
-```
-:::
-::::
 
-
-## Alternative model
-
-::: {.tiny}
-```{python}
-res = smf.ols(
-  "np.sqrt(loan_amount) ~ homeownership + annual_income + debt_to_income + interest_rate + public_record_bankrupt",
-  data = loans  
-).fit()
-print(res.summary())
-```
-:::
-
-##
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-#| out-width: 80%
-plt.figure()
-sm.graphics.qqplot(res.resid, line="s")
-plt.show()
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| out-width: 80%
-plt.figure()
-sm.graphics.plot_leverage_resid2(res)
-plt.show()
-```
-:::
-::::
-
-
-## Bushtail Possums
-
-::: {.small}
-> Data representing possums in Australia and New Guinea. This is a copy of the data set by the same name in the DAAG package, however, the data set included here includes fewer variables.
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='66%'}
-
-```{python}
-possum = pd.read_csv("data/possum.csv")
-possum
-```
-:::
-
-::: {.column width='33%'}
-```{r echo=FALSE, out.width="75%"}
-knitr::include_graphics("imgs/possum.jpg")
-```
-:::
-::::
-
-
-## Logistic regression models (GLM)
-
-::: {.small}
-```{python error=TRUE}
-y = pd.get_dummies( possum["pop"], drop_first = True, dtype="int")
-X = pd.get_dummies( possum.drop(["site","pop"], axis=1), dtype="int")
-
-model = sm.GLM(y, X, family = sm.families.Binomial())
-```
-:::
-
-. . .
-
-::: {.center}
-What went wrong this time?
-:::
-
-
-## Missing values
-
-Missing values can be handled via `missing` argument, possible values are `"none"`, `"drop"`, and `"raise"`. 
+## Ridge traceplot
 
 ::: {.xsmall}
 ```{python}
-#| eval: false
-model = sm.GLM(y, X, family = sm.families.Binomial(), missing="drop")
-res = model.fit()
-print(res.summary())
+alpha = np.logspace(-1,5, 100)
+betas = []
+
+for a in alpha:
+    rg = Ridge(alpha=a, fit_intercept=False).fit(X, y)
+    betas.append(rg.coef_)
+
+res = pd.DataFrame(
+  data = betas, columns = rg.feature_names_in_
+).assign(
+  alpha = alpha  
+)
 ```
-:::
-
-
-## Success vs failure
-
-Note `endog` can be 1d or 2d for binomial models - in the case of the latter each row is interpreted as [success, failure].
-
-::: {.tiny}
-```{python error=TRUE}
-y = pd.get_dummies( possum["pop"], dtype="int")
-X = pd.get_dummies( possum.drop(["site","pop"], axis=1), dtype="int")
-
-res = sm.GLM(y, X, family = sm.families.Binomial(), missing="drop").fit()
-print(res.summary())
-```
-:::
-
-
-## Formula interface
-
-::: {.tiny}
-```{python}
-res = smf.glm(
-  "pop ~ sex + age + head_l + skull_w + total_l + tail_l-1",
-  data = possum, 
-  family = sm.families.Binomial(), 
-  missing="drop"
-).fit()
-print(res.summary())
-```
-:::
-
-
-## sleepstudy data
-
-::: {.small}
-> These data are from the study described in Belenky et al. (2003), for the most sleep-deprived group (3 hours time-in-bed) and for the first 10 days of the study, up to the recovery period. The original study analyzed speed (1/(reaction time)) and treated day as a categorical rather than a continuous predictor.
-
-::: {.small}
-```{python}
-sleep = pd.read_csv("data/sleepstudy.csv")
-sleep
-```
-:::
-:::
-
-
-::: {.aside}
-These data come from the `sleepstudy` dataset in the `lme4` R package
 :::
 
 ##
 
 ::: {.xsmall}
 ```{python}
-g = sns.relplot(x="Days", y="Reaction", col="Subject", col_wrap=6, data=sleep, height=2)
-```
-:::
-
-## Random intercept model
-
-::: {.small}
-```{python}
-me_rand_int = smf.mixedlm(
-  "Reaction ~ Days", data=sleep, groups=sleep["Subject"], 
-  subset=sleep.Days >= 2
-)
-res_rand_int = me_rand_int.fit(method=["lbfgs"])
-print(res_rand_int.summary())
-```
-:::
-
-
-## lme4 version
-
-::: {.small}
-```{r}
-summary(
-  lmer(Reaction ~ Days + (1|Subject), data=sleepstudy)
+g = sns.relplot(
+  data = res.melt(id_vars="alpha", value_name="coef values", var_name="feature"),
+  x = "alpha", y = "coef values", hue = "feature",
+  kind = "line", aspect=2
+).set(
+  xscale="log"
 )
 ```
 :::
 
 
+# Classification
 
-## Predictions
+## OpenIntro - Spam
 
-```{python echo=FALSE, out.width="90%"}
-pred = sleep.assign(pred = res_rand_int.predict())
-g = sns.FacetGrid(pred, col="Subject", col_wrap=6, height=2)
-g = g.map(sns.scatterplot, "Days", "Reaction")
-g = g.map(sns.lineplot, "Days", "pred")
-plt.show()
-```
+We will start by looking at a data set on spam emails from the [OpenIntro project](https://www.openintro.org/). A full data dictionary can be found [here](https://www.openintro.org/data/index.php?data=email). To keep things simple this week we will restrict our exploration to including only the following columns: `spam`, `exclaim_mess`, `format`, `num_char`,  `line_breaks`, and `number`.
 
+* `spam` - Indicator for whether the email was spam.
+* `exclaim_mess` - The number of exclamation points in the email message.
+* `format` - Indicates whether the email was written using HTML (e.g. may have included bolding or active links).
+* `num_char` - The number of characters in the email, in thousands.
+* `line_breaks` - The number of line breaks in the email (does not count text wrapping).
+* `number` - Factor variable saying whether there was no number, a small number (under 1 million), or a big number.
 
-::: {.aside}
-The prediction is only taking into account the fixed effects here, not the group random effects.
-:::
+##
 
+As `number` is categorical, we will take care of the necessary dummy coding via `pd.get_dummies()`,
 
-## Recovering random effects for prediction
-
-::: {.small}
+::: {.xsmall}
 ```{python}
-# Multiply each RE by the random effects design matrix for each group
-rex = [ 
-  np.dot(
-    me_rand_int.exog_re_li[j], 
-    res_rand_int.random_effects[k]
-  ) 
-  for (j, k) in enumerate(me_rand_int.group_labels)
+email = pd.read_csv('data/email.csv')[ 
+  ['spam', 'exclaim_mess', 'format', 'num_char', 'line_breaks', 'number'] 
 ]
-rex[0]
-
-# Add the fixed and random terms to get the overall prediction
-y_hat = res_rand_int.predict() + np.concatenate(rex)
+email_dc = pd.get_dummies(email)
+email_dc
 ```
 :::
 
-::: {.aside}
-Based on code provide on [Stack Overflow](https://stats.stackexchange.com/questions/467543/including-random-effects-in-prediction-with-linear-mixed-model).
-:::
 
 ##
 
+::: {.xsmall}
 ```{python}
-#| echo: false
-pred = sleep.assign(pred = y_hat)
-g = sns.FacetGrid(pred, col="Subject", col_wrap=6, height=2)
-g = g.map(sns.scatterplot, "Days", "Reaction")
-g = g.map(sns.lineplot, "Days", "pred")
-plt.show()
+#| out-width: 75%
+g = sns.pairplot(email, hue='spam', corner=True, aspect=1.25)
 ```
+:::
 
-## Random intercept and slope model
+## Model fitting
 
 ::: {.xsmall}
 ```{python}
-me_rand_sl= smf.mixedlm(
-  "Reaction ~ Days", data=sleep, groups=sleep["Subject"], 
-  subset=sleep.Days >= 2,
-  re_formula="~Days" 
-)
-res_rand_sl = me_rand_sl.fit(method=["lbfgs"])
-print(res_rand_sl.summary())
+from sklearn.linear_model import LogisticRegression
+
+y = email_dc.spam
+X = email_dc.drop('spam', axis=1)
+
+m = LogisticRegression(fit_intercept = False).fit(X, y)
 ```
 :::
 
-## lme4 version
+. . .
 
-::: {.xxsmall}
+::: {.xsmall}
+```{python}
+m.feature_names_in_
+m.coef_
+```
+:::
+
+## A quick comparison
+
+```{r include=FALSE} 
+d = read.csv("data/email.csv") |>
+  dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
+```
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+*R output*
+
 ```{r}
-summary(
-  lmer(Reaction ~ Days + (Days|Subject), data=sleepstudy)
-)
+glm(spam~.-1, data=d, family=binomial) |>
+  coef()
 ```
 :::
+
+::: {.column width='50%'}
+*sklearn output*
+
+```{python}
+m.feature_names_in_
+m.coef_
+```
+:::
+::::
+
+
+## `sklearn.linear_model.LogisticRegression`
+
+From the documentations,
+
+> This class implements regularized logistic regression using the ‘liblinear’ library, ‘newton-cg’, ‘sag’, ‘saga’ and ‘lbfgs’ solvers. **Note that regularization is applied by default.** It can handle both dense and sparse input. Use C-ordered arrays or CSR matrices containing 64-bit floats for optimal performance; any other input format will be converted (and copied).
+
+
+## Penalty parameter
+
+🚩🚩🚩 
+
+`LogisticRegression()` has a parameter called penalty that applies a `"l1"` (lasso), `"l2"` (ridge), `"elasticnet"` or `None` with `"l2"` being the default. To make matters worse, the regularization is controlled by the parameter `C` which defaults to 1 (not 0) - also `C` is the inverse regularization strength (e.g. different from `alpha` for ridge and lasso models). 
+
+🚩🚩🚩
+
+$$
+\min_{w, c} \frac{1 - \rho}{2}w^T w + \rho |w|_1 + C \sum_{i=1}^n \log(\exp(- y_i (X_i^T w + c)) + 1),
+$$
+
+
+## Another quick comparison
+
+```{r include=FALSE}
+d = read.csv("data/email.csv") |>
+  dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
+```
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+*R output*
+
+```{r}
+glm(spam~.-1, data = d, family=binomial) |>
+  coef()
+```
+:::
+
+::: {.column width='50%'}
+*sklearn output (penalty `None`)*
+
+```{python}
+m = LogisticRegression(
+  fit_intercept = False, penalty=None
+).fit(
+  X, y
+)
+m.feature_names_in_
+m.coef_
+```
+:::
+::::
+
+
+## Solver parameter
+
+It is also possible specify the solver to use when fitting a logistic regression model, to complicate matters somewhat the choice of the algorithm depends on the penalty chosen: 
+
+* `newton-cg` - [`"l2"`, `None`]
+* `lbfgs` - [`"l2"`, `None`]
+* `liblinear` - [`"l1"`, `"l2"`]
+* `sag` - [`"l2"`, `None`]
+* `saga` - [`"elasticnet"`, `"l1"`, `"l2"`, `None`]
+
+Also there can be issues with feature scales for some of these solvers:
+
+> **Note:** ‘sag’ and ‘saga’ fast convergence is only guaranteed on features with approximately the same scale. You can preprocess the data with a scaler from sklearn.preprocessing.
 
 
 ## Prediction
 
-```{python echo=FALSE, out.width="90%"}
-# Dictionary of random effects estimates
-re = res_rand_sl.random_effects
+Classification models have multiple prediction methods depending on what type of output you would like,
 
-# Multiply each RE by the random effects design matrix for each group
-rex = [me_rand_sl.exog_re_li[j] @ re[k] for (j, k) in enumerate(me_rand_sl.group_labels)]
+::: {.xsmall}
+```{python}
+m.predict(X)
+```
+:::
 
-# Add the fixed and random terms to get the overall prediction
-rex = np.concatenate(rex)
-y_hat = res_rand_sl.predict() + rex
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+m.predict_proba(X)
+```
+:::
 
-pred = sleep.assign(pred = y_hat)
-g = sns.FacetGrid(pred, col="Subject", col_wrap=6, height=2)
-g = g.map(sns.scatterplot, "Days", "Reaction")
-g = g.map(sns.lineplot, "Days", "pred")
+::: {.column width='50%'}
+```{python}
+m.predict_log_proba(X)
+```
+:::
+::::
+
+## Scoring
+
+Classification models also include a `score()` method which returns the model's *accuracy*,
+
+::: {.xsmall}
+```{python}
+m.score(X, y)
+```
+:::
+
+. . .
+
+Other scoring options are available via the [metrics](https://scikit-learn.org/stable/modules/classes.html#classification-metrics) submodule
+
+::: {.xsmall}
+```{python}
+from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, confusion_matrix
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+accuracy_score(y, m.predict(X))
+roc_auc_score(y, m.predict_proba(X)[:,1])
+f1_score(y, m.predict(X))
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+confusion_matrix(y, m.predict(X), labels=m.classes_)
+```
+:::
+::::
+
+## Scoring visualizations - confusion matrix
+
+::: {.small}
+```{python}
+from sklearn.metrics import ConfusionMatrixDisplay
+cm = confusion_matrix(y, m.predict(X), labels=m.classes_)
+
+disp = ConfusionMatrixDisplay(cm).plot()
 plt.show()
 ```
-
-::: {.aside}
-We are using the same approach described previously to obtain the RE estimates and use them in the predictions.
 :::
 
 
+## Scoring visualizations - ROC curve {.smaller}
+
+::: {.small}
+```{python}
+from sklearn.metrics import auc, roc_curve, RocCurveDisplay
+
+fpr, tpr, thresholds = roc_curve(y, m.predict_proba(X)[:,1])
+roc_auc = auc(fpr, tpr)
+disp = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc,
+                       estimator_name='Logistic Regression').plot()
+plt.show()
+```
+:::
+
+
+## Scoring visualizations - Precision Recall {.smaller}
+
+::: {.small}
+```{python}
+from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
+
+precision, recall, _ = precision_recall_curve(y, m.predict_proba(X)[:,1])
+disp = PrecisionRecallDisplay(precision=precision, recall=recall).plot()
+plt.show()
+```
+:::
+
+
+# MNIST
+
+## MNIST handwritten digits
+
+::: {.xsmall}
+```{python}
+from sklearn.datasets import load_digits
+digits = load_digits(as_frame=True)
+```
+:::
+
+
+:::: {.columns .xsmall}
+::: {.column width='70%'}
+```{python}
+X = digits.data
+X
+```
+:::
+
+::: {.column width='30%'} 
+```{python}
+y = digits.target
+y
+```
+:::
+::::
+
+
+## Example digits
+
+::: {.xsmall}
+```{python}
+#| echo: false
+fig, axes = plt.subplots(nrows=5, ncols=10, figsize=(10, 6), layout="constrained")
+axes2 = [ax for row in axes for ax in row]
+
+for ax, image, label in zip(axes2, digits.images, digits.target):
+    ax.set_axis_off()
+    img = ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
+    txt = ax.set_title(f"{label}")
+    
+plt.show()
+```
+:::
+
+
+## Doing things properly - train/test split
+
+To properly assess our modeling we will create a training and testing set of these data, only the training data will be used to learn model coefficients or hyperparameters, test data will only be used for final model scoring.
+
+::: {.small}
+```{python}
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, shuffle=True, random_state=1234
+)
+```
+:::
+
+
+## Multiclass logistic regression
+
+Fitting a multiclass logistic regression model will involve selecting a value for the `multi_class` parameter, which can be either `multinomial` for multinomial regression or `ovr` for one-vs-rest where `k` binary models are fit.
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: |3
+mc_log_cv = GridSearchCV(
+  LogisticRegression(penalty=None, max_iter = 5000),
+  param_grid = {"multi_class": ["multinomial", "ovr"]},
+  cv = KFold(10, shuffle=True, random_state=12345)
+).fit(
+  X_train, y_train
+)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+mc_log_cv.best_estimator_
+mc_log_cv.best_score_
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+for param, score in  zip(mc_log_cv.cv_results_["params"], mc_log_cv.cv_results_["mean_test_score"]):
+  f"{param=}, {score=}"
+```
+:::
+
+
+## Model coefficients
+
+::: {.xsmall}
+```{python}
+pd.DataFrame(
+  mc_log_cv.best_estimator_.coef_
+)
+
+mc_log_cv.best_estimator_.coef_.shape
+
+mc_log_cv.best_estimator_.intercept_
+```
+:::
+
+## Confusion Matrix
+
+```{python}
+#| include: false
+np.set_printoptions(
+  linewidth=60
+)
+```
+
+
+:::: {.columns .tiny}
+::: {.column width='50%'}
+**Within sample**
+```{python}
+accuracy_score(
+  y_train, 
+  mc_log_cv.best_estimator_.predict(X_train)
+)
+confusion_matrix(
+  y_train, 
+  mc_log_cv.best_estimator_.predict(X_train)
+)
+```
+:::
+
+::: {.column width='50%'}
+**Out of sample**
+```{python}
+accuracy_score(
+  y_test, 
+  mc_log_cv.best_estimator_.predict(X_test)
+)
+confusion_matrix(
+  y_test, 
+  mc_log_cv.best_estimator_.predict(X_test),
+  labels = digits.target_names
+)
+```
+:::
+::::
+
+## Report
+
+::: {.xsmall}
+```{python}
+print( classification_report(
+  y_test, 
+  mc_log_cv.best_estimator_.predict(X_test)
+) )
+```
+:::
+
+## Prediction
+
+:::: {.columns .tiny}
+::: {.column width='50%'}
+```{python}
+mc_log_cv.best_estimator_.predict(X_test)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+mc_log_cv.best_estimator_.predict_proba(X_test),
+```
+:::
+::::
+
+## Examining the coefs
+
+::: {.xsmall}
+```{python}
+#| out-width: 66%
+coef_img = mc_log_cv.best_estimator_.coef_.reshape(10,8,8)
+
+fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(10, 5), layout="constrained")
+axes2 = [ax for row in axes for ax in row]
+
+for ax, image, label in zip(axes2, coef_img, range(10)):
+    ax.set_axis_off()
+    img = ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
+    txt = ax.set_title(f"{label}")
+    
+plt.show()
+```
+:::
+
+## Example 1 - DecisionTreeClassifier
+
+Using these data we will now fit a `DecisionTreeClassifier` to these data, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+
+::: {.small}
+```{python}
+from sklearn.datasets import load_digits
+digits = load_digits(as_frame=True)
+
+
+X, y = digits.data, digits.target
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.33, shuffle=True, random_state=1234
+)
+```
+:::
+
+# Example 2 - GridSearchCV w/ Multiple models <br/> (Trees vs Forests)

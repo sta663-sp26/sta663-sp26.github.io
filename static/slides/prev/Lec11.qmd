@@ -1,5 +1,5 @@
 ---
-title: "scikit-learn<br/>Cross-validation &<br/>Classification"
+title: "scikit-learn"
 subtitle: "Lecture 11"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -11,6 +11,7 @@ format:
     self-contained: true
 execute: 
   echo: true
+  warning: true
 ---
 
 ```{python setup}
@@ -21,24 +22,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-import sklearn
-sklearn.set_config(display="text")
-
-
 plt.rcParams['figure.dpi'] = 200
-
-np.set_printoptions(
-  edgeitems=30, linewidth=90,
-  precision = 5, suppress=True
-  #formatter=dict(float=lambda x: "%.5g" % x)
-)
-
-books = pd.read_csv("data/daag_books.csv")
-
-
-from sklearn.metrics import mean_squared_error, root_mean_squared_error, classification_report
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
 ```
 
 ```{r r_setup}
@@ -67,899 +51,1065 @@ local({
 ```
 
 
-# Cross validation &<br/>hyper parameter tuning
+## scikit-learn
 
-## Ridge regression
+> Scikit-learn is an open source machine learning library that supports supervised and unsupervised learning. It also provides various tools for model fitting, data preprocessing, model selection, model evaluation, and many other utilities.
+>
+> * Simple and efficient tools for predictive data analysis
+> * Accessible to everybody, and reusable in various contexts
+> * Built on NumPy, SciPy, and matplotlib
+> * Open source, commercially usable - BSD license
 
-One way to expand on the idea of least squares regression is to modify the loss function. One such approach is known as Ridge regression, which adds a scaled penalty for the sum of the squared $\beta$s to the least squares loss. 
 
-::: {.small}
-$$ \underset{\boldsymbol{\beta}}{\text{argmin}} \; \lVert \boldsymbol{y} - \boldsymbol{X} \boldsymbol{\beta} \rVert^2 + \lambda (\boldsymbol{\beta}^T\boldsymbol{\beta}) $$
+::: {.aside}
+This is one of several other "scikits" (e.g. scikit-image) which are scientific toolboxes built on top of scipy. For a more complete list see [here](https://pypi.org/search/?q=scikit).
 :::
 
-::: {.xsmall}
+## Submodules
+
+The `sklearn` package contains a large number of submodules which are specialized for different tasks / models,
+
+:::: {.columns .tiny}
+::: {.column width='50%'}
+- `sklearn.base` - Base classes and utility functions
+- `sklearn.calibration` - Probability Calibration
+- `sklearn.cluster` - Clustering
+- `sklearn.compose` - Composite Estimators
+- `sklearn.covariance` - Covariance Estimators
+- `sklearn.cross_decomposition` - Cross decomposition
+- `sklearn.datasets` - Datasets
+- `sklearn.decomposition` - Matrix Decomposition
+- `sklearn.discriminant_analysis` - Discriminant Analysis
+- `sklearn.ensemble` - Ensemble Methods
+- `sklearn.exceptions` - Exceptions and warnings
+- `sklearn.experimental` - Experimental
+- `sklearn.feature_extraction` - Feature Extraction
+- `sklearn.feature_selection` - Feature Selection
+- `sklearn.gaussian_process` - Gaussian Processes
+- `sklearn.impute` - Impute
+- `sklearn.inspection` - Inspection
+- `sklearn.isotonic` - Isotonic regression
+- `sklearn.kernel_approximation` - Kernel Approximation
+:::
+
+::: {.column width='50%'}
+- `sklearn.kernel_ridge` - Kernel Ridge Regression
+- `sklearn.linear_model` - Linear Models
+- `sklearn.manifold` - Manifold Learning
+- `sklearn.metrics` - Metrics
+- `sklearn.mixture` - Gaussian Mixture Models
+- `sklearn.model_selection` - Model Selection
+- `sklearn.multiclass` - Multiclass classification
+- `sklearn.multioutput` - Multioutput regression and classification
+- `sklearn.naive_bayes` - Naive Bayes
+- `sklearn.neighbors` - Nearest Neighbors
+- `sklearn.neural_network` - Neural network models
+- `sklearn.pipeline` - Pipeline
+- `sklearn.preprocessing` - Preprocessing and Normalization
+- `sklearn.random_projection` - Random projection
+- `sklearn.semi_supervised` - Semi-Supervised Learning
+- `sklearn.svm` - Support Vector Machines
+- `sklearn.tree` - Decision Trees
+- `sklearn.utils` - Utilities
+:::
+::::
+
+
+# Model Fitting
+
+## Sample data
+
+To begin, we will examine a simple data set on the size and weight of a number of books. The goal is to model the weight of a book using some combination of the other features in the data. 
+
+:::: {.columns}
+::: {.column width='50%'}
+The included columns are:
+
+* `volume` - book volumes in cubic centimeters
+
+* `weight` - book weights in grams
+
+* `cover` - a categorical variable with levels `"hb"` hardback, `"pb"` paperback
+:::
+
+::: {.column width='50%' .xsmall}
 ```{python}
-d = pd.read_csv("data/ridge.csv"); d
+books = pd.read_csv("data/daag_books.csv"); books
+```
+:::
+::::
+
+::: {.aside}
+These data come from the `allbacks` data set from the `DAAG` package in R
+:::
+
+##
+
+::: {.small}
+```{python}
+#| out-width: 50%
+g = sns.relplot(data=books, x="volume", y="weight", hue="cover")
 ```
 :::
 
-## dummy coding
+## Linear regression
+
+scikit-learn uses an object oriented system for implementing the various modeling approaches, the class for `LinearRegression` is part of the `linear_model` submodule.
 
 ::: {.small}
 ```{python}
-d = pd.get_dummies(d); d
-```
-:::
-
-
-## Fitting a ridge regession model
-
-The `linear_model` submodule also contains the `Ridge` model which can be used to fit a ridge regression. Usage is identical other than `Ridge()` takes the parameter `alpha` to specify the regularization parameter.
-
-::: {.xsmall}
-```{python}
-from sklearn.linear_model import Ridge, LinearRegression
-
-X, y = d.drop(["y"], axis=1), d.y
-
-lm = LinearRegression(fit_intercept=False).fit(X, y)
-rg = Ridge(fit_intercept=False, alpha=10).fit(X, y)
+from sklearn.linear_model import LinearRegression 
 ```
 :::
 
 . . .
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-lm.coef_
-```
-:::
+Each modeling class needs to be constructed (potentially with options) and then the resulting object will provide attributes and methods. 
 
-::: {.column width='50%'}
-```{python}
-root_mean_squared_error(y, lm.predict(X))
-```
-:::
-::::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-rg.coef_
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-root_mean_squared_error(y, rg.predict(X))
-```
-:::
-::::
-
-
-::: {.aside}
-Generally for a Ridge (or Lasso) model it is important to scale the features before fitting (i.e. `StandardScaler()`) - in this case this is not necessary as $x_1,\ldots,x_4$ all have mean of ~0 and std dev of ~1 
-:::
-
-
-## Test-Train split
-
-The most basic form of CV is to split the data into a testing and training set, this can be achieved using `train_test_split` from the `model_selection` submodule.
-
-::: {.xsmall}
-```{python}
-from sklearn.model_selection import train_test_split
-
-X_train, X_test, y_train, y_test = train_test_split(
-  X, y, test_size=0.2, random_state=1234
-)
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-X.shape
-X_train.shape
-X_test.shape
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-y.shape
-y_train.shape
-y_test.shape
-```
-:::
-::::
-
-
-## Train vs Test rmse
-
-::: {.xsmall}
-```{python}
-#| output-location: column
-alpha = np.logspace(-2,1, 100)
-train_rmse = []
-test_rmse = []
-
-for a in alpha:
-    rg = Ridge(alpha=a).fit(
-      X_train, y_train
-    )
-    train_rmse.append( 
-     root_mean_squared_error(
-        y_train, rg.predict(X_train)
-      ) 
-    )
-    test_rmse.append( 
-      root_mean_squared_error(
-        y_test, rg.predict(X_test)
-      ) 
-    )
-
-res = pd.DataFrame(
-  data = {"alpha": alpha, 
-          "train": train_rmse, 
-          "test": test_rmse}
-)
-res
-```
-:::
-
-##
-
-::: {.xsmall}
-```{python}
-g = sns.relplot(
-  x="alpha", y="rmse", hue="variable", data = pd.melt(res, id_vars=["alpha"],value_name="rmse")
-).set(
-  xscale="log"
-)
-```
-:::
-
-
-## Best alpha?
+. . .
 
 :::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-min_i = np.argmin(res.train)
-min_i
+lm = LinearRegression()
 
-res.iloc[[min_i],:]
+m = lm.fit(
+  X = books[["volume"]],
+  y = books.weight
+)
+```
+
+```{python}
+m.coef_
+m.intercept_
 ```
 :::
 
-::: {.column width='50%'}
-```{python}
-min_i = np.argmin(res.test)
-min_i
+::: {.column width='50%' .fragment}
+Note `lm` and `m` are labels for the same underlying `LinearRegression` object,
 
-res.iloc[[min_i],:]
+```{python}
+lm.coef_
+lm.intercept_
 ```
 :::
 ::::
 
 
-## k-fold cross validation
+## A couple of considerations
 
-The previous approach was relatively straight forward, but it required a fair bit of bookkeeping  to implement and we only examined a single test/train split. If we would like to perform k-fold cross validation we can use `cross_val_score` from the `model_selection` submodule. 
+When fitting a model, scikit-learn expects `X` to be a 2d array-like object (e.g. a `np.array` or `pd.DataFrame`), so it will not accept objects like a `pd.Series` or 1d `np.array`.
 
-::: {.small}
+:::: {.columns .xsmall}
+::: {.column width='50%'}
 ```{python}
-from sklearn.model_selection import cross_val_score
-
-cross_val_score(
-  Ridge(alpha=0.59, fit_intercept=False), 
-  X, y,
-  cv=5, 
-  scoring="neg_root_mean_squared_error"
+#| error: true
+lm.fit(
+  X = books.volume,
+  y = books.weight
 )
 ```
 :::
 
+::: {.column width='50%'}
+```{python}
+#| error: true
+lm.fit(
+  X = np.array(books.volume),
+  y = books.weight
+)
+```
+:::
+::::
+
+. . .
+
+:::: {.xsmall}
+```{python}
+#| eval: false
+lm.fit(
+  X = np.array(books.volume).reshape(-1,1),
+  y = books.weight
+)
+```
+:::
+
+
+
+## Model parameters
+
+Depending on the model being used, there will be a number of parameters that can be configured when creating the model object or via the `set_params()` method.
+
+::: {.small}
+```{python}
+lm.get_params()
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+lm.set_params(fit_intercept = False)
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+lm = lm.fit(X = books[["volume"]], y = books.weight)
+lm.intercept_
+lm.coef_
+```
+:::
+
+## Model prediction
+
+Once the model coefficients have been fit, it is possible to predict from the model via the `predict()` method, this method requires a matrix-like `X` as input and in the case of `LinearRegression` returns an array of predicted y values. 
+
+::: {.small}
+```{python}
+lm.predict(X = books[["volume"]])
+```
+
+```{python}
+books = books.assign(
+  weight_lm_pred = lambda x: lm.predict(X = x[["volume"]])
+)
+books
+```
+:::
+
+##
+
+::: {.small}
+```{python}
+plt.figure()
+sns.scatterplot(data=books, x="volume", y="weight", hue="cover")
+sns.lineplot(data=books, x="volume", y="weight_lm_pred", color="c")
+plt.show()
+```
+:::
+
+
+## Residuals?
+
+There is no built in functionality for calculating residuals, so this needs to be done by hand.
+
+::: {.small}
+```{python}
+books["resid_lm_pred"] = books["weight"] - books["weight_lm_pred"]
+```
+
+```{python}
+#| out-width: 66%
+plt.figure(layout="constrained")
+ax = sns.scatterplot(data=books, x="volume", y="resid_lm_pred", hue="cover")
+ax.axhline(c="k", ls="--", lw=1)
+plt.show()
+```
+:::
+
+
+## Categorical variables?
+
+Scikit-learn expects that the model matrix be numeric before fitting,
+
+::: {.small}
+```{python error=TRUE}
+lm = lm.fit(
+  X = books[["volume", "cover"]],
+  y = books.weight
+)
+```
+:::
+
+. . .
+
+the solution here is to dummy code the categorical variables - this can be done with pandas via `pd.get_dummies()` or with a scikit-learn preprocessor.
+
+::: {.small}
+```{python}
+pd.get_dummies(books[["volume", "cover"]])
+```
+:::
+
+
+## Dummy coded model
+
+
+
+::: {.small}
+```{python}
+lm = LinearRegression().fit(
+  X = pd.get_dummies(books[["volume", "cover"]]),
+  y = books.weight
+)
+```
+
+```{python}
+lm.intercept_
+lm.coef_
+```
+:::
+
+Do the above results look reasonable? What went wrong?
+
+
+## Quick comparison with R
+
+::: {.xsmall}
+```{r}
+d = read.csv('data/daag_books.csv')
+d['cover_hb'] = ifelse(d$cover == "hb", 1, 0)
+d['cover_pb'] = ifelse(d$cover == "pb", 1, 0)
+lm = lm(weight~volume+cover_hb+cover_pb, data=d)
+summary(lm)
+```
+:::
+
+
+## Avoiding co-linearity
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+lm1 = LinearRegression(
+  fit_intercept = False
+).fit(
+  X = pd.get_dummies(
+    books[["volume", "cover"]]
+  ),
+  y = books.weight
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+lm2 = LinearRegression(
+  fit_intercept = True
+).fit(
+  X = pd.get_dummies(
+    books[["volume", "cover"]], 
+    drop_first=True
+  ),
+  y = books.weight
+)
+```
+:::
+::::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+lm1.intercept_
+lm1.coef_
+lm1.feature_names_in_
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+lm2.intercept_
+lm2.coef_
+lm2.feature_names_in_
+```
+:::
+::::
+
+
+# Preprocessors
+
+## Preprocessors
+
+These are a collection of transformer classes present in the `sklearn.preprocessing` submodule that are designed to help with the preparation of raw feature data into quantities more suitable for downstream modeling tools.
+
+Like the modeling classes, they have an object oriented design that shares a common interface (methods and attributes) for bringing in data, transforming it, and returning it.
+
+
+## OneHotEncoder
+
+For dummy coding we can use the `OneHotEncoder` preprocessor, the default is to use one hot encoding but standard dummy coding can be achieved via the `drop` parameter.
+
+::: {.xsmall}
+```{python}
+from sklearn.preprocessing import OneHotEncoder
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+enc = OneHotEncoder(sparse_output=False)
+enc.fit(X = books[["cover"]])
+enc.transform(X = books[["cover"]])
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+enc = OneHotEncoder(sparse_output=False, drop="first")
+enc.fit_transform(X = books[["cover"]])
+```
+:::
+::::
+
+
+## Other useful bits
+
+```{python, include=FALSE}
+enc = OneHotEncoder(sparse_output=False)
+enc.fit(X = books[["cover"]])
+```
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+enc.get_feature_names_out()
+f = enc.transform(X = books[["cover"]])
+f
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+enc.inverse_transform(f)
+```
+:::
+::::
+
+
+
+## A cautionary note
+
+Unlike `pd.get_dummies()` it is not safe to use `OneHotEncoder` with both numerical and categorical features, as the former will also be transformed.
+
+::: {.small}
+```{python}
+enc = OneHotEncoder(sparse_output=False)
+X = enc.fit_transform(X = books[["volume", "cover"]])
+pd.DataFrame(data=X, columns = enc.get_feature_names_out())
+```
+:::
+
+
+## Putting it together
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+cover = OneHotEncoder(
+  sparse_output=False
+).fit_transform(
+  books[["cover"]]
+)
+X = np.c_[books.volume, cover]
+
+lm2 = LinearRegression(
+  fit_intercept=False
+).fit(
+  X = X,
+  y = books.weight
+)
+
+lm2.coef_
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+books["weight_lm2_pred"] = lm2.predict(X=X)
+books.drop(
+  ["weight_lm_pred", "resid_lm_pred"], 
+  axis=1
+)
+```
+:::
+::::
 
 ::: {.aside}
-🚩🚩🚩 Note that the default k-fold cross validation used here does not shuffle the data which can be massively problematic if the data is ordered 🚩🚩🚩 
+We'll see a more elegant way of doing this in the near future
 :::
 
-## Controlling k-fold behavior
+## Model fit
 
-Rather than providing `cv` as an integer, it is better to specify a cross-validation scheme directly (with additional options). Here we will use the `KFold` class from the `model_selection` submodule. 
-
-::: {.small}
-```{python}
-from sklearn.model_selection import KFold
-
-cross_val_score(
-  Ridge(alpha=0.59, fit_intercept=False), 
-  X, y, 
-  cv = KFold(n_splits=5, shuffle=True, random_state=1234), 
-  scoring="neg_root_mean_squared_error"
-)
-```
-:::
-
-
-## KFold object
-
-`KFold()` returns a class object which provides the method `split()` which in turn is a generator that returns a tuple with the indexes of the training and testing selects for each fold given a model matrix `X`,
-
-::: {.xsmall}
-```{python}
-ex = pd.DataFrame(data = list(range(10)), columns=["x"])
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-cv = KFold(5)
-for train, test in cv.split(ex):
-  print(f'Train: {train} | test: {test}')
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-cv = KFold(5, shuffle=True, random_state=1234)
-for train, test in cv.split(ex):
-  print(f'Train: {train} | test: {test}')
-```
-:::
-::::
-
-## `scoring`
-
-For most of the cross validation functions we pass in a string instead of a scoring function from the metrics submodule - if you are interested in seeing the names of the possible metrics, these are available via `sklearn.metrics.get_scorer_names()`,
-
-::: {.xsmall}
-```{python}
-np.array( sklearn.metrics.get_scorer_names() )
-```
-:::
-
-
-## Train vs Test rmse (again)
-
-::: {.small}
-```{python}
-alpha = np.logspace(-2,1, 30)
-test_mean_rmse = []
-test_rmse = []
-cv = KFold(n_splits=5, shuffle=True, random_state=1234)
-
-for a in alpha:
-    rg = Ridge(fit_intercept=False, alpha=a)
-    
-    scores = -1 * cross_val_score(
-      rg, X_train, y_train, 
-      cv = cv, 
-      scoring="neg_root_mean_squared_error"
-    )
-    test_mean_rmse.append(np.mean(scores))
-    test_rmse.append(scores)
-
-res = pd.DataFrame(
-    data = np.c_[alpha, test_mean_rmse, test_rmse],
-    columns = ["alpha", "mean_rmse"] + ["fold" + str(i) for i in range(1,6) ]
-)
-```
-:::
-
-##
-
-::: {.xsmall}
-```{python}
-res
-```
-:::
-
-##
-
-::: {.small}
-```{python}
-g = sns.relplot(
-  x="alpha", y="rmse", hue="variable", data=res.melt(id_vars=["alpha"], value_name="rmse"), 
-  marker="o", kind="line"
-).set(
-  xscale="log"
-)
-```
-:::
-
-
-## Grid Search
-
-We can further reduce the amount of code needed if there is a specific set of parameter values we would like to explore using cross validation. This is done using the `GridSearchCV` function from the `model_selection` submodule.
-
-::: {.small}
-```{python}
-#| code-line-numbers: "|4|5|6|7"
-from sklearn.model_selection import GridSearchCV
-
-gs = GridSearchCV(
-  Ridge(fit_intercept=False),
-  {"alpha": np.logspace(-2, 1, 30)},
-  cv = KFold(5, shuffle=True, random_state=1234),
-  scoring = "neg_root_mean_squared_error"
-).fit(
-  X, y
-)
-```
-:::
-
-## `best_*` attributes
-
-`GridSearchCV()`'s return object contains attributes with details on the "best" model based on the chosen scoring metric.
-
-```{python}
-gs.best_index_
-gs.best_params_
-gs.best_score_
-```
-
-## `best_estimator_` attribute
-
-If `refit = True` (default) with `GridSearchCV()` then the `best_estimator_` attribute will be available which gives direct access to the "best" model or pipeline object. This model is constructed by using the parameter(s) that achieved the minimum score and refitting the model to the complete data set.
-
-::: {.xsmall}
-```{python}
-gs.best_estimator_
-
-gs.best_estimator_.coef_
-
-gs.best_estimator_.predict(X)
-```
-:::
-
-
-## `cv_results_` attribute
-
-Other useful details about the grid search process are stored as a dictionary in the `cv_results_` attribute which includes things like average test scores, fold level test scores, test ranks, test runtimes, etc.
-
-::: {.xsmall}
-```{python}
-gs.cv_results_.keys()
-```
-
-```{python}
-gs.cv_results_["mean_test_score"]
-gs.cv_results_["param_alpha"]
-```
-:::
-
-##
-
-::: {.small}
-```{python}
-#| output-location: slide
-#| code-line-numbers: "|1|2|3|4|7,9-14"
-alpha = np.array(gs.cv_results_["param_alpha"], dtype="float64")
-score = -gs.cv_results_["mean_test_score"]
-score_std = gs.cv_results_["std_test_score"]
-n_folds = gs.cv.get_n_splits()
-
-plt.figure(layout="constrained")
-ax = sns.lineplot(x=alpha, y=score)
-ax.set_xscale("log")
-plt.fill_between(
-  x = alpha,
-  y1 = score + 1.96*score_std / np.sqrt(n_folds),
-  y2 = score - 1.96*score_std / np.sqrt(n_folds),
-  alpha = 0.2
-)
-plt.show()
-```
-:::
-
-
-## Ridge traceplot
-
-::: {.xsmall}
-```{python}
-alpha = np.logspace(-1,5, 100)
-betas = []
-
-for a in alpha:
-    rg = Ridge(alpha=a, fit_intercept=False).fit(X, y)
-    betas.append(rg.coef_)
-
-res = pd.DataFrame(
-  data = betas, columns = rg.feature_names_in_
-).assign(
-  alpha = alpha  
-)
-```
-:::
-
-##
-
-::: {.xsmall}
-```{python}
-g = sns.relplot(
-  data = res.melt(id_vars="alpha", value_name="coef values", var_name="feature"),
-  x = "alpha", y = "coef values", hue = "feature",
-  kind = "line", aspect=2
-).set(
-  xscale="log"
-)
-```
-:::
-
-
-# Classification
-
-## OpenIntro - Spam
-
-We will start by looking at a data set on spam emails from the [OpenIntro project](https://www.openintro.org/). A full data dictionary can be found [here](https://www.openintro.org/data/index.php?data=email). To keep things simple this week we will restrict our exploration to including only the following columns: `spam`, `exclaim_mess`, `format`, `num_char`,  `line_breaks`, and `number`.
-
-* `spam` - Indicator for whether the email was spam.
-* `exclaim_mess` - The number of exclamation points in the email message.
-* `format` - Indicates whether the email was written using HTML (e.g. may have included bolding or active links).
-* `num_char` - The number of characters in the email, in thousands.
-* `line_breaks` - The number of line breaks in the email (does not count text wrapping).
-* `number` - Factor variable saying whether there was no number, a small number (under 1 million), or a big number.
-
-##
-
-As `number` is categorical, we will take care of the necessary dummy coding via `pd.get_dummies()`,
-
-::: {.xsmall}
-```{python}
-email = pd.read_csv('data/email.csv')[ 
-  ['spam', 'exclaim_mess', 'format', 'num_char', 'line_breaks', 'number'] 
-]
-email_dc = pd.get_dummies(email)
-email_dc
-```
-:::
-
-
-##
-
-::: {.xsmall}
-```{python}
-#| out-width: 75%
-g = sns.pairplot(email, hue='spam', corner=True, aspect=1.25)
-```
-:::
-
-## Model fitting
-
-::: {.xsmall}
-```{python}
-from sklearn.linear_model import LogisticRegression
-
-y = email_dc.spam
-X = email_dc.drop('spam', axis=1)
-
-m = LogisticRegression(fit_intercept = False).fit(X, y)
-```
-:::
-
-. . .
-
-::: {.xsmall}
-```{python}
-m.feature_names_in_
-m.coef_
-```
-:::
-
-## A quick comparison
-
-```{r include=FALSE} 
-d = read.csv("data/email.csv") |>
-  dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
-```
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-*R output*
-
-```{r}
-glm(spam~.-1, data=d, family=binomial) |>
-  coef()
-```
-:::
-
-::: {.column width='50%'}
-*sklearn output*
-
-```{python}
-m.feature_names_in_
-m.coef_
-```
-:::
-::::
-
-
-## `sklearn.linear_model.LogisticRegression`
-
-From the documentations,
-
-> This class implements regularized logistic regression using the ‘liblinear’ library, ‘newton-cg’, ‘sag’, ‘saga’ and ‘lbfgs’ solvers. **Note that regularization is applied by default.** It can handle both dense and sparse input. Use C-ordered arrays or CSR matrices containing 64-bit floats for optimal performance; any other input format will be converted (and copied).
-
-
-## Penalty parameter
-
-🚩🚩🚩 
-
-`LogisticRegression()` has a parameter called penalty that applies a `"l1"` (lasso), `"l2"` (ridge), `"elasticnet"` or `None` with `"l2"` being the default. To make matters worse, the regularization is controlled by the parameter `C` which defaults to 1 (not 0) - also `C` is the inverse regularization strength (e.g. different from `alpha` for ridge and lasso models). 
-
-🚩🚩🚩
-
-$$
-\min_{w, c} \frac{1 - \rho}{2}w^T w + \rho |w|_1 + C \sum_{i=1}^n \log(\exp(- y_i (X_i^T w + c)) + 1),
-$$
-
-
-## Another quick comparison
-
-```{r include=FALSE}
-d = read.csv("data/email.csv") |>
-  dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
-```
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-*R output*
-
-```{r}
-glm(spam~.-1, data = d, family=binomial) |>
-  coef()
-```
-:::
-
-::: {.column width='50%'}
-*sklearn output (penalty `None`)*
-
-```{python}
-m = LogisticRegression(
-  fit_intercept = False, penalty=None
-).fit(
-  X, y
-)
-m.feature_names_in_
-m.coef_
-```
-:::
-::::
-
-
-## Solver parameter
-
-It is also possible specify the solver to use when fitting a logistic regression model, to complicate matters somewhat the choice of the algorithm depends on the penalty chosen: 
-
-* `newton-cg` - [`"l2"`, `None`]
-* `lbfgs` - [`"l2"`, `None`]
-* `liblinear` - [`"l1"`, `"l2"`]
-* `sag` - [`"l2"`, `None`]
-* `saga` - [`"elasticnet"`, `"l1"`, `"l2"`, `None`]
-
-Also there can be issues with feature scales for some of these solvers:
-
-> **Note:** ‘sag’ and ‘saga’ fast convergence is only guaranteed on features with approximately the same scale. You can preprocess the data with a scaler from sklearn.preprocessing.
-
-
-## Prediction
-
-Classification models have multiple prediction methods depending on what type of output you would like,
-
-::: {.xsmall}
-```{python}
-m.predict(X)
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-m.predict_proba(X)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-m.predict_log_proba(X)
-```
-:::
-::::
-
-## Scoring
-
-Classification models also include a `score()` method which returns the model's *accuracy*,
-
-::: {.xsmall}
-```{python}
-m.score(X, y)
-```
-:::
-
-. . .
-
-Other scoring options are available via the [metrics](https://scikit-learn.org/stable/modules/classes.html#classification-metrics) submodule
-
-::: {.xsmall}
-```{python}
-from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, confusion_matrix
-```
-:::
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-accuracy_score(y, m.predict(X))
-roc_auc_score(y, m.predict_proba(X)[:,1])
-f1_score(y, m.predict(X))
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-confusion_matrix(y, m.predict(X), labels=m.classes_)
-```
-:::
-::::
-
-## Scoring visualizations - confusion matrix
-
-::: {.small}
-```{python}
-from sklearn.metrics import ConfusionMatrixDisplay
-cm = confusion_matrix(y, m.predict(X), labels=m.classes_)
-
-disp = ConfusionMatrixDisplay(cm).plot()
-plt.show()
-```
-:::
-
-
-## Scoring visualizations - ROC curve {.smaller}
-
-::: {.small}
-```{python}
-from sklearn.metrics import auc, roc_curve, RocCurveDisplay
-
-fpr, tpr, thresholds = roc_curve(y, m.predict_proba(X)[:,1])
-roc_auc = auc(fpr, tpr)
-disp = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc,
-                       estimator_name='Logistic Regression').plot()
-plt.show()
-```
-:::
-
-
-## Scoring visualizations - Precision Recall {.smaller}
-
-::: {.small}
-```{python}
-from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
-
-precision, recall, _ = precision_recall_curve(y, m.predict_proba(X)[:,1])
-disp = PrecisionRecallDisplay(precision=precision, recall=recall).plot()
-plt.show()
-```
-:::
-
-
-# MNIST
-
-## MNIST handwritten digits
-
-::: {.xsmall}
-```{python}
-from sklearn.datasets import load_digits
-digits = load_digits(as_frame=True)
-```
-:::
-
-
-:::: {.columns .xsmall}
-::: {.column width='70%'}
-```{python}
-X = digits.data
-X
-```
-:::
-
-::: {.column width='30%'} 
-```{python}
-y = digits.target
-y
-```
-:::
-::::
-
-
-## Example digits
-
-::: {.xsmall}
 ```{python}
 #| echo: false
-fig, axes = plt.subplots(nrows=5, ncols=10, figsize=(10, 6), layout="constrained")
-axes2 = [ax for row in axes for ax in row]
+plt.figure()
+sns.scatterplot(data=books, x="volume", y="weight", hue="cover")
+sns.lineplot(data=books, x="volume", y="weight_lm2_pred", hue="cover")
+plt.show()
+```
 
-for ax, image, label in zip(axes2, digits.images, digits.target):
-    ax.set_axis_off()
-    img = ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
-    txt = ax.set_title(f"{label}")
-    
+## Model residuals
+
+```{python}
+#| echo: false
+books["resid_lm2_pred"] = books["weight"] - books["weight_lm2_pred"]
+
+plt.figure(layout="constrained")
+ax = sns.scatterplot(data=books, x="volume", y="resid_lm2_pred", hue="cover")
+ax.axhline(c="k", ls="--", lw=1)
+plt.show()
+```
+
+
+## Model performance
+
+Scikit-learn comes with a number of builtin functions for measuring model performance in the `sklearn.metrics` submodule - these are generally just functions that take the vectors `y_true` and `y_pred` and return a scalar score.
+
+::: {.xsmall}
+```{python}
+import sklearn.metrics as metrics 
+```
+:::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+metrics.r2_score(books.weight, books.weight_lm_pred)
+metrics.mean_squared_error(
+  books.weight, books.weight_lm_pred
+)
+metrics.root_mean_squared_error(
+  books.weight, books.weight_lm_pred
+)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+metrics.r2_score(books.weight, books.weight_lm2_pred)
+metrics.mean_squared_error(
+  books.weight, books.weight_lm2_pred
+) 
+metrics.root_mean_squared_error(
+  books.weight, books.weight_lm2_pred
+)
+```
+:::
+::::
+
+::: {.aside}
+See [API Docs](https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics) for a list of available metrics
+:::
+
+
+## Exercise 1
+
+Create and fit a model for the `books` data that includes an interaction effect between `volume` and `cover`. 
+
+You will need to do this manually with `pd.getdummies()` and some additional data munging.
+
+The data can be read into pandas with,
+```{python}
+#| eval: false
+books = pd.read_csv(
+  "https://sta663-sp26.github.io/slides/data/daag_books.csv"
+)
+```
+
+
+
+# Other transformers
+
+## Polynomial regression
+
+We will now look at another flavor of regression model, that involves preprocessing and a hyperparameter - namely polynomial regression.
+
+```{python, out.width="40%"}
+df = pd.read_csv("data/gp.csv")
+sns.relplot(data=df, x="x", y="y")
+```
+
+
+## By hand
+
+It is certainly possible to construct the necessary model matrix by hand (or even use a function to automate the process), but this is less then desirable generally - particularly if we want to do anything fancy (e.g. cross validation)
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+X = np.c_[
+    np.ones(df.shape[0]),
+    df.x,
+    df.x**2,
+    df.x**3
+]
+
+plm = LinearRegression(
+  fit_intercept = False
+).fit(
+  X=X, y=df.y
+)
+
+plm.coef_
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df["y_pred"] = plm.predict(X=X)
+
+plt.figure(layout="constrained")
+sns.scatterplot(data=df, x="x", y="y")
+sns.lineplot(data=df, x="x", y="y_pred", color="k")
+plt.show()
+```
+:::
+::::
+
+##
+
+::: {.columns .xsmall}
+```{python}
+X = np.c_[
+    np.ones(df.shape[0]), df.x,
+    df.x**2, df.x**3,
+    df.x**4, df.x**5
+]
+
+plm = LinearRegression(
+  fit_intercept = False
+).fit(
+  X=X, y=df.y
+)
+df["y_pred"] = plm.predict(X=X)
+```
+:::
+
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+sns.scatterplot(data=df, x="x", y="y")
+sns.lineplot(data=df, x="x", y="y_pred", color="k")
+plt.show()
+```
+
+
+## PolynomialFeatures
+
+::: {.small}
+This is another transformer class from `sklearn.preprocessing` that simplifies the process of constructing polynormial features for your model matrix. Usage is similar to that of `OneHotEncoder`.
+:::
+
+::: {.xsmall}
+```{python}
+from sklearn.preprocessing import PolynomialFeatures
+X = np.array(range(6)).reshape(-1,1)
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+pf = PolynomialFeatures(degree=3)
+pf = pf.fit(X)
+pf.transform(X)
+pf.get_feature_names_out()
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+pf = PolynomialFeatures(
+  degree=2, include_bias=False
+)
+pf.fit_transform(X)
+pf.get_feature_names_out()
+```
+:::
+::::
+
+
+## Interactions
+
+If the feature matrix `X` has more than one column than `PolynomialFeatures` transformer will include interaction terms with total degree up to `degree`.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+X.reshape(-1, 2)
+
+pf = PolynomialFeatures(
+  degree=2, include_bias=False
+)
+pf.fit_transform(
+  X.reshape(-1, 2)
+)
+pf.get_feature_names_out()
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+X.reshape(-1, 3)
+
+pf = PolynomialFeatures(
+  degree=2, include_bias=False
+)
+pf.fit_transform(
+  X.reshape(-1, 3)
+)
+pf.get_feature_names_out()
+```
+:::
+::::
+
+
+## Modeling with PolynomialFeatures
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+def poly_model(X, y, degree):
+  X  = PolynomialFeatures(
+    degree=degree, include_bias=False
+  ).fit_transform(
+    X=X
+  )
+  y_pred = LinearRegression(
+  ).fit(
+    X=X, y=y
+  ).predict(
+    X
+  )
+  return metrics.root_mean_squared_error(y, y_pred)
+```
+
+```{python}
+poly_model(X = df[["x"]], y = df.y, degree = 2)
+poly_model(X = df[["x"]], y = df.y, degree = 3)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+#| out-width: 66%
+degrees = range(1,10)
+rmses = [
+  poly_model(X=df[["x"]], y=df.y, degree=d) 
+  for d in degrees
+]
+g = sns.relplot(x=degrees, y=rmses)
+```
+:::
+::::
+
+##
+
+```{python}
+#| echo: false
+res = df.copy().drop("y_pred", axis=1)
+for d in range(1,10):
+  X  = PolynomialFeatures(
+    degree=d, include_bias=False
+  ).fit_transform(
+    X=res[["x"]]
+  )
+  res[str(d)] = LinearRegression().fit(X=X, y=res.y).predict(X)
+
+g = sns.relplot(
+  data = res.melt(id_vars=["x","y"], var_name="degree"),
+  x = "x", y="value", col = "degree",
+  col_wrap=3, kind="line", color="k"
+)
+
+[ ax.scatter(res.x, res.y, alpha=0.3)  for ax in g.axes ]
+```
+
+
+
+# Pipelines
+
+
+## Pipelines
+
+You may have noticed that `PolynomialFeatures` takes a model matrix as input and returns a new model matrix as output which is then used as the input for `LinearRegression`. This is not an accident, and by structuring the library in this way sklearn is designed to enable the connection of these steps together, into what sklearn calls a *pipeline*.
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+from sklearn.pipeline import make_pipeline
+
+p = make_pipeline(
+  PolynomialFeatures(degree=4),
+  LinearRegression()
+)
+```
+:::
+::: {.column}
+```{python}
+p
+```
+:::
+:::
+
+
+## Using Pipelines
+
+Once constructed, this object can be used just like our previous `LinearRegression` model (i.e. fit to our data and then used for prediction)
+
+::: {.small}
+```{python}
+p = p.fit(X = df[["x"]], y = df.y)
+p.predict(X = df[["x"]])
+```
+:::
+
+##
+
+::: {.small}
+```{python}
+plt.figure(layout="constrained")
+sns.scatterplot(data=df, x="x", y="y")
+sns.lineplot(x=df.x, y=p.predict(X = df[["x"]]), color="k")
 plt.show()
 ```
 :::
 
 
-## Doing things properly - train/test split
+## Model coefficients (or other attributes)
 
-To properly assess our modeling we will create a training and testing set of these data, only the training data will be used to learn model coefficients or hyperparameters, test data will only be used for final model scoring.
+The attributes of pipeline steps are not directly accessible, but can be accessed via the `steps` or `named_steps` attributes,
+
+::: {.small}
+```{python, error=TRUE}
+p.coef_
+```
+:::
+
+. . .
 
 ::: {.small}
 ```{python}
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, shuffle=True, random_state=1234
-)
+p.steps
+p.steps[1][1].coef_
+p.named_steps["linearregression"].intercept_
+```
+:::
+
+## Other useful bits
+
+::: {.small}
+```{python}
+p.steps[0][1].get_feature_names_out()
+p.steps[1][1].get_params()
 ```
 :::
 
 
-## Multiclass logistic regression
 
-Fitting a multiclass logistic regression model will involve selecting a value for the `multi_class` parameter, which can be either `multinomial` for multinomial regression or `ovr` for one-vs-rest where `k` binary models are fit.
+Anyone notice a problem?
 
-::: {.xsmall}
+. . .
+
+::: {.small}
 ```{python}
-#| code-line-numbers: |3
-mc_log_cv = GridSearchCV(
-  LogisticRegression(penalty=None, max_iter = 5000),
-  param_grid = {"multi_class": ["multinomial", "ovr"]},
-  cv = KFold(10, shuffle=True, random_state=12345)
-).fit(
-  X_train, y_train
-)
+p.steps[1][1].rank_
+p.steps[1][1].n_features_in_
+```
+:::
+
+
+
+
+## What about step parameters?
+
+By accessing each step we can adjust their parameters (via `set_params()`),
+
+::: {.small}
+```{python}
+p.named_steps["linearregression"].get_params()
 ```
 :::
 
 . . .
 
-::: {.xsmall}
+::: {.columns .xsmall}
+::: {.column}
 ```{python}
-mc_log_cv.best_estimator_
-mc_log_cv.best_score_
-```
-:::
-
-. . .
-
-::: {.xsmall}
-```{python}
-for param, score in  zip(mc_log_cv.cv_results_["params"], mc_log_cv.cv_results_["mean_test_score"]):
-  f"{param=}, {score=}"
-```
-:::
-
-
-## Model coefficients
-
-::: {.xsmall}
-```{python}
-pd.DataFrame(
-  mc_log_cv.best_estimator_.coef_
+#| results: false
+p.named_steps["linearregression"].set_params(
+  fit_intercept=False
 )
+p.fit(X = df[["x"]], y = df.y)
+```
+:::
+::: {.column .fragment}
+```{python}
+p.named_steps["linearregression"].intercept_
+p.named_steps["linearregression"].coef_
+```
+:::
+:::
 
-mc_log_cv.best_estimator_.coef_.shape
 
-mc_log_cv.best_estimator_.intercept_
+## Pipeline parameter names
+
+These parameters can also be directly accessed at the pipeline level, names are constructed as step name + `__` + parameter name:
+
+::: {.xsmall}
+```{python}
+p.get_params()
+p.set_params(
+  linearregression__fit_intercept=True, 
+  polynomialfeatures__include_bias=False
+)
 ```
 :::
 
-## Confusion Matrix
+##
+
+::: {.xsmall}
+```{python}
+p.fit(X = df[["x"]], y = df.y)
+p.named_steps["polynomialfeatures"].get_feature_names_out()
+p.named_steps["linearregression"].intercept_
+p.named_steps["linearregression"].coef_
+```
+:::
+
+
+# Column Transformers
 
 ```{python}
 #| include: false
-np.set_printoptions(
-  linewidth=60
-)
+books = pd.read_csv("data/daag_books.csv"); books
 ```
 
+## Column Transformers
 
-:::: {.columns .tiny}
-::: {.column width='50%'}
-**Within sample**
+Are a tool for selectively applying transformer(s) to column(s) of an array or DataFrame, they function in a way that is similar to a pipeline and similarly have a `make_` helper function.
+
+::: {.xsmall}
 ```{python}
-accuracy_score(
-  y_train, 
-  mc_log_cv.best_estimator_.predict(X_train)
+from sklearn.compose import make_column_transformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+ct = make_column_transformer(
+  (StandardScaler(), ["volume"]),
+  (OneHotEncoder(), ["cover"]),
+).fit(
+  books
 )
-confusion_matrix(
-  y_train, 
-  mc_log_cv.best_estimator_.predict(X_train)
+ct.get_feature_names_out()
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+ct.transform(books)
+```
+:::
+::::
+
+
+## Keeping or dropping other columns
+
+One addition important argument is `remainder` which determines what happens to unspecified columns. The default is `"drop"` which is why `weight` was removed, the alternative is `"passthrough"` which retains untransformed columns.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+ct = make_column_transformer(
+  (StandardScaler(), ["volume"]),
+  (OneHotEncoder(), ["cover"]),
+  remainder = "passthrough"
+).fit(
+  books
 )
 ```
 :::
 
 ::: {.column width='50%'}
-**Out of sample**
 ```{python}
-accuracy_score(
-  y_test, 
-  mc_log_cv.best_estimator_.predict(X_test)
+ct.get_feature_names_out()
+```
+:::
+::::
+
+::: {.xsmall}
+```{python}
+ct.transform(books)
+```
+:::
+
+
+## Column selection
+
+One lingering issue with the above approach is that we've had to hard code the column names (or use indexes). Often we want to select columns based on their dtype (e.g. categorical vs numerical) this can be done via pandas or sklearn,
+
+::: {.xsmall}
+```{python}
+from sklearn.compose import make_column_selector
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+ct = make_column_transformer(
+  ( StandardScaler(), 
+    make_column_selector(
+      dtype_include=np.number
+    )
+  ),
+  ( OneHotEncoder(), 
+    make_column_selector(
+      dtype_include=[object, bool]
+    )
+  )
 )
-confusion_matrix(
-  y_test, 
-  mc_log_cv.best_estimator_.predict(X_test),
-  labels = digits.target_names
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+ct = make_column_transformer(
+  ( StandardScaler(), 
+    books.select_dtypes(
+      include=['number']
+    ).columns
+  ),
+  ( OneHotEncoder(), 
+    books.select_dtypes(
+      include=['object']
+    ).columns
+  )
 )
 ```
 :::
 ::::
 
-## Report
-
-::: {.xsmall}
-```{python}
-print( classification_report(
-  y_test, 
-  mc_log_cv.best_estimator_.predict(X_test)
-) )
-```
+::: {.aside}
+`make_column_selector()` also supports selecting via `pattern` or excluding via `dtype_exclude`
 :::
 
-## Prediction
+##
 
-:::: {.columns .tiny}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
-mc_log_cv.best_estimator_.predict(X_test)
+ct.fit_transform(books)
+ct.get_feature_names_out()
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-mc_log_cv.best_estimator_.predict_proba(X_test),
+ct.fit_transform(books)
+ct.get_feature_names_out()
 ```
 :::
 ::::
-
-## Examining the coefs
-
-::: {.xsmall}
-```{python}
-#| out-width: 66%
-coef_img = mc_log_cv.best_estimator_.coef_.reshape(10,8,8)
-
-fig, axes = plt.subplots(nrows=2, ncols=5, figsize=(10, 5), layout="constrained")
-axes2 = [ax for row in axes for ax in row]
-
-for ax, image, label in zip(axes2, coef_img, range(10)):
-    ax.set_axis_off()
-    img = ax.imshow(image, cmap=plt.cm.gray_r, interpolation="nearest")
-    txt = ax.set_title(f"{label}")
-    
-plt.show()
-```
-:::
-
-## Example 1 - DecisionTreeClassifier
-
-Using these data we will now fit a `DecisionTreeClassifier` to these data, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
-
-::: {.small}
-```{python}
-from sklearn.datasets import load_digits
-digits = load_digits(as_frame=True)
-
-
-X, y = digits.data, digits.target
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, shuffle=True, random_state=1234
-)
-```
-:::
-
-# Example 2 - GridSearchCV w/ Multiple models <br/> (Trees vs Forests)

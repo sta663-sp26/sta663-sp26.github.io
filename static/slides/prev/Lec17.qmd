@@ -1,5 +1,5 @@
 ---
-title: "torch"
+title: "Optimization - optax"
 subtitle: "Lecture 17"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -20,31 +20,35 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import warnings
 
-import statsmodels.formula.api as smf
+import jax
+import jax.numpy as jnp
+jax.config.update("jax_enable_x64", True)
 
-import os
-import math
+import optax
+
+import timeit
+
+import sklearn
+sklearn.set_config(display="text")
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
 
 plt.rcParams['figure.dpi'] = 200
+plt.rcParams['figure.constrained_layout.use'] = True
 
 np.set_printoptions(
-  edgeitems=30, linewidth=200,
-  precision = 5, suppress=True
+  edgeitems=30, linewidth=75,
+  precision = 4, suppress=True
   #formatter=dict(float=lambda x: "%.5g" % x)
 )
 
-import torch
-
-torch.set_printoptions(
-  edgeitems=30, linewidth=200,
-  precision = 5
-)
-
-
-pd.set_option("display.width", 130)
+pd.set_option("display.width", 100)
 pd.set_option("display.max_columns", 10)
-pd.set_option("display.precision", 6)
+pd.set_option("display.precision", 4)
+
+from scipy import optimize
 ```
 
 ```{r r_setup}
@@ -61,911 +65,882 @@ local({
     # the new x to the old hook
     x = sub("## \n## Detailed traceback:\n.*$", "", x)
     x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
-    #x = stringr::str_wrap(x, width = 100)
     hook_err_old(x, options)
   })
   
   hook_warn_old <- knitr::knit_hooks$get("warning")  # save the old hook
   knitr::knit_hooks$set(warning = function(x, options) {
     x = sub("<string>:1: ", "", x)
-    #x = stringr::str_wrap(x, width = 100)
     hook_warn_old(x, options)
-  })
-  
-  hook_msg_old <- knitr::knit_hooks$get("output")  # save the old hook
-  knitr::knit_hooks$set(output = function(x, options) {
-    x = stringr::str_replace(x, "(## ).* ([A-Za-z]+Warning:)", "\\1\\2")
-    x = stringr::str_split(x, "\n")[[1]]
-    #x = stringr::str_wrap(x, width = 120, exdent = 3)
-    x = stringr::str_remove_all(x, "\r")
-    x = stringi::stri_wrap(x, width=120, exdent = 3, normalize=FALSE)
-    x = paste(x, collapse="\n")
-    
-    #x = stringr::str_wrap(x, width = 100)
-    hook_msg_old(x, options)
   })
 })
 ```
 
-## PyTorch
 
-> PyTorch is a Python package that provides two high-level features:
->
-> * Tensor computation (like NumPy) with strong GPU acceleration
-> * Deep neural networks built on a tape-based autograd system
+## SGD Libraries
 
-![](imgs/pytorch-tensor_illustration.png){fig-align="center"}
+Most often you will be using the optimizer methods that come with your library of choice, all of the following have their own implementations:
 
+* Tensorflow / [Keras](https://keras.io/api/optimizers/)
+
+* [Torch](https://pytorch.org/docs/stable/optim.html)
 
 . . .
 
-::: {.small}
-```{python}
-import torch
-torch.__version__
-```
-:::
+Interestingly, JAX does not have builtin support for optimization beyond `jax.scipy.optimize.minimize()` which only supports the `BFGS` method.
 
-##
-
-![](imgs/pytorch-dynamic_graph.gif){fig-align="center" width="100%"}
-
-## Tensors
-
-are the basic data abstraction in PyTorch and are implemented by the `torch.Tensor` class. The behave in much the same was as the other array libraries we've seen so far (`numpy`, `jax`, etc.)
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-torch.zeros(3)
-torch.ones(3,2)
-torch.empty(2,2,2)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-torch.manual_seed(1234)
-torch.rand(2,2,2,2)
-```
-:::
-::::
+Google previously released [jaxopt](https://github.com/google/jaxopt/) to provide SGD and other optimization methods but this project is now deprecated with the code being merged into DeepMind's [Optax](https://github.com/google-deepmind/optax).
 
 
 
-## Constants
-
-As expected, tensors can be constructed from constant numeric values in lists or tuples.
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-torch.tensor(1)
-torch.tensor((1,2))
-torch.tensor([[1,2,3], [4,5,6]])
-torch.tensor([(1,2,3), [4,5,6]])
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python error=TRUE}
-torch.tensor([(1,1,1), [4,5]])
-torch.tensor([["A"]])
-torch.tensor([[True]])
-```
-:::
-::::
-
-
-::: {.aside}
-Note using `tensor()` in this way results in a full copy of the data.
-:::
-
-
-## Tensor Types
+## Optax
 
 ::: {.small}
-| Data type                | `dtype`                   | `type()`         | Comment
-|--------------------------|---------------------------|------------------|--------------
-| 32-bit float             | `float32` or `float`      | `FloatTensor`    | Default float
-| 64-bit float             | `float64` or `double`     | `DoubleTensor`   | 
-| 16-bit float             | `float16` or `half`       | `HalfTensor`     | 
-| 16-bit brain float       | `bfloat16`                | `BFloat16Tensor` | 
-| 64-bit complex float     | `complex64`               |                  | 
-| 128-bit complex float    | `complex128` or `cdouble` |                  | 
-| 8-bit integer (unsigned) | `uint8`                   | `ByteTensor`     | 
-| 8-bit integer (signed)   | `int8`                    | `CharTensor`     | 
-| 16-bit integer (signed)  | `int16` or `short`        | `ShortTensor`    | 
-| 32-bit integer (signed)  | `int32` or `int`          | `IntTensor`      | 
-| 64-bit integer (signed)  | `int64` or `long`         | `LongTensor`     | Default integer
-| Boolean                  | `bool`                    | `BoolTensor`     | 
-:::
-
-::: {.aside}
-We've left off quantized integer types here
+> Optax is a gradient processing and optimization library for JAX.
+> 
+> Optax is designed to facilitate research by providing building blocks that can be easily recombined in custom ways.
+> 
+> Our goals are to
+> 
+> * Provide simple, well-tested, efficient implementations of core components.
+> 
+> * Improve research productivity by enabling to easily combine low-level ingredients into custom optimizers (or other gradient processing components).
+> 
+> * Accelerate adoption of new ideas by making it easy for anyone to contribute.
+>
+> We favor focusing on small composable building blocks that can be effectively combined into custom solutions. Others may build upon these basic components in more complicated abstractions. Whenever reasonable, implementations prioritize readability and structuring code to match standard equations, over code reuse.x
 :::
 
 
-## Specifying types
-
-Just like NumPy and Pandas, types are specified via the `dtype` argument and can be inspected via the dtype attribute.
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-a = torch.tensor([1,2,3]); a
-a.dtype
-
-b = torch.tensor([1,2,3], dtype=torch.float16); b
-b.dtype
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-c = torch.tensor([1.,2.,3.]); c
-c.dtype
-
-d = torch.tensor([1,2,3], dtype=torch.float64); d
-d.dtype
-```
-:::
-::::
-
-
-::: {.aside}
-Note the default types are slightly different from the other array/tensor libraries
-:::
-
-## Type precision
-
-When using types with less precision it is important to be careful about underflow and overflow (ints) and rounding errors (floats).
-
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-#| error: true
-torch.tensor([128], dtype=torch.int8)
-torch.tensor([128]).to(torch.int8)
-torch.tensor([255]).to(torch.uint8)
-torch.tensor([300]).to(torch.uint8)
-torch.tensor([300]).to(torch.int16)
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-#| include: false
-torch.set_printoptions(precision=8)
-```
-```{python}
-torch.tensor(1/3, dtype=torch.float16)
-torch.tensor(1/3, dtype=torch.float32)
-torch.tensor(1/3, dtype=torch.float64)
-torch.tensor(1/3, dtype=torch.bfloat16)
-```
-:::
-::::
-
-
-## NumPy conversion
-
-It is possible to easily move between NumPy arrays and Tensors via the `from_numpy()` function and `numpy()` method.
+## Same regression example
 
 ::: {.xsmall}
 ```{python}
-a = np.eye(3,3)
-torch.from_numpy(a)
+#| code-line-numbers: "|3|7,8"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=10000, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
 
-b = np.array([1,2,3])
-torch.from_numpy(b)
+X = jnp.c_[jnp.ones(len(y)), X]
+n, k = X.shape
 
-c = torch.rand(2,3)
-c.numpy()
-
-d = torch.ones(2,2, dtype=torch.int64)
-d.numpy()
+def lr_loss(beta, X, y):
+  return jnp.sum((y - X @ beta)**2)
 ```
 :::
 
-
-## Math & Logic
-
-Just like NumPy torch `tensor` objects support basic mathematical and logical operations with scalars and other tensors - torch provides implementations of most commonly needed mathematical functions.
-
-:::: {.columns .small}
-::: {.column width='50%'}
 ```{python}
-torch.ones(2,2) * 7 -1
+#| echo: false
+lm = LinearRegression(fit_intercept=False).fit(X,y)
 
-torch.ones(2,2) + torch.tensor([[1,2], [3,4]])
-
-2 ** torch.tensor([[1,2], [3,4]])
-
-2 ** torch.tensor([[1,2], [3,4]]) > 5
+lm_loss = lr_loss(lm.coef_, X, y)
 ```
+
+
+## Optax process
+
+::: {.xsmall}
+* Construct a `GradientTransformation` object, set optimizer settings
+
+  ::: {.xsmall}
+  ```{python}
+  optimizer = optax.sgd(learning_rate=0.0001); optimizer
+  ```
+  :::
+
+* Initialize the optimizer with the initial parameter values
+
+  ::: {.xsmall}
+  ```{python}
+  beta = jnp.zeros(k)
+  opt_state = optimizer.init(beta); opt_state
+  ```
+  :::
+
+* Perform iterations
+
+  * Calculate the current gradient and update for the optimizer
+
+    ::: {.xsmall}
+    ```{python}
+    f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
+    updates, opt_state = optimizer.update(grad, opt_state); updates, opt_state
+    ```
+    :::
+
+  * Apply the update to the parameter
+
+    ::: {.xsmall}
+    ```{python}
+    beta = optax.apply_updates(beta, updates); beta
+    ```
+    :::
+
 :::
 
-::: {.column width='50%'}
+
+## Basic Example - GD
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
 ```{python}
-x = torch.rand(2,2)
-torch.ones(2,2) @ x
-torch.clamp(x*2-1, -0.5, 0.5)
-torch.mean(x)
-torch.sum(x)
-torch.min(x)
+#| code-line-numbers: "|1|3,4|8,9|10"
+optimizer = optax.sgd(learning_rate=0.00001)
+
+beta = jnp.zeros(k)
+opt_state = optimizer.init(beta)
+
+gd_loss = []
+for iter in range(50):
+  f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
+  updates, opt_state = optimizer.update(grad, opt_state)
+  beta = optax.apply_updates(beta, updates)
+  gd_loss.append(f)
+
+beta
 ```
 :::
-::::
 
+### Results
 
-## Broadcasting
-
-Like NumPy, cases where tensor dimensions do not match use the broadcasting heuristic. 
-
-The rules for broadcasting are:
-
-* Each tensor must have at least one dimension - no empty tensors.
-
-* Comparing the dimension sizes of the two tensors, going from last to first:
-
-  * Each dimension must be equal, or
-
-  * One of the dimensions must be of size 1, or
-
-  * The dimension does not exist in one of the tensors
-
-
-## Exercise 1
-
-Consider the following 6 tensors:
-
-::: {.small}
 ```{python}
-a = torch.rand(4, 3, 2)
-b = torch.rand(3, 2)
-c = torch.rand(2, 3)
-d = torch.rand(0) 
-e = torch.rand(3, 1)
-f = torch.rand(1, 2)
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+plt.plot(x, gd_loss, label = "GD")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+## Basic Optax Example - Adam
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+optimizer = optax.adam(learning_rate=1, b1=0.9, b2=0.999, eps=1e-8)
+
+beta = jnp.zeros(k)
+opt_state = optimizer.init(beta)
+
+adam_loss = []
+for iter in range(50):
+  f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
+  updates, opt_state = optimizer.update(grad, opt_state)
+  beta = optax.apply_updates(beta, updates)
+  adam_loss.append(f)
+
+beta
 ```
 :::
 
-which of the above could be multiplied together and produce a valid result via broadcasting (e.g. `a*b`, `a*c`, `a*d`, etc.). 
+### Results
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+plt.plot(x, gd_loss, label = "GD")
+plt.plot(x, adam_loss, label = "Adam")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+:::
+
+# A bit more on learning rate <br/> and batch size
+
+## Optax and mini batches
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|1|5,6|8-10,13|15-17|3,14,19-22"
+def optax_optimize(params, X, y, loss_fn, optimizer, steps=50, batch_size=1, seed=1234):
+  n, k = X.shape
+  res = {"loss": [], "epoch": np.linspace(0, steps, int(steps*(n/batch_size) + 1))}
+
+  opt_state = optimizer.init(params)
+  grad_fn = jax.grad(loss_fn)
+
+  rng = np.random.default_rng(seed)
+  batches = np.array(range(n))
+  rng.shuffle(batches)
+
+  for iter in range(steps):
+    for batch in batches.reshape(-1, batch_size):
+      res["loss"].append(loss_fn(params, X, y).item())
+      grad = grad_fn(params, X[batch,:], y[batch])
+      updates, opt_state = optimizer.update(grad, opt_state)
+      params = optax.apply_updates(params, updates)
+      
+  res["params"] = params
+  res["loss"].append(loss_fn(params, X, y).item())
+
+  return(res)
+```
+:::
+
+## Fitting - SGD - Fixed LR (small)
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 100, 1000, 10000]
+lrs = [0.00001] * 4 
+
+sgd = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.sgd(learning_rate=lr), 
+    steps=30, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Results
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (mb={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+:::
+
+## Fitting - SGD - Adjusted LR
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 100, 1000, 10000]
+lrs = [0.005, 0.001, 0.0001, 0.00001]
+
+sgd = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.sgd(learning_rate=lr), 
+    steps=30, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Full
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size in batch_sizes:
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+l = plt.xlim(0,3)
+plt.legend()
+plt.show()
+```
+:::
+
+
+
+## Fitting - SGD - Fixed LR, Small batch size
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+lrs = [0.001] * 4 
+
+sgd = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.sgd(learning_rate=lr), 
+    steps=2, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Full
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size in batch_sizes:
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+l = plt.xlim(0,0.3)
+plt.legend()
+plt.show()
+```
+:::
+
+
+## Runtime per epoch
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 50, 100, 10000]
+lrs = [0.001] * 4 
+
+sgd_runtime = {
+  batch_size: timeit.Timer( lambda:
+    optax_optimize(
+      params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+      optimizer=optax.sgd(learning_rate=lr), 
+      steps=1, batch_size=batch_size, seed=1234
+    )
+  ).repeat(5,1)
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Runtimes
+
+```{python}
+#| echo: false
+res = pd.DataFrame(sgd_runtime).melt(
+  value_name="time", var_name="batch_size"
+).merge(
+  pd.DataFrame({"batch_size": [10,50,100,10000], "scaler": [0.3,0.3,0.3,25]})
+).assign(
+  batch_size = lambda x: x.batch_size.astype(str),
+  full_time = lambda x: x.time * x.scaler
+)
+
+g = sns.catplot(
+  res, x="batch_size", y="time", aspect=1.5
+).set(
+  title="Runtime per epoch", ylabel="time (sec)"
+)
+```
+
+### Scaled
+
+```{python}
+#| echo: false
+g = sns.catplot(
+  res, x="batch_size", y="full_time", aspect=1.5
+).set(
+  title="Runtime to convergence", ylabel="time (sec)"
+)
+```
+:::
+
+## Some lessons / comments
+
+* Batch size determines both training time and computing resources
+
+* Generally there will be an inverse relationship between learning rate and batch size
+
+* Most optimizer hyperparameters are sensitive to batch size
+
+* For really large models batches are a necessity and sizing is often determined by resource / memory constraints
+
+
+# Adam 
+
+## Adam - Fixed LR
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+lrs = [1]*4
+
+adam = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.adam(learning_rate=lr, b1=0.9, b2=0.999, eps=1e-8),
+    steps=2, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+
+### Results
+
+```{python}
+#| echo: false
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+
+## Adam - Smaller Fixed LR
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+lrs = [0.1]*4
+
+adam = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.adam(learning_rate=lr, b1=0.9, b2=0.999, eps=1e-8),
+    steps=10, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+
+### Results
+
+```{python}
+#| echo: false
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+## Learning rate schedules
+
+As mentioned last time, most gradient based methods are not guaranteed to converge unless their learning rates decay as a function of step number.
+
+. . .
 
 <br/>
 
-Explain why or why not broadcasting was able to be applied in each case.
+Optax supports a [large number](https://optax.readthedocs.io/en/latest/api/optimizer_schedules.html) of pre-built learning rate schedules which can be passed into any of its optimizers instead of a fixed floating point value.
+
+::: {.xsmall}
+```{python}
+schedule = optax.linear_schedule(
+    init_value=1., end_value=0., transition_steps=5
+)
+
+[schedule(step).item() for step in range(6)]
+```
+:::
 
 
+## Adam w/ Exp Decay
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+
+adam = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.adam(
+      learning_rate=optax.schedules.exponential_decay(
+        init_value=1,
+        transition_steps=100, 
+        decay_rate=0.9
+      ),
+      b1=0.9, b2=0.999, eps=1e-8
+    ),
+    steps=2, batch_size=batch_size, seed=1234
+  )
+  for batch_size in batch_sizes
+}
+```
+:::
+
+
+### Results
+
+```{python}
+#| echo: false
+plt.figure()
+for batch_size in batch_sizes:
+  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+
+## Runtime per epoch
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+
+adam_runtime = {
+  batch_size: timeit.Timer( lambda:
+    optax_optimize(
+      params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+      optimizer=optax.adam(
+        learning_rate=optax.schedules.exponential_decay(
+          init_value=1,
+          transition_steps=100, 
+          decay_rate=0.9
+        ),
+        b1=0.9, b2=0.999, eps=1e-8
+      ),
+      steps=1, batch_size=batch_size, seed=1234
+    )
+  ).repeat(5,1)
+  for batch_size in batch_sizes
+}
+```
+:::
+
+### Runtimes
+
+```{python}
+#| echo: false
+res = pd.DataFrame(adam_runtime).melt(
+  value_name="time", var_name="batch_size"
+).merge(
+  pd.DataFrame({"batch_size": [10, 25, 50, 100], "scaler": [0.18,0.3,0.63,1.4]})
+).assign(
+  batch_size = lambda x: x.batch_size.astype(str),
+  full_time = lambda x: x.time * x.scaler
+)
+
+g = sns.catplot(
+  res, x="batch_size", y="time", aspect=1.5
+).set(
+  title="Runtime per epoch", ylabel="time (sec)"
+)
+```
+
+### Scaled
+
+```{python}
+#| echo: false
+g = sns.catplot(
+  res, x="batch_size", y="full_time", aspect=1.5
+).set(
+  title="Runtime to convergence", ylabel="time (sec)"
+)
+```
+:::
+
+
+## Some advice ... {.smaller}
+
+The following is from Google Research's [Tuning Playbook](https://github.com/google-research/tuning_playbook?tab=readme-ov-file#choosing-the-optimizer):
+
+> * No optimizer is the "best" across all types of machine learning problems and model architectures. Even just comparing the performance of optimizers is a difficult task. 🤖
+>
+> * We recommend sticking with well-established, popular optimizers, especially when starting a new project.
+>   * Ideally, choose the most popular optimizer used for the same type of problem.
+>
+> * Be prepared to give attention to *all* hyperparameters of the chosen optimizer.
+>   * Optimizers with more hyperparameters may require more tuning effort to find the best configuration.
+>   * This is particularly relevant in the beginning stages of a project when we are trying to find the best values of various other hyperparameters (e.g. architecture hyperparameters) while treating optimizer hyperparameters as nuisance parameters.
+>   * It may be preferable to start with a simpler optimizer (e.g. SGD with fixed momentum or Adam with fixed $\epsilon$, $\beta_1$, and $\beta_2$) in the initial stages of the project and switch to a more general optimizer later.
+>
+> * Well-established optimizers that we like include (but are not limited to):
+>   * SGD with momentum (we like the Nesterov variant)
+>   * Adam and NAdam, which are more general than SGD with momentum. Note that Adam has 4 tunable hyperparameters and they can all matter!
+
+# Optimization in R
+
+## Basic optimization
+
+The equivalent of `scipy`'s `optimize.minimize()` for unconstrained continuous optimization problems in R is `stats::optim()` - there is nearly a 1-to-1 correspondence between the two functions and the available optimizers.
+
+::: {.small}
+```r
+optim(par, fn, gr = NULL, …,
+      method = c("Nelder-Mead", "BFGS", "CG", "L-BFGS-B", "SANN",
+                 "Brent"),
+      lower = -Inf, upper = Inf,
+      control = list(), hessian = FALSE)
+```
+:::
+
+. . .
+
+The only missing method from `scipy` is `Newton-CG` and there is the addition of the `SANN` method which is a variant of simulated annealing and does not require gradient information. However, it is slow and very sensitive to its control parameters and is not considered a general-purpose method.
+
+. . .
+
+All other tuning knobs are hidden in `control` - see the documentation for details. Most important options include: `maxit`, `abstol`, and `reltol`.
+
+
+## Return values
+
+`optim()` returns a list of results, most of which are expected: `par` the minimizer, `value` objective function at `par`, `counts` the number of function and gradient evaluations.
+
+"Success" of the optimization is reported by `convergence` which is a little bit weird (think unix exit codes):
+
+* `0` - indicates successful convergence based on the criteria specified by `control`
+
+* `1` - indicates failure due to reaching the `maxit` limit
+
+* Any other number indicates a special case depending on the method, check `message`
+
+
+## Usage
+
+::: {.xsmall}
 ```{r}
-#| echo: false
-countdown::countdown(5)
-```
-
-
-## Inplace modification
-
-In instances where we need to conserve memory it is possible to apply many functions such that a new tensor is not created but the original value(s) are replaced. These functions share the same name with the original functions but have a `_` suffix.
-
-::: {.small}
-```{python}
-a = torch.rand(2,2)
-print(a)
+## Rosenbrock Banana function
+f = function(x) {
+  100 * (x[2] - x[1] * x[1]) ^ 2 + (1 - x[1]) ^ 2
+}
+grad = function(x) {
+  c(-400 * x[1] * (x[2] - x[1] * x[1]) - 2 * (1 - x[1]),
+    200 * (x[2] - x[1] * x[1]))
+}
+x0 = c(-1.2, 1)
 ```
 :::
-
-. . .
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-print(torch.exp(a))
-print(a)
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-print(torch.exp_(a))
-print(a)
-```
-:::
-::::
-
-::: {.aside}
-For functions without a `_` variant, check if they have a `to` argument which can be used instead - e.g. see `torch.matmul()`
-:::
-
-
-## Inplace arithmetic
-
-All arithmetic functions are available as methods of the Tensor class,
-
-::: {.small}
-```{python}
-a = torch.ones(2, 2)
-b = torch.rand(2, 2)
-```
-:::
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-a+b
-print(a)
-print(b)
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-a.add_(b)
-print(a)
-print(b)
-```
-:::
-::::
-
-
-## Changing tensor shapes
-
-The `shape` of a tensor can be changed using the `view()` or `reshape()` methods. The former guarantees that the result shares data with the original object (but requires contiguity),the latter may or may not copy the data.
-
-:::: {.columns .xsmall}
-::: {.column width='33.3%'}
-```{python}
-x = torch.zeros(3, 2)
-y = x.view(2, 3)
-```
-```{python}
-y
-x.fill_(1)
-y
-```
-:::
-
-::: {.column width='33.3%'}
-```{python}
-x = torch.zeros(3, 2)
-y = x.t()
-```
-```{python}
-#| error: true
-x.view(6)
-y.view(6)
-```
-:::
-
-::: {.column width='33.3%'}
-```{python error=TRUE}
-z = y.reshape(6)
-x.fill_(1)
-y
-z
-```
-:::
-::::
-
-
-## Adding or removing dimensions
-
-The `squeeze()` and `unsqueeze()` methods can be used to remove or add length 1 dimension(s) to a tensor.
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-x = torch.zeros(1,3,1)
-```
-```{python}
-x.squeeze().shape
-x.squeeze(0).shape
-x.squeeze(1).shape
-x.squeeze(2).shape
-```
-:::
-
-::: {.column width='50%' .fragment}
-```{python}
-x = torch.zeros(3,2)
-```
-```{python}
-x.unsqueeze(0).shape
-x.unsqueeze(1).shape
-x.unsqueeze(2).shape
-```
-:::
-::::
-
-##
-
-![](imgs/pytorch_squeeze.png){fig-align="center" width="100%"}
-
-::: {.aside}
-From stackoverflow [post](https://stackoverflow.com/questions/57237352/what-does-unsqueeze-do-in-pytorch) by iacob
-:::
-
-
-## Exercise 2
-
-Given the following tensors, 
-
-```{python}
-a = torch.ones(4,3,2)
-b = torch.rand(3)
-c = torch.rand(5,3)
-```
-
-what reshaping is needed to make it possible so that `a * b` and `a * c` can be calculated via broadcasting?
-
-```{r}
-#| echo: false
-countdown::countdown(3)
-```
-
-
-# Autograd
-
-## Tensor expressions
-
-Gradient tracking can be enabled using the `requires_grad` argument at initialization, alternatively the `requires_grad` flag can be set on the tensor or the `enable_grad()` context manager used (via `with`).
-
-::: {.small}
-```{python}
-x = torch.linspace(0, 2, steps=21, requires_grad=True)
-x
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-y = 3*x + 2
-y
-```
-:::
-
-
-## Computational graph
-
-Basics of the computation graph can be explored via the `next_functions` attribute
-
-::: {.small}
-```{python}
-y.grad_fn
-y.grad_fn.next_functions
-y.grad_fn.next_functions[0][0].next_functions
-y.grad_fn.next_functions[0][0].next_functions[0][0].next_functions
-```
-:::
-
-
-## Autogradient
-
-In order to calculate the gradients we use the `backward()` method on the *output* tensor (must be a scalar), this then makes the grad attribute available for the input (leaf) tensors.
-
-::: {.small}
-```{python}
-out = y.sum()
-out.backward()
-out
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-y.grad
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-x.grad
-```
-:::
-
-
-## A bit more complex
-
-::: {.small}
-```{python}
-n = 21 
-x = torch.linspace(0, 2, steps=n, requires_grad=True)
-m = torch.rand(n, requires_grad=True)
-
-y = m*x + 2
-
-y.backward(torch.ones(n))
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-x.grad
-```
-:::
-
-::: {.small}
-```{python}
-m.grad
-```
-:::
-
-. . .
-
-In context you can interpret `x.grad` and `m.grad` as the gradient of `y` with respect to `x` or `m` respectively.
-
-
-## High-level autograd API
-
-allows for the automatic calculation and evaluation of the jacobian and hessian for a function defined using tensors.
-
-::: {.small}
-```{python}
-def f(x, y):
-  return 3*x + 1 + 2*y**2 + x*y
-```
-:::
-
-
-::: {.small}
-```{python}
-for x in [0.,1.]:
-  for y in [0.,1.]:
-    print("x =",x, "y = ",y)
-    inputs = (torch.tensor([x]), torch.tensor([y]))
-    print(torch.autograd.functional.jacobian(f, inputs),"\n")
-```
-:::
-
-##
-
-::: {.small}
-```{python}
-inputs = (torch.tensor([0.]), torch.tensor([0.]))
-torch.autograd.functional.hessian(f, inputs)
-
-inputs = (torch.tensor([1.]), torch.tensor([1.]))
-torch.autograd.functional.hessian(f, inputs)
-```
-:::
-
-
-# Demo 1 - Linear Regression<br/>w/ PyTorch
-
-## A basic model
-
-::: {.xxsmall}
-```{python}
-x = np.linspace(-math.pi, math.pi, 50)
-y = np.sin(x)
-
-lm = smf.ols(
-  "y~x+I(x**2)+I(x**3)", 
-  data=pd.DataFrame({"x": x, "y": y})
-).fit()
-
-print(lm.summary())
-```
-:::
-
-## Predictions
-
-::: {.xsmall}
-```{python}
-plt.figure(figsize=(10,5), layout="constrained")
-plt.plot(x, y, ".b", label="sin(x)")
-plt.plot(x, lm.predict(), "-r", label="sm.ols")
-plt.legend()
-plt.show()
-```
-:::
-
-
-
-## Making tensors
-
-::: {.xsmall}
-```{python}
-yt = torch.tensor(y)
-Xt = torch.tensor(lm.model.exog)
-bt = torch.randn((Xt.shape[1], 1), dtype=torch.float64, requires_grad=True)
-```
-
-```{python}
-yt.shape
-Xt.shape
-bt.shape
-```
-:::
-
-. . .
-
-::: {.xsmall}
-```{python}
-yt_pred = (Xt @ bt).squeeze()
-```
-:::
-
-. . .
-
-::: {.xsmall}
-```{python}
-loss = (yt_pred - yt).pow(2).sum()
-loss.item()
-```
-:::
-
-
-## Gradient descent
-
-
-::: {.small}
-```{python}
-learning_rate = 1e-6
-
-loss.backward() # Compute the backward pass
-
-with torch.no_grad():
-  bt -= learning_rate * bt.grad # Make the step
-
-  bt.grad = None # Reset the gradients
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-yt_pred = (Xt @ bt).squeeze()
-loss = (yt_pred - yt).pow(2).sum()
-loss.item()
-```
-:::
-
-
-## Putting it together
-
-::: {.xsmall}
-```{python}
-#| output-location: slide
-yt = torch.tensor(y).unsqueeze(1)
-Xt = torch.tensor(lm.model.exog)
-bt = torch.randn((Xt.shape[1], 1), dtype=torch.float64, requires_grad=True)
-
-learning_rate = 1e-5
-for i in range(5001):
-  
-  yt_pred = Xt @ bt
-  
-  loss = (yt_pred - yt).pow(2).sum()
-  if i % 500 == 0:
-    print(f"Step: {i},\tloss: {loss.item()}")
-  
-  loss.backward()
-  
-  with torch.no_grad():
-    bt -= learning_rate * bt.grad
-    bt.grad = None
-
-print(bt)
-```
-:::
-
-
-## Comparing results
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-lm.params
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-bt
-```
-:::
-::::
-
-
-```{python}
-#| echo: false
-plt.figure(figsize=(10,5))
-plt.plot(x, y,".b", label="sin(x)")
-plt.plot(x, lm.predict(), "-r", label="sm.ols")
-plt.plot(x, yt_pred.detach(), "--g", label="torch")
-plt.legend()
-plt.show()
-```
-
-# Demo 2 - Using a torch model
-
-## A simple model
-
-::: {.xsmall}
-```{python}
-class Model(torch.nn.Module):
-    def __init__(self, beta):
-        super().__init__()
-        beta.requires_grad = True
-        self.beta = torch.nn.Parameter(beta)
-        
-    def forward(self, X):
-        return X @ self.beta
-
-def training_loop(model, X, y, optimizer, n=1000):
-    losses = []
-    for i in range(n):
-        y_pred = model(X)
-        
-        loss = (y_pred.squeeze() - y.squeeze()).pow(2).sum()
-        loss.backward()
-        
-        optimizer.step()
-        optimizer.zero_grad()
-        
-        losses.append(loss.item())
-    
-    return losses
-```
-:::
-
-
-## Fitting
-
-::: {.small}
-```{python}
-x = torch.linspace(-math.pi, math.pi, 200)
-y = torch.sin(x)
-
-X = torch.vstack((
-  torch.ones_like(x),
-  x,
-  x**2,
-  x**3
-)).T
-
-m = Model(beta = torch.zeros(4))
-opt = torch.optim.SGD(m.parameters(), lr=1e-5)
-
-losses = training_loop(m, X, y, opt, n=3000)
-```
-:::
-
-
-## Results
-
-::: {.small}
-```{python}
-m.beta
-```
-:::
-
-:::: {.columns}
-::: {.column width='50%'}
-```{python}
-#| echo: false
-plt.figure(figsize=(8,6), layout="constrained")
-plt.plot(losses)
-plt.show()
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-#| echo: false
-plt.figure(figsize=(8,6))
-plt.plot(x, y,"-b", label="sin(x)")
-plt.plot(x, m(X).detach(), "--y", label="torch (model)")
-plt.legend()
-plt.show()
-```
-:::
-::::
-
-## An all-in-one model
-
-::: {.small}
-```{python}
-class Model(torch.nn.Module):
-    def __init__(self, X, y, beta=None):
-        super().__init__()
-        self.X = X
-        self.y = y
-        if beta is None:
-          beta = torch.zeros(X.shape[1])
-        beta.requires_grad = True
-        self.beta = torch.nn.Parameter(beta)
-        
-    def forward(self, X):
-        return X @ self.beta
-    
-    def fit(self, opt, n=1000, loss_fn = torch.nn.MSELoss()):
-      losses = []
-      for i in range(n):
-          loss = loss_fn(self.forward(self.X).squeeze(), self.y.squeeze())
-          loss.backward()
-          opt.step()
-          opt.zero_grad()
-          losses.append(loss.item())
-      
-      return losses
-```
-:::
-
-## Learning rate and convergence
-
-::: {.small}
-```{python}
-#| output-location: column-fragment
-plt.figure(figsize=(8,6), layout="constrained")
-
-for lr in [1e-3, 1e-4, 1e-5, 1e-6]:
-  m = Model(X, y)
-  opt = torch.optim.SGD(m.parameters(), lr=lr)
-  losses = m.fit(opt, n=10000)
-  
-  plt.plot(losses, label=f"{lr=}")
-
-plt.legend()
-plt.show()
-```
-:::
-
-
-## Momentum and convergence
 
 ::: {.columns .xsmall}
-```{python}
-#| output-location: column-fragment
-plt.figure(figsize=(8,6), layout="constrained")
+::: {.column}
+```{r}
+optim(x0, f, grad, method = "BFGS")
+```
+:::
+::: {.column}
+```{r}
+optim(x0, f, grad, method = "CG")
+```
+:::
+:::
 
-for momentum in [0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99]:
-  m = Model(X, y)
-  opt = torch.optim.SGD(
-    m.parameters(), 
-    lr = 1e-4, 
-    momentum = momentum
-  )
-  losses = m.fit(opt, n=10000)
-  
-  plt.plot(losses, label=f"{momentum=}")
+## SGD related methods
 
-plt.legend()
-plt.show()
+For any of these algorithms you will generally be depending on the underlying modeling library to make them available to you, for example:
+
+* Keras [optimizers](https://tensorflow.rstudio.com/reference/keras/#optimizers) implemented
+
+* Torch [optimizers](https://torch.mlverse.org/docs/reference/#optimizers)
+
+Details are library dependent.
+
+
+## `optimx`
+
+> optimx is an R package that extends and enhances the optim() function of base R, in particular by unifying the call to many solvers.
+
+Makes a variety of solvers from different packages available with a unified calling framework.
+
+Packages include: `pracma`, `minqa`, `dfoptim`, `lbfgs`, `lbfgsb3c`, `marqLevAlg`, `nloptr`, `dfoptim`, `BB`, `subplex`, and `ucminf`
+
+
+## `nloptr`
+
+Wrapper around the [NLopt](https://nlopt.readthedocs.io/en/latest/) library (which also has a Python interface).
+
+* Provides a large number of global and local solvers (including everything available in optim)
+
+* Provides more robust support for constrained optimization problems
+
+
+## Usage
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{r}
+## Rosenbrock Banana function
+f = function(x) {
+  100 * (x[2] - x[1] * x[1]) ^ 2 + (1 - x[1]) ^ 2
+}
+
+grad = function(x) {
+  c(-400 * x[1] * (x[2] - x[1] * x[1]) - 2 * (1 - x[1]),
+    200 * (x[2] - x[1] * x[1]))
+}
+
+x0 = c(-1.2, 1)
 ```
 :::
 
+::: {.column width='50%'}
+```{r}
+nloptr::nloptr(
+  x0 = x0,
+  eval_f = f, eval_grad_f = grad,
+  opts = list(
+    "algorithm" = "NLOPT_LD_LBFGS", 
+    "xtol_rel" = 1.0e-8
+  )
+)
+```
+:::
+::::
 
-## Optimizers and convergence
+
+
+
+
+
+## Constrained Example
+:::: {.columns}
+::: {.column width='50%'}
+![](imgs/NLopt-example-constraints.webp){width="100%" fig-align=center}
+:::
+
+::: {.column width='50%'}
+$$
+\begin{aligned}
+&\min_{x \in R^n} \sqrt{x_2} \\
+\text{s.t.} \quad  & x_2 \geq 0 \\
+&(a_1 x_1 + b_1)^3 - x_2 \leq 0 \\
+&(a_2 x_1 + b_2)^3 - x_2 \leq 0
+\end{aligned}
+$$
+
+where $a_1 = 2$, $b_1 = 0$, $a_2 = -1$, and $b_2 = 1$.
+
+:::
+::::
+
+
+
+
+::: {.aside}
+From [NLopt Tutorial](https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/) & [NLoptR vignette](https://astamm.github.io/nloptr/articles/nloptr.html#minimization-with-inequality-constraints)
+:::
+
+## Implementation
 
 ::: {.xsmall}
-```{python}
-#| output-location: column-fragment
-plt.figure(figsize=(8,6), layout="constrained")
+```{r}
+#| output-location: column
+# Objective function & gradient
+f = function(x, a, b) {
+  sqrt(x[2])
+}
+grad_f = function(x, a, b)  {
+  c(0, 0.5 / sqrt(x[2]))
+}
 
-opts = (torch.optim.SGD, 
-        torch.optim.Adam, 
-        torch.optim.Adagrad)
+# Constraint function
+g = function(x, a, b) {
+  (a * x[1] + b) ^ 3 - x[2]
+}
 
-for opt_fn in opts:
-  m = Model(X, y)
-  opt = opt_fn(m.parameters(), lr=1e-4)
-  losses = m.fit(opt, n=10000)
-  
-  plt.plot(losses, label=f"{opt_fn=}")
+# Jacobian of constraint
+jac_g = function(x, a, b) {
+  rbind(
+    c(3 * a[1] * (a[1] * x[1] + b[1]) ^ 2, -1.0),
+    c(3 * a[2] * (a[2] * x[1] + b[2]) ^ 2, -1.0)
+  )
+}
 
-plt.legend()
-plt.show()
+a = c(2, -1)
+b = c(0, 1)
+
+nloptr::nloptr(
+  x0 = c(1.234, 5.678),
+  eval_f = f, eval_grad_f = grad_f,
+  lb = c(-Inf, 0), ub = c(Inf, Inf),
+  eval_g_ineq = g, eval_jac_g_ineq = jac_g,
+  opts = list("algorithm" = "NLOPT_LD_MMA",
+              "xtol_rel" = 1.0e-8),
+  a = a, b = b)
 ```
 :::
