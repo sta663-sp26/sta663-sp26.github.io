@@ -14,18 +14,7 @@ execute:
 ---
 
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE}
-options(
-  width=80
-)
-
-local({
-  hook_old <- knitr::knit_hooks$get("error")  # save the old hook
-  knitr::knit_hooks$set(error = function(x, options) {
-    x = sub("## \n## Detailed traceback:\n.*$", "", x)
-    x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
-    hook_old(x, options)
-  })
-})
+{{< include _setup.R >}}
 ```
 
 ## What is NumPy?
@@ -45,7 +34,7 @@ np.__version__
 
 In general NumPy arrays are constructed from sequences (e.g. lists), nesting as necessary for the number of desired dimensions.
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
 np.array([1,2,3])
@@ -72,7 +61,7 @@ Note that NumPy stores data in row major order.
 
 * Arrays have a fixed size at creation
 
-* All data must be homogeneous (i.e. consistent type)
+* All data must be homogeneous (consistent type)
 
 * Built to support vectorized operations
 
@@ -81,7 +70,7 @@ Note that NumPy stores data in row major order.
 
 ## dtype
 
-NumPy arrays all have the `type()` `numpy.ndarray` - specific type stored in the arrray is recorded as the array's `dtype`. This is accessible via the `.dtype` attribute and can be set at creation using the `dtype` argument.
+NumPy arrays all have the `type()` `numpy.ndarray` - the specific type stored in the arrray is recorded as the array's `dtype`. This is accessible via the `dtype` attribute and can be set at creation using the `dtype` argument.
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
@@ -94,8 +83,10 @@ np.array([True, False]).dtype
 
 ::: {.column width='50%' .fragment}
 ```{python}
-np.array([3.14159, 2.33333], dtype = np.double)
-np.array([3.14159, 2.33333], dtype = np.float16)
+np.array([3.14159, 2.33333], 
+         dtype = np.double)
+np.array([3.14159, 2.33333], 
+         dtype = np.float16)
 np.array([1,2,3], dtype = np.uint8)
 ```
 :::
@@ -104,15 +95,17 @@ np.array([1,2,3], dtype = np.uint8)
 
 
 ::: {.aside}
-See here for [here](https://numpy.org/doc/stable/user/basics.types.html#array-types-and-conversions-between-types) for a list of dtypes and [here](https://numpy.org/doc/stable/reference/arrays.dtypes.html) for a more detailed description of how they are implemented.
+See [here](https://numpy.org/doc/stable/user/basics.types.html#array-types-and-conversions-between-types) for a list of dtypes and [here](https://numpy.org/doc/stable/reference/arrays.dtypes.html) for a more detailed description of how they are implemented.
 :::
 
 
 ## dtypes and overflow
 
-Some types have a maximum and or minimum value that can be stored in them. If you try to create an array with a value outside of this range you will get an overflow error. If you are instead coercing values using `astype()` you will *not* get this error.
+Some types have a maximum and or minimum value that can be stored in them. 
 
+If you try to create an array with a value outside of this range you will get an overflow error. 
 
+::: {.small}
 ```{python}
 #| error: true
 np.array([-1, 1,2], dtype = np.uint8)
@@ -122,17 +115,22 @@ np.array([-1, 1,2], dtype = np.uint8)
 #| error: true
 np.array([1,2,1000], dtype = np.uint8)
 ```
+:::
 
 . . .
 
+If you are instead coercing values using `astype()` you will *not* get this error.
+
+::: {.small}
 ```{python}
 np.array([-1, 1,2,1000]).astype(np.uint8)
 ```
+:::
 
 
 ## Creating 1d arrays
 
-Some common functions and methods for creating useful 1d arrays:
+Some common functions and methods for creating 1d arrays:
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -282,10 +280,12 @@ y.flags
 ## Subsetting with ...
 
 ::: {.medium}
-Unlike R, it is not possible to leave an argument blank - to select all elements with numpy we use `:`. To avoid having to type excess `:` you can use `...` which expands to the number of `:` needed to account for all dimensions,
+Generally in  Python we cannot include an empty argument - to select all elements with numpy we use `:`. 
+
+To avoid having to type excess `:` you can use `...` which expands to the number of `:` needed to account for all remaining dimensions,
 :::
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='40%'}
 ```{python}
 x = (np.arange(16)
@@ -296,12 +296,22 @@ x
 
 ::: {.column width='30%' .fragment}
 ```{python}
+#| error: true
+x[0, 1, , ]
+```
+
+```{python}
+x[0, 1, :, ]
 x[0, 1, :, :]
 x[0, 1, ...]
 ```
 :::
 
 ::: {.column width='30%'  .fragment}
+```{python}
+#| error: true
+x[, :, :, 1]
+```
 ```{python}
 x[:, :, :, 1]
 x[..., 1]
@@ -383,7 +393,7 @@ x [0,0] = "A"
 
 ## Reshaping arrays
 
-The dimensions of an array can be retrieved via the `shape` attribute, these values can changed via the `reshape()` method or updating `shape`
+The dimensions of an array can be retrieved via the `shape` attribute, these values can be changed via the `reshape()` method or updating `shape`
 
 ::: {.small}
 ```{python}
@@ -395,7 +405,7 @@ x = np.arange(6); x
 ::: {.column width='50%'}
 ```{python}
 y = x.reshape((2,3)); y
-
+x
 np.shares_memory(x,y)
 ```
 :::
@@ -403,8 +413,7 @@ np.shares_memory(x,y)
 ::: {.column width='50%'}
 ```{python}
 z = x
-z.shape = (2,3)
-z
+z.shape = (2,3); z
 x
 np.shares_memory(x,z)
 ```
@@ -415,13 +424,13 @@ np.shares_memory(x,z)
 
 When reshaping an array, the value `-1` can be used to automatically calculate a dimension,
 
-::: {.medium}
+::: {.small}
 ```{python}
 x = np.arange(6); x
 ```
 :::
 
-:::: {.columns .medium}
+:::: {.columns .small}
 ::: {.column width='50%'}
 ```{python error=TRUE}
 x.reshape((2,-1))
@@ -507,20 +516,30 @@ y = np.ones(
 )
 y
 ```
-
-Why didn't this work?
 :::
 ::::
 
-::: {.fragment .small}
+Why didn't this 2nd version work?
+
+## More details
+
+::: {.small}
 ```{python}
+#| error: true
 y = np.ones(
   (2,2)
 )
 y.resize((3,3))
+```
+
+```{python}
+y
+y.resize((1,4))
 y
 ```
 :::
+
+
 
 
 ## Joining arrays
@@ -530,12 +549,14 @@ y
 :::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
+#| error: true
 x = np.arange(4).reshape((2,2)); x
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
+#| error: true
 y = np.arange(4,8).reshape((2,2)); y
 ```
 :::

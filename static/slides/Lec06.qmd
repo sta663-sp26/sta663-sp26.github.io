@@ -1,0 +1,951 @@
+---
+title: "NumPy"
+subtitle: "Lecture 06"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute:
+  echo: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+## What is NumPy?
+
+> NumPy is the fundamental package for scientific computing in Python. It is a Python library that provides a multidimensional array object, various derived objects (such as masked arrays and matrices), and an assortment of routines for fast operations on arrays, including mathematical, logical, shape manipulation, sorting, selecting, I/O, discrete Fourier transforms, basic linear algebra, basic statistical operations, random simulation and much more.
+
+. . .
+
+<br/>
+
+```{python}
+import numpy as np
+np.__version__
+```
+
+## Arrays
+
+In general NumPy arrays are constructed from sequences (e.g. lists), nesting as necessary for the number of desired dimensions.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+np.array([1,2,3])
+np.array([[1,2],[3,4]])
+np.array([[[1,2],[3,4]], [[5,6],[7,8]]])
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.array([1.0, 2.5, np.pi])
+np.array([[True], [False]])
+np.array(["abc", "def"])
+```
+:::
+::::
+
+::: {.aside}
+Note that NumPy stores data in row major order.
+:::
+
+
+## Some properties of NumPy arrays:
+
+* Arrays have a fixed size at creation
+
+* All data must be homogeneous (consistent type)
+
+* Built to support vectorized operations
+
+* Avoids copying whenever possible (inplace operations)
+
+
+## dtype
+
+NumPy arrays all have the `type()` `numpy.ndarray` - the specific type stored in the arrray is recorded as the array's `dtype`. This is accessible via the `dtype` attribute and can be set at creation using the `dtype` argument.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+np.array([1,1]).dtype
+np.array([1.1, 2.2]).dtype
+np.array([True, False]).dtype
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.array([3.14159, 2.33333], 
+         dtype = np.double)
+np.array([3.14159, 2.33333], 
+         dtype = np.float16)
+np.array([1,2,3], dtype = np.uint8)
+```
+:::
+::::
+
+
+
+::: {.aside}
+See [here](https://numpy.org/doc/stable/user/basics.types.html#array-types-and-conversions-between-types) for a list of dtypes and [here](https://numpy.org/doc/stable/reference/arrays.dtypes.html) for a more detailed description of how they are implemented.
+:::
+
+
+## dtypes and overflow
+
+Some types have a maximum and or minimum value that can be stored in them. 
+
+If you try to create an array with a value outside of this range you will get an overflow error. 
+
+::: {.small}
+```{python}
+#| error: true
+np.array([-1, 1,2], dtype = np.uint8)
+```
+
+```{python}
+#| error: true
+np.array([1,2,1000], dtype = np.uint8)
+```
+:::
+
+. . .
+
+If you are instead coercing values using `astype()` you will *not* get this error.
+
+::: {.small}
+```{python}
+np.array([-1, 1,2,1000]).astype(np.uint8)
+```
+:::
+
+
+## Creating 1d arrays
+
+Some common functions and methods for creating 1d arrays:
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+np.arange(10)
+np.arange(3, 5, 0.25)
+np.linspace(0, 1, 11)
+np.logspace(0, 2, 4)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.ones(4)
+np.zeros(6)
+np.full(3, False)
+np.empty(4)
+```
+:::
+::::
+
+
+::: {.aside}
+For the full list of creation functions see [here](https://numpy.org/doc/stable/reference/routines.array-creation.html)
+:::
+
+## Creating 2d arrays (matrices)
+
+Many of the same functions exist with some additional useful tools for common matrices,
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+np.eye(3)
+np.identity(2)
+np.zeros((2,2))
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.diag([3,2,1])
+np.tri(3)
+np.triu(np.full((3,3),3))
+```
+:::
+::::
+
+::: {.aside}
+The NumPy documentation references a `matrix` class and related functions - this is no longer recommended, use the `ndarray` class instead.
+:::
+
+## Creating $n$d arrays
+
+For higher dimensional arrays just add dimensions when constructing,
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+np.zeros((2,3,2))
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+np.ones((2,3,2,2))
+```
+:::
+::::
+
+
+## Subsetting
+
+Arrays are subsetted using the standard python syntax with either indexes or slices, dimensions are separated by commas.
+
+::: {.small}
+```{python}
+x = np.array([[1,2,3],[4,5,6],[7,8,9]])
+x
+```
+:::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x[0]
+x[0,0]
+x[0][0]
+x[0:3:2, :]
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+x[0:3:2, :]
+x[0:3:2, ]
+x[1:, ::-1]
+```
+:::
+::::
+
+
+
+
+
+## Views and copies
+
+::: {.small}
+Basic subsetting of ndarray objects does not result in a new object, but instead a "view" of the original object. There are a couple of ways that we can investigate this behavior,
+:::
+
+::: {.xsmall}
+```{python}
+x = np.arange(10)
+y = x[2:5]
+z = x[2:5].copy()
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+f"{x=}, {x.base=}"
+f"{y=}, {y.base=}"
+f"{z=}, {z.base=}"
+```
+
+
+```{python}
+type(x), type(y), type(z)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.shares_memory(x,y)
+np.shares_memory(x,z)
+np.shares_memory(y,z)
+
+y.flags
+```
+:::
+::::
+
+## Subsetting with ...
+
+::: {.medium}
+Generally in  Python we cannot include an empty argument - to select all elements with numpy we use `:`. 
+
+To avoid having to type excess `:` you can use `...` which expands to the number of `:` needed to account for all remaining dimensions,
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='40%'}
+```{python}
+x = (np.arange(16)
+     .reshape(2,2,2,2))
+x
+```
+:::
+
+::: {.column width='30%' .fragment}
+```{python}
+#| error: true
+x[0, 1, , ]
+```
+
+```{python}
+x[0, 1, :, ]
+x[0, 1, :, :]
+x[0, 1, ...]
+```
+:::
+
+::: {.column width='30%'  .fragment}
+```{python}
+#| error: true
+x[, :, :, 1]
+```
+```{python}
+x[:, :, :, 1]
+x[..., 1]
+```
+:::
+::::
+
+
+## Subsetting with tuples
+
+Unlike lists, an ndarray can be subset by a tuple containing integers,
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python error=TRUE}
+x = np.arange(6); x
+
+x[(0,1,3),]
+x[(3,5,1,0),]
+x[(0,1,3)]
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+x = np.arange(16).reshape((4,4))
+x
+
+x[(0,1,3), :]
+x[:, (0,1,3)]
+x[(0,1,3), (0,1,3)]
+```
+:::
+::::
+
+
+::: {.aside}
+More on why `x[(0,1,3)]` does not work later.
+:::
+
+## Subsetting assignment
+
+Most of the subsetting approaches we've just seen can also be used for assignment, just keep in mind that we cannot change the *size* or *type* of the `ndarray`,
+
+::: {.small}
+```{python}
+x = np.arange(9).reshape((3,3)); x
+```
+:::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x[0,0] = -1; x
+
+x[0, :] = -2; x
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+x[0:2,1:3] = -3; x
+
+x[(0,1,2), (0,1,2)] = -4; x
+```
+:::
+::::
+
+. . .
+
+::: {.small}
+```{python}
+#| error: true
+x [0,0] = "A"
+```
+:::
+
+## Reshaping arrays
+
+The dimensions of an array can be retrieved via the `shape` attribute, these values can be changed via the `reshape()` method or updating `shape`
+
+::: {.small}
+```{python}
+x = np.arange(6); x
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+y = x.reshape((2,3)); y
+x
+np.shares_memory(x,y)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+z = x
+z.shape = (2,3); z
+x
+np.shares_memory(x,z)
+```
+:::
+::::
+
+## Implicit dimensions
+
+When reshaping an array, the value `-1` can be used to automatically calculate a dimension,
+
+::: {.small}
+```{python}
+x = np.arange(6); x
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python error=TRUE}
+x.reshape((2,-1))
+x.reshape((-1,3,2))
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python error=TRUE}
+x.reshape(-1)
+x.reshape((-1,4))
+```
+:::
+::::
+
+
+
+
+## Flattening arrays
+
+We just saw one of the more common approaches to creating a flat *view* of an array (`reshape(-1)`), there are two other common methods / functions:
+
+* `ravel` creates a flattened *view* of the array and
+* `flatten` creates a flattened *copy* of the array.
+
+::: {.small}
+```{python}
+w = np.arange(6).reshape((2,3)); w
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='33%'}
+```{python}
+x = w.reshape(-1)
+x
+
+np.shares_memory(w,x)
+```
+:::
+
+::: {.column width='33%'}
+```{python}
+y = w.ravel()
+y
+
+np.shares_memory(w,y)
+```
+:::
+
+::: {.column width='33%'}
+```{python}
+z = w.flatten()
+z
+
+np.shares_memory(w,z)
+```
+:::
+::::
+
+
+## Resizing
+
+The size of an array cannot be changed but a new array with a different size can be created from an existing array via the `resize` function and method. Note these have different behaviors around what values the new entries will have.
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x = np.resize(
+  np.ones((2,2)), 
+  (3,3)
+)
+x
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+y = np.ones(
+  (2,2)
+).resize(
+  (3,3)
+)
+y
+```
+:::
+::::
+
+Why didn't this 2nd version work?
+
+## More details
+
+::: {.small}
+```{python}
+#| error: true
+y = np.ones(
+  (2,2)
+)
+y.resize((3,3))
+```
+
+```{python}
+y
+y.resize((1,4))
+y
+```
+:::
+
+
+
+
+## Joining arrays
+
+`concatenate()` is a general purpose function for joining arrays, with specialized versions `hstack()`, `vstack()`, and `dstack()` for rows, columns, and slices respectively.
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+#| error: true
+x = np.arange(4).reshape((2,2)); x
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+#| error: true
+y = np.arange(4,8).reshape((2,2)); y
+```
+:::
+::::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python error=TRUE}
+np.concatenate((x,y), axis=0)
+np.concatenate((x,y), axis=1)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+np.vstack((x,y))
+np.hstack((x,y))
+```
+:::
+::::
+
+##
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python error=TRUE}
+np.concatenate((x,y), axis=2)
+np.concatenate((x,y), axis=None)
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+np.dstack((x,y))
+```
+:::
+::::
+
+
+# NumPy numerics
+
+## Basic operators
+
+All of the basic mathematical operators in Python are implemented for arrays, they are applied element-wise to the array values.
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+np.arange(3) + np.arange(3)
+np.arange(3) - np.arange(3)
+np.arange(3) + 2
+```
+:::
+
+::: {.column width='50%'}
+```{python}
+np.arange(3) * np.arange(3)
+np.arange(1,4) / np.arange(1,4)
+np.arange(3) * 3
+```
+:::
+::::
+
+. . .
+
+::: {.small}
+```{python error=TRUE}
+np.full((2,2), 2) ** np.arange(4).reshape((2,2))
+np.full((2,2), 2) ** np.arange(4)
+```
+:::
+
+
+::: {.aside}
+More on broadcasting next time
+:::
+
+## Mathematical functions
+
+NumPy provides a [wide variety](https://numpy.org/doc/stable/reference/routines.math.html) of basic mathematical functions that are vectorized, in general they will be faster than their base equivalents (e.g. `np.sum()` vs `sum()`),
+
+```{python}
+np.sum(np.arange(1000))
+np.cumsum(np.arange(10))
+np.log10(np.arange(1,4))
+np.median(np.arange(10))
+```
+
+## Matrix multiplication
+
+is supported using the `matmul()` function or the `@` operator,
+
+```{python}
+x = np.arange(6).reshape(3,2)
+y = np.tri(2,2)
+```
+
+:::: {.columns}
+::: {.column width='50%'}
+```{python error=TRUE}
+x @ y
+y.T @ y
+```
+:::
+
+::: {.column width='50%'}
+```{python error=TRUE}
+np.matmul(x.T, x)
+y @ x
+```
+:::
+::::
+
+
+
+
+## Other linear algebra functions
+
+All of the other common linear algebra functions are (mostly) implemented in the `linalg` submodule.
+
+::: {.small}
+```{python}
+np.linalg.det(y)
+
+np.linalg.eig(x.T @ x)
+
+np.linalg.inv(x.T @ x)
+
+np.linalg.cholesky(x.T @ x)
+```
+:::
+
+::: {.aside}
+See [here](https://numpy.org/doc/stable/reference/routines.linalg.html) for more details.
+:::
+
+## Random values
+
+NumPy has another submodule called `random` for functions used to generate random values.
+
+In order to use this, you construct a generator via `default_rng()`, with or without a seed, and then use the generator's methods to obtain your desired random values.
+
+```{python}
+rng = np.random.default_rng(seed = 1234)
+```
+
+. . .
+
+```{python}
+rng.random(3) # ~ Uniform [0,1)
+rng.normal(loc=0, scale=2, size = (2,2))
+rng.binomial(n=5, p=0.5, size = 10)
+```
+
+
+# Advanced Indexing
+
+## Advanced Indexing
+
+> Advanced indexing is triggered when the selection object, `obj`, is a non-tuple sequence object, an ndarray (of data type integer or bool), or a tuple with at least one sequence object or ndarray (of data type integer or bool).
+> 
+> * There are two types of advanced indexing: integer and Boolean.
+>
+> * Advanced indexing always returns a *copy* of the data (contrast with basic slicing that returns a view).
+
+
+::: {.aside}
+From NumPy - User Guide - [Advanced Indexing](https://numpy.org/doc/stable/user/basics.indexing.html#advanced-indexing)
+::: 
+
+
+## Integer array subsetting (lists)
+
+Lists of integers can be used to subset in the same way:
+
+::: {.xsmall}
+```{python error=TRUE}
+x = np.arange(16).reshape((4,4)); x
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python error=TRUE}
+x[[1,3]]
+x[[1,3], ]
+x[:, [1,3]]
+```
+:::
+
+::: {.column width='50%'}
+```{python error=TRUE}
+x[[0,1,3],]
+x[[0,1,3]]
+x[[1.,3]]
+```
+:::
+::::
+
+
+## Integer array subsetting (ndarrays)
+
+Similarly we can also us integer ndarrays:
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python error=TRUE}
+x = np.arange(6)
+y = np.array([0,1,3])
+z = np.array([1., 3.])
+```
+
+```{python error=TRUE}
+x[y,]
+x[y]
+
+x[z]
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+x = np.arange(16).reshape((4,4))
+y = np.array([1,3])
+```
+
+```{python}
+x[y]
+x[y, ]
+x[:, y]
+x[y, y]
+```
+:::
+::::
+
+
+## Exercise 1
+
+Given the following matrix,
+
+```{python}
+x = np.arange(16).reshape((4,4))
+x
+```
+
+write an expression to obtain the center 2x2 values (i.e. 5, 6, 9, 10 as a matrix).
+
+## Boolean indexing
+
+Lists or ndarrays of boolean values can also be used to subset (positions with `True` are kept and `False` are discarded)
+
+::: {.small}
+```{python}
+x = np.arange(6); x
+```
+:::
+
+. . .
+
+::: {.small}
+```{python error=TRUE}
+x[[True, False, True, False, True, False]]
+x[[True]]
+```
+:::
+
+. . .
+
+::: {.small}
+```{python error=TRUE}
+x[np.array([True, False, True, False, True, False])]
+x[np.array([True])]
+```
+:::
+
+
+## Boolean  expressions
+
+The primary utility of boolean subsetting comes from vectorized comparison operations,
+
+::: {.small}
+```{python}
+x = np.arange(6); x
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x > 3
+x[x>3]
+
+x % 2 == 1
+x[x % 2 == 1]
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+y = np.arange(9).reshape((3,3))
+y % 2 == 0
+y[y % 2 == 0]
+```
+:::
+::::
+
+
+## NumPy and Boolean operators
+
+If we want to use a logical operators on an array we need to use `&`, `|`, and `~` instead of `and`, `or`, and `not` respectively.
+
+::: {.medium}
+```{python}
+x = np.arange(6); x
+y = (x % 2 == 0); y
+```
+:::
+
+::: {.medium .fragment}
+```{python}
+~y
+```
+:::
+
+::: {.medium .fragment}
+```{python}
+y & (x > 3)
+```
+:::
+
+::: {.medium .fragment}
+```{python}
+y | (x > 3)
+```
+:::
+
+
+## meshgrid()
+
+One other useful function in NumPy is `meshgrid()` which generates all possible combinations between the input vectors (as a tuple of ndarrays),
+
+::: {.small}
+```{python}
+pts = np.arange(3)
+x, y = np.meshgrid(pts, pts)
+```
+:::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+x
+y
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.sqrt(x**2 + y**2).round(3)
+```
+:::
+::::
+
+
+## Exercise 2
+
+::: {.small}
+We will now use this to attempt a simple brute force approach to numerical optimization, define a grid of points using `meshgrid()` to approximate the minima the following function:
+
+$$
+f(x,y) = (1-x)^2 + 100(y-x^2)^2
+$$ 
+Considering values of $x,y \in (-1,3)$, which value(s) of $x,y$ minimize this function?
+:::
+
+```{r echo=FALSE, message=FALSE, out.width="60%", fig.align="center"}
+library(tidyverse)
+expand.grid(
+    x = seq(-1,3, length.out = 1000),
+    y = seq(-1,3, length.out = 1000)
+) %>%
+    mutate(
+        f = (1-x)^2 + 100*(y-x^2)^2
+    ) %>%
+    ggplot(aes(x=x,y=y,fill=log(f))) +
+        geom_raster() +
+        theme_minimal() +
+        labs(title = "Rosenbrock function (a=1, b=100)") +
+        coord_fixed()
+```
