@@ -70,7 +70,7 @@ Note that NumPy stores data in row major order.
 
 ## dtype
 
-NumPy arrays all have the `type()` `numpy.ndarray` - the specific type stored in the arrray is recorded as the array's `dtype`. This is accessible via the `dtype` attribute and can be set at creation using the `dtype` argument.
+Calling `type()` on any NumPy array returns `numpy.ndarray` - the specific type stored in the array is recorded as the array's `dtype`. This is accessible via the `dtype` attribute and can be set at creation using the `dtype` argument.
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
@@ -101,7 +101,7 @@ See [here](https://numpy.org/doc/stable/user/basics.types.html#array-types-and-c
 
 ## dtypes and overflow
 
-Some types have a maximum and or minimum value that can be stored in them. 
+Some types have a maximum and/or minimum value that can be stored in them. 
 
 If you try to create an array with a value outside of this range you will get an overflow error. 
 
@@ -159,7 +159,7 @@ For the full list of creation functions see [here](https://numpy.org/doc/stable/
 
 ## Creating 2d arrays (matrices)
 
-Many of the same functions exist with some additional useful tools for common matrices,
+Many of the same functions exist with some additional useful tools for common matrices.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -280,7 +280,7 @@ y.flags
 ## Subsetting with ...
 
 ::: {.medium}
-Generally in  Python we cannot include an empty argument - to select all elements with numpy we use `:`. 
+Generally in Python we cannot include an empty argument - to select all elements with numpy we use `:`. 
 
 To avoid having to type excess `:` you can use `...` which expands to the number of `:` needed to account for all remaining dimensions,
 :::
@@ -387,7 +387,7 @@ x[(0,1,2), (0,1,2)] = -4; x
 ::: {.small}
 ```{python}
 #| error: true
-x [0,0] = "A"
+x[0,0] = "A"
 ```
 :::
 
@@ -544,7 +544,7 @@ y
 
 ## Joining arrays
 
-`concatenate()` is a general purpose function for joining arrays, with specialized versions `hstack()`, `vstack()`, and `dstack()` for rows, columns, and slices respectively.
+`concatenate()` is a general purpose function for joining arrays, with specialized versions `vstack()`, `hstack()`, and `dstack()` for rows, columns, and slices respectively.
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -578,7 +578,7 @@ np.hstack((x,y))
 :::
 ::::
 
-##
+## Joining arrays (cont.)
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -644,6 +644,35 @@ np.cumsum(np.arange(10))
 np.log10(np.arange(1,4))
 np.median(np.arange(10))
 ```
+
+## The `axis` parameter
+
+Many aggregate functions accept an `axis` parameter that specifies which dimension to operate along. `axis=0` operates along rows (collapsing rows), `axis=1` along columns, etc. Using `axis=None` (the default) operates on the flattened array.
+
+::: {.small}
+```{python}
+x = np.arange(12).reshape((3,4)); x
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+np.sum(x)
+np.sum(x, axis=0)
+np.sum(x, axis=1)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.min(x)
+np.min(x, axis=0)
+np.min(x, axis=1)
+```
+:::
+::::
+
 
 ## Matrix multiplication
 
@@ -759,7 +788,7 @@ x[[1.,3]]
 
 ## Integer array subsetting (ndarrays)
 
-Similarly we can also us integer ndarrays:
+Similarly we can also use integer ndarrays:
 
 :::: {.columns .small}
 ::: {.column width='50%'}
@@ -833,7 +862,7 @@ x[np.array([True])]
 :::
 
 
-## Boolean  expressions
+## Boolean expressions
 
 The primary utility of boolean subsetting comes from vectorized comparison operations,
 
@@ -894,6 +923,36 @@ y | (x > 3)
 :::
 
 
+## `np.where()`
+
+`np.where()` is a vectorized conditional selection function. With three arguments it acts like an element-wise if-else, returning values from one of two arrays based on a condition.
+
+::: {.small}
+```{python}
+x = np.arange(10); x
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+np.where(x % 2 == 0, x, -1)
+np.where(x > 5, "big", "small")
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+np.where(x < 3)
+```
+:::
+::::
+
+::: {.aside}
+With a single argument, `np.where()` returns the indices where the condition is `True` (equivalent to `np.nonzero()`).
+:::
+
+
 ## meshgrid()
 
 One other useful function in NumPy is `meshgrid()` which generates all possible combinations between the input vectors (as a tuple of ndarrays),
@@ -926,7 +985,7 @@ np.sqrt(x**2 + y**2).round(3)
 ## Exercise 2
 
 ::: {.small}
-We will now use this to attempt a simple brute force approach to numerical optimization, define a grid of points using `meshgrid()` to approximate the minima the following function:
+We will now use this to attempt a simple brute force approach to numerical optimization, define a grid of points using `meshgrid()` to approximate the minimum of the following function:
 
 $$
 f(x,y) = (1-x)^2 + 100(y-x^2)^2

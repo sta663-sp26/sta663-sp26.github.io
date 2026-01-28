@@ -14,30 +14,8 @@ execute:
   warning: true
 ---
 
-```{r r_setup}
-#| message: false
-#| warning: false
-#| include: false
-
-options(
-  width=80
-)
-
-local({
-  hook_error <- knitr::knit_hooks$get("error")
-  hook_output <- knitr::knit_hooks$get("output")
-  knitr::knit_hooks$set(
-    error = function(x, options) {
-      x = sub("## \n## Detailed traceback:\n.*$", "", x)
-      x = sub("Error in py_call_impl\\(.*?\\)\\: ", "", x)
-      hook_error(x, options)
-    },
-    output = function(x, options) {
-      x = sub("<string>:1: (.*?)\n", "\\1\n\n", x)
-      hook_output(x, options)
-    }
-  )
-})
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
 ```
 
 ```{python setup}

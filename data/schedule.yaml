@@ -64,9 +64,12 @@ schedule:
   - text: uv documentation
     link: https://docs.astral.sh/uv/
   
-
 - week: 3
   day: 2
+  lecture: "<i>No class (snow)</i>"
+
+- week: 3
+  day: 4
   lecture: "NumPy"
   slides: Lec06
   screencast: 
@@ -79,10 +82,10 @@ schedule:
     link: https://numpy.org/doc/stable/user/basics.indexing.html#advanced-indexing
   notes: 
 
-- week: 3
-  day: 4
+- week: 4
+  day: 2
   lecture: "NumPy & JAX"
-  slides: Lec07
+  slides:
   screencast: 
   readings:
   - text: Broadcasting
@@ -90,19 +93,19 @@ schedule:
   notes: 
 
 - week: 4
-  day: 2
+  day: 4
   lecture: "Data frames - pandas"
-  slides: Lec07
+  slides:
   screencast: 
   readings:
   - text: Python for Data Analysis (Early Release)
     link: https://wesmckinney.com/book/pandas-basics.html
   notes:
 
-- week: 4
-  day: 4
+- week: 5
+  day: 2
   lecture: "Data frames - polars"
-  slides: Lec08
+  slides:
   screencast: 
   readings:
   - text: Polars user guide
@@ -110,9 +113,9 @@ schedule:
   notes:
 
 - week: 5
-  day: 2
+  day: 4
   lecture: "Visualization (pyplot & seaborn)"
-  slides: Lec09
+  slides:
   screencast: 
   readings:
   - text: matplotlib tutorials
@@ -125,10 +128,10 @@ schedule:
     link: https://plotnine.readthedocs.io/en/stable/
   notes: 
 
-- week: 5
-  day: 4
+- week: 6
+  day: 2
   lecture: "scikit-learn"
-  slides: Lec10
+  slides:
   screencast: 
   readings:
   - text: scikit-learn user guide
@@ -139,17 +142,17 @@ schedule:
 
 
 - week: 6
-  day: 2
+  day: 4
   lecture: "scikit-learn - CV & Classification"
-  slides: Lec11
+  slides:
   screencast: 
   readings:
   notes: 
 
-- week: 6
-  day: 4
+- week: 7
+  day: 2
   lecture: "Custom transformers + patsy & statsmodels"
-  slides: Lec12
+  slides:
   screencast: 
   readings:
   - text: patsy docs
@@ -163,47 +166,32 @@ schedule:
 
 
 - week: 7
-  day: 2
-  lecture: "Optimization"
-  slides: Lec13
-  screencast: 
-  readings:
-  - text: scipy optimization lecture
-    link: https://scipy-lectures.org/advanced/mathematical_optimization/index.html
-  - text: scipy optimization lecture examples
-    link: https://github.com/scipy-lectures/scipy-lecture-notes/tree/master/advanced/mathematical_optimization/examples
-  notes: 
-
-- week: 7
   day: 4
-  lecture: "optimization (cont.)"
-  slides: Lec14
-  screencast: 
+  lecture: "MLOPs - Basic Linux & Docker"
+  slides:
+  screencast:
   readings:
-  notes: 
+  notes:
 
 - week: 8
   day: 2
-  lecture: "optimization - SGD"
-  slides: Lec15
-  screencast: 
+  lecture: "MLOPs - Docker & Vetiver"
+  slides:
+  screencast:
   readings:
-  - text: Probabilistic Machine Learning - Chp 8
-    link: https://probml.github.io/pml-book/book1.html
-  notes: 
+  - text: MLOps with Vetiver
+    link: https://vetiver.posit.co/
+  notes:
 
 - week: 8
   day: 4
-  lecture: "optimization - optax"
-  slides: Lec16
-  screencast: 
+  lecture: "MLOPs - FastAPI"
+  slides:
+  screencast:
   readings:
-  - text: Deep Learning Tuning Playbook
-    link: https://github.com/google-research/tuning_playbook
-  - text: Descending through a Crowded Valley
-    link: https://proceedings.mlr.press/v139/schmidt21a
-  notes: 
-
+  - text: FastAPI User Guide
+    link: https://fastapi.tiangolo.com/tutorial/
+  notes:
 
 - week: 9
   day: 2
@@ -217,105 +205,115 @@ schedule:
   day: 5
   lecture: "<i>No lab sessions (Spring recess)</i>"
 
-
 - week: 10
-  day: 2
-  lecture: "torch - Intro"
-  slides: Lec17
-  screencast: 
-  readings:
-  - text: Intro to PyTorch Tensors
-    link: https://pytorch.org/tutorials/beginner/introyt/tensors_deeper_tutorial.html
-  - text: Fundamentals of AutoGrad
-    link: https://pytorch.org/tutorials/beginner/introyt/autogradyt_tutorial.html
-  notes: 
-
-
-- week: 10
-  day: 4
-  lecture: "torch - nn"
-  slides: Lec18
-  screencast: 
-  readings:
-  - text: Feedforward Neural Network with PyTorch
-    link: https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_feedforward_neuralnetwork/
-  - text: Convolutional Neural Network with PyTorch
-    link: https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_convolutional_neuralnetwork/
-  notes: 
-  
-- week: 11
-  day: 2
-  lecture: "torch - gpu"
-  slides: Lec19
-  screencast: 
-  readings:
-  - text: Transformers
-    link: https://huggingface.co/docs/transformers/en/index
-  - text: diffusers
-    link: https://huggingface.co/docs/diffusers/index
-  notes: 
-
-- week: 11
-  day: 4
-  lecture: "MLOPs - Basic Linux & Docker"
-  slides: Lec20
-  screencast: 
-  readings:
-  notes: 
-
-- week: 12
-  day: 2
-  lecture: "MLOPs - Docker & Vetiver"
-  slides: Lec21
-  screencast: 
-  readings:
-  - text: MLOps with Vetiver
-    link: https://vetiver.posit.co/
-  notes: 
-
-- week: 12
-  day: 4
-  lecture: "MLOPs - FastAPI"
-  slides: Lec22
-  screencast: 
-  readings:
-  - text: FastAPI User Guide
-    link: https://fastapi.tiangolo.com/tutorial/
-  notes: 
-
-
-- week: 13
   day: 2
   lecture: "MCMC - PyMC"
-  slides: Lec23
-  screencast: 
+  slides:
+  screencast:
   readings:
   - text: PyMC introduction
     link: https://www.pymc.io/projects/docs/en/stable/learn/core_notebooks/pymc_overview.html#pymc-overview
   - text: ArviZ user guide
     link: https://python.arviz.org/en/stable/user_guide/index.html
+  notes:
 
-- week: 13
+- week: 10
   day: 4
   lecture: "MCMC - Samplers"
-  slides: Lec24
-  screencast: 
+  slides:
+  screencast:
   readings:
-  notes: 
+  notes:
 
-- week: 14
+- week: 11
   day: 2
   lecture: "MCMC - Performance & Stan"
-  slides: Lec25
-  screencast: 
+  slides:
+  screencast:
   readings:
   - text: CmdStanPy
     link: https://mc-stan.org/cmdstanpy/users-guide.html
   - text: Fundamentals of Stan
     link: https://github.com/charlesm93/stanTutorial/tree/main/StanCon2023
-  notes: 
+  notes:
 
+- week: 11
+  day: 4
+  lecture: "Optimization"
+  slides:
+  screencast:
+  readings:
+  - text: scipy optimization lecture
+    link: https://scipy-lectures.org/advanced/mathematical_optimization/index.html
+  - text: scipy optimization lecture examples
+    link: https://github.com/scipy-lectures/scipy-lecture-notes/tree/master/advanced/mathematical_optimization/examples
+  notes:
 
+- week: 12
+  day: 2
+  lecture: "optimization (cont.)"
+  slides:
+  screencast:
+  readings:
+  notes:
+
+- week: 12
+  day: 4
+  lecture: "optimization - SGD"
+  slides:
+  screencast:
+  readings:
+  - text: Probabilistic Machine Learning - Chp 8
+    link: https://probml.github.io/pml-book/book1.html
+  notes:
+
+- week: 13
+  day: 2
+  lecture: "optimization - optax"
+  slides:
+  screencast:
+  readings:
+  - text: Deep Learning Tuning Playbook
+    link: https://github.com/google-research/tuning_playbook
+  - text: Descending through a Crowded Valley
+    link: https://proceedings.mlr.press/v139/schmidt21a
+  notes:
+
+- week: 13
+  day: 4
+  lecture: "torch - Intro"
+  slides:
+  screencast:
+  readings:
+  - text: Intro to PyTorch Tensors
+    link: https://pytorch.org/tutorials/beginner/introyt/tensors_deeper_tutorial.html
+  - text: Fundamentals of AutoGrad
+    link: https://pytorch.org/tutorials/beginner/introyt/autogradyt_tutorial.html
+  notes:
+
+- week: 14
+  day: 2
+  lecture: "torch - nn"
+  slides:
+  screencast:
+  readings:
+  - text: Feedforward Neural Network with PyTorch
+    link: https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_feedforward_neuralnetwork/
+  - text: Convolutional Neural Network with PyTorch
+    link: https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_convolutional_neuralnetwork/
+  notes:
+
+- week: 14
+  day: 4
+  lecture: "torch - gpu"
+  slides:
+  screencast:
+  readings:
+  - text: Transformers
+    link: https://huggingface.co/docs/transformers/en/index
+  - text: diffusers
+    link: https://huggingface.co/docs/diffusers/index
+  notes:
 
 - week: 16
   day: 2

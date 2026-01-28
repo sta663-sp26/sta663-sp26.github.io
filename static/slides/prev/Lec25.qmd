@@ -14,7 +14,11 @@ execute:
   warning: true
 ---
 
-```{python setup}
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+```{python}
 #| include: false
 
 import numpy as np

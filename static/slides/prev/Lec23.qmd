@@ -13,12 +13,8 @@ execute:
   echo: true
 ---
 
-```{r r_setup}
-#| include: false
-knitr::opts_chunk$set(
-  fig.align="center",
-  cache=FALSE
-)
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
 ```
 
 ```{css}
