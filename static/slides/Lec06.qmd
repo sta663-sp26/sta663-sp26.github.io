@@ -52,18 +52,17 @@ np.array(["abc", "def"])
 :::
 ::::
 
-::: {.aside}
-Note that NumPy stores data in row major order.
-:::
+
+Note that NumPy stores data in row major order, unlike R which used column major order.
 
 
 ## Some properties of NumPy arrays:
 
 * Arrays have a fixed size at creation
 
-* All data must be homogeneous (consistent type)
+* All data must be homogeneous (i.e. consistent type)
 
-* Built to support vectorized operations
+* Built to support vectorized operations (avoid loops)
 
 * Avoids copying whenever possible (inplace operations)
 
@@ -519,24 +518,8 @@ y
 :::
 ::::
 
+::: {.center}
 Why didn't this 2nd version work?
-
-## More details
-
-::: {.small}
-```{python}
-#| error: true
-y = np.ones(
-  (2,2)
-)
-y.resize((3,3))
-```
-
-```{python}
-y
-y.resize((1,4))
-y
-```
 :::
 
 
