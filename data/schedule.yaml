@@ -85,7 +85,7 @@ schedule:
 - week: 3
   day: 5
   lecture: "Broadcasting & JAX"
-  slides: Lec06
+  slides: Lec07
   screencast: 
   readings:
   - text: Broadcasting
