@@ -82,14 +82,24 @@ schedule:
     link: https://numpy.org/doc/stable/user/basics.indexing.html#advanced-indexing
   notes: 
 
-- week: 4
-  day: 2
-  lecture: "NumPy & JAX"
-  slides:
+- week: 3
+  day: 5
+  lecture: "Broadcasting & JAX"
+  slides: Lec06
   screencast: 
   readings:
   - text: Broadcasting
     link: https://numpy.org/doc/stable/user/basics.broadcasting.html
+  - text: JAX Quickstart
+    link: https://docs.jax.dev/en/latest/notebooks/thinking_in_jax.html
+  notes: 
+
+- week: 4
+  day: 2
+  lecture: "scipy"
+  slides:
+  screencast: 
+  readings:
   notes: 
 
 - week: 4

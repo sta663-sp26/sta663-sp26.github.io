@@ -14,9 +14,7 @@ execute:
   warning: true
 ---
 
-```{r, message=FALSE, warning=FALSE, include=FALSE}
-{{< include _setup.R >}}
-```
+
 
 ```{python setup}
 #| include: false
@@ -29,17 +27,20 @@ import pandas as pd
 plt.rcParams['figure.dpi'] = 200
 
 np.set_printoptions(
-  edgeitems=30, linewidth=60,
+   linewidth=100,
   precision = 5, suppress=True
 )
+
+%xmode minimal
 ```
+
 
 
 # Basic file IO
 
 ## Reading and writing ndarrays
 
-We will not spend much time on this as most data you will encounter is more likely to be a tabular format (e.g. data frame) and tools like Pandas are more appropriate.
+We will not spend much time on this as most data you will encounter is more likely to be in a tabular format (e.g. data frame) and tools like Pandas are more appropriate.
 
 For basic saving and loading of NumPy arrays there are the `save()` and `load()` functions which use a custom binary format.
 
@@ -76,32 +77,49 @@ mtcars
 
 This is an approach for deciding how to generalize operations between arrays with differing shapes.
 
+::: {.small}
 ```{python}
 x = np.array([1, 2, 3])
 ```
+:::
 
 . . .
 
+::: {.small}
 ```{python}
 x * 2
 ```
+:::
 
 
 . . .
 
+::: {.small}
 ```{python}
 x * np.array([2,2,2])
 ```
+:::
 
 . . .
 
+::: {.small}
 ```{python}
 x * np.array([2])
 ```
+:::
 
-## Efficiency
+. . .
 
-Using broadcasts can be more efficient as it does not copy the broadcast data,
+::: {.small}
+```{python}
+#| error: true
+x * np.array([2,2])
+```
+:::
+
+## Simplicity & Efficiency
+
+Broadcast code is usually shorter / simpler and it can make the calculation more efficient,
 
 ::: {.small}
 ```{python}
@@ -116,11 +134,8 @@ y = np.array([2]).repeat(1e5)
 
 ::: {.small}
 ```{python}
-#| eval: false
-%timeit x * 2
-```
-```
-13.1 μs ± 297 ns per loop (mean ± std. dev. of 7 runs, 100,000 loops each)
+#| cache: true
+%timeit -n 1000 x * 2
 ```
 :::
 
@@ -128,11 +143,8 @@ y = np.array([2]).repeat(1e5)
 
 ::: {.small}
 ```{python}
-#| eval: false
-%timeit x * np.array([2])
-```
-```
-18.3 μs ± 96.4 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+#| cache: true
+%timeit -n 1000 x * np.array([2])
 ```
 :::
 
@@ -140,11 +152,8 @@ y = np.array([2]).repeat(1e5)
 
 ::: {.small}
 ```{python}
-#| eval: false
-%timeit x * y
-```
-```
-61.4 μs ± 465 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+#| cache: true
+%timeit -n 1000 x * y
 ```
 :::
 
@@ -152,11 +161,8 @@ y = np.array([2]).repeat(1e5)
 
 ::: {.small}
 ```{python}
-#| eval: false
-%timeit x * np.array([2]).repeat(1e5)
-```
-```
-99.2 μs ± 1.12 μs per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+#| cache: true
+%timeit -n 1000 x * np.array([2]).repeat(1e5)
 ```
 :::
 
@@ -171,9 +177,6 @@ y = np.array([2]).repeat(1e5)
 > If these conditions are not met, a `ValueError: operands could not be broadcast together` exception is thrown, indicating that the arrays have incompatible shapes. The size of the resulting array is the size that is not 1 along each axis of the inputs.
 
 
-::: {.aside}
-If you want numpy style broadcasting in R you can check out the [`rray`](https://rray.r-lib.org/index.html) package.
-:::
 
 ## Example
 
@@ -286,6 +289,159 @@ x+y
 From NumPy user guide - [Broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html)
 :::
 
+## Unintended broadcasting
+
+A common Broadcasting pitfalls is accidental broadcasting where operations succeed but produce unexpected results,
+
+::: {.small}
+```{python}
+data = np.array([[1, 2, 3],
+                 [4, 5, 6],
+                 [7, 8, 9]])
+row_means = data.mean(axis=1)  # mean of each row: [2, 5, 8]
+```
+:::
+
+. . .
+
+Now we'd like to substract each row's mean from that row.
+
+::: {.small}
+```{python}
+data - row_means
+```
+:::
+
+. . .
+
+This "worked" but gave the wrong answer. The `(3,)` array broadcast across columns, not rows.
+
+::: {.small}
+```{python}
+data - row_means.reshape(3, 1)
+```
+:::
+
+
+## 1d, row, and column vectors
+
+Easy to get confused between `(n,)`, `(n,1)`, and `(1,n)` shapes' behavior,
+
+:::: {.columns .xsmall}
+::: {.column width='33%'}
+```{python}
+v = np.array([1, 2, 3])
+v.shape
+```
+:::
+::: {.column width='33%'}
+```{python}
+v_col = v.reshape(3, 1)
+v_col.shape
+```
+:::
+::: {.column width='33%'}
+```{python}
+v_row = v.reshape(1, 3)
+v_row.shape
+```
+:::
+::::
+
+. . .
+
+::: {.small}
+```{python}
+m = np.ones((3, 3))
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='33%'}
+```{python}
+m + v
+```
+:::
+::: {.column width='33%'}
+```{python}
+m + v_col
+```
+:::
+::: {.column width='33%'}
+```{python}
+m + v_row
+```
+:::
+::::
+
+. . .
+
+All three succeed but `v` and `v_row` broadcast across rows while `v_col` broadcasts across columns.
+
+## Size explosion
+
+Broadcasting doesn't copy data during the operation, but the *result* can be much larger than expected.
+
+::: {.small}
+```{python}
+a = np.zeros((1000, 1))     # ~8 KB
+b = np.zeros((1, 1000))     # ~8 KB
+c = a + b                   # ~8 MB
+c.shape
+```
+:::
+
+. . .
+
+<br/>
+
+You can use `np.broadcast_shapes()` to quick check the result shape before operating:
+
+::: {.small}
+```{python}
+np.broadcast_shapes(a.shape, b.shape)
+```
+```{python}
+np.broadcast_shapes((10000, 1), (1, 10000))
+```
+:::
+
+## Broadcasting with matrix multiplication
+
+The `@` operator (and `np.matmul()`) has special broadcasting rules:
+
+- The last two dimensions are treated as matrices and must be compatible for matrix multiplication (inner dimensions must match)
+- Broadcasting applies only to the "batch" dimensions (all dimensions except the last two)
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+A = np.ones((3, 2, 4))
+B = np.ones((4, 5))
+(A @ B).shape
+```
+```{python}
+A = np.ones((3, 2, 4))
+B = np.ones((3, 4, 5))
+(A @ B).shape
+```
+:::
+::: {.column width='50%' .fragment}
+```{python}
+A = np.ones((2, 1, 2, 4))
+B = np.ones((3, 4, 5))
+(A @ B).shape
+```
+```{python}
+#| error: true
+A = np.ones((2, 2, 4))
+B = np.ones((3, 4, 5))
+A @ B
+```
+:::
+::::
+
+
 ## Exercise 1
 
 For each of the following combinations determine what the resulting dimension will be using broadcasting
@@ -331,7 +487,7 @@ d.std(axis=0)
 :::
 ::::
 
-Lets use broadcasting to standardize all three columns to have mean 0 and standard deviation 1. 
+Let's use broadcasting to standardize all three columns to have mean 0 and standard deviation 1. 
 
 
 
@@ -348,7 +504,7 @@ z = -np.arange(3)
 :::
 
 :::: {.columns .small}
-::: {.column width='50%'}
+::: {.column width='40%'}
 ```{python}
 x[:] = y
 x
@@ -359,7 +515,7 @@ x
 ```
 :::
 
-::: {.column width='50%'}
+::: {.column width='60%' .fragment}
 ```{python}
 #| error: true
 x[:] = z
@@ -379,6 +535,8 @@ x
 
 ## JAX
 
+::: {.medium}
+
 > JAX is a library for array-oriented numerical computation (à la NumPy), with automatic differentiation and JIT compilation to enable high-performance machine learning research.
 > 
 > * JAX provides a unified NumPy-like interface to computations that run on CPU, GPU, or TPU, in local or distributed settings.
@@ -388,6 +546,7 @@ x
 > * JAX functions support efficient evaluation of gradients via its automatic differentiation transformations.
 >
 > * JAX functions can be automatically vectorized to efficiently map them over arrays representing batches of inputs.
+:::
 
 ::: {.small}
 ```{python}
@@ -396,6 +555,23 @@ jax.__version__
 ```
 :::
 
+## A Brief History
+
+JAX is just one framework in a long history going back almost 20 years. These frameworks all share a common approach: representing computations as a graph of operations. 
+
+This enables automatic differentiation (via backpropagation) and optimization/compilation for efficient execution on GPUs or other specialized hardware.
+
+::: {.medium}
+* Theano (2007) - U of Montreal
+
+* TensorFlow (2015) - Google Brain
+
+* PyTorch (2016) - Facebook
+
+* JAX (2018) - Google
+:::
+
+
 ## JAX & NumPy
 
 :::: {.columns .small}
@@ -403,9 +579,11 @@ jax.__version__
 ```{python}
 import numpy as np
 
-x_np = np.linspace(0, 5, 51)
-y_np = 2 * np.sin(x_np) * np.cos(x_np)
-plt.plot(x_np, y_np)
+x_np = np.arange(6).reshape(2, 3)
+x_np
+```
+```{python}
+np.sum(x_np ** 2)
 ```
 ```{python}
 type(x_np)
@@ -416,9 +594,11 @@ type(x_np)
 ```{python}
 import jax.numpy as jnp
 
-x_jnp = jnp.linspace(0, 5, 51)
-y_jnp = 2 * jnp.sin(x_jnp) * jnp.cos(x_jnp)
-plt.plot(x_jnp, y_jnp)
+x_jnp = jnp.arange(6).reshape(2, 3)
+x_jnp
+```
+```{python}
+jnp.sum(x_jnp ** 2)
 ```
 ```{python}
 type(x_jnp)
@@ -427,36 +607,14 @@ type(x_jnp)
 ::::
 
 
-
-##
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-x_np
-```
-```{python}
-x_np.dtype
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-x_jnp
-```
-```{python}
-x_jnp.dtype
-```
-:::
-::::
-
-
-
 ## Compatibility
 
 ::: {.small}
 ```{python}
 y_mix = 2 * np.sin(x_jnp) * jnp.cos(x_np); y_mix
+```
+```{python}
+type(y_mix)
 ```
 :::
 
@@ -464,17 +622,31 @@ y_mix = 2 * np.sin(x_jnp) * jnp.cos(x_np); y_mix
 
 ::: {.small}
 ```{python}
+y_mix = 2 * jnp.sin(x_np) * jnp.cos(x_np); y_mix
+```
+```{python}
+type(y_mix)
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+y_mix = 2 * np.sin(x_jnp) * np.cos(x_jnp); y_mix
+```
+```{python}
 type(y_mix)
 ```
 :::
 
 ## JAX Arrays
 
-As we've just seen a JAX array is very similar to a numpy array but there are some important differences.
+As we've just seen a JAX array is very similar to a NumPy array but there are some important differences.
 
-- JAX arrays are immutable
+- JAX arrays are immutable*
 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 #| error: true
 x = jnp.array([3, 2, 1])
@@ -482,13 +654,17 @@ x[0] = 2
 ```
 :::
 
-- related to the above JAX does not support inplace operations - these functions now create and return a copy of the array
+- Related to the above, JAX does not support in-place operations - these functions now create and return a copy of the array
 
 ::: {.columns .xsmall}
 ::: {.column}
 ```{python}
 y = x.sort()
+```
+```{python}
 y
+```
+```{python}
 x
 ```
 :::
@@ -501,7 +677,8 @@ np.shares_memory(x,y)
 
 ##
 
-- The default JAX array dtypes 32 bits not 64 bits (i.e. `float32` not `float64` and `int32` not `int64`)
+- The default JAX array dtypes are 32 bits not 64 bits 
+  (i.e. `float32` not `float64` and `int32` not `int64`)
 
   ::: {.columns .xsmall}
   ::: {.column}
@@ -519,9 +696,18 @@ np.shares_memory(x,y)
   :::
 
   ::: {.xsmall}
-  ```{python}
+  ```{.python}
   #| warning: true
   jnp.array([1, 2, 3], dtype=jnp.float64)
+  ```
+  ```
+  UserWarning: Explicitly requested dtype float64 requested in array is not available, and 
+  will be truncated to dtype float32. To enable more dtypes, set the jax_enable_x64 configuration 
+  option or the JAX_ENABLE_X64 shell environment variable. See 
+  https://github.com/jax-ml/jax#current-gotchas for more. 
+  jnp.array([1, 2, 3], dtype=jnp.float64)
+
+  Array([1., 2., 3.], dtype=float32)
   ```
   :::
 
@@ -529,19 +715,26 @@ np.shares_memory(x,y)
 
   ::: {.xsmall}
   ```{python}
+  #| eval: false
   jax.config.update("jax_enable_x64", True)
   ```
   :::
 
   ::: {.columns .xsmall}
   ::: {.column}
-  ```{python}
+  ```{.python}
   jnp.array([1, 2, 3])
+  ```
+  ```
+  Array([1, 2, 3], dtype=int64)
   ```
   :::
   ::: {.column}
-  ```{python}
+  ```{.python}
   jnp.array([1., 2., 3.])
+  ```
+  ```
+  Array([1., 2., 3.], dtype=float64)
   ```
   :::
   :::
@@ -553,23 +746,21 @@ np.shares_memory(x,y)
 
 - JAX arrays are allocated to one *or more* devices
 
-::: {.columns .small}
-::: {.column}
-```{python}
-jax.devices()
-```
-:::
-::: {.column}
-```{python}
-x.devices()
-x.sharding
-```
-:::
-:::
+  ::: {.small}
+  ```{python}
+  jax.devices()
+  ```
+  ```{python}
+  x.devices()
+  ```
+  ```{python}
+  x.sharding
+  ```
+  :::
 
 - Using JAX interactively allows for the use of standard Python control flow (`if`, `while`, `for`, etc.) but this is not supported for some of JAX's more advanced operations (e.g. `jit` and `grad`)
 
-  There are replacements for most of these constructs in JAX, but they are beyond the scope of today.
+  There are replacements for most of these constructs in JAX, but they are beyond the scope of this lecture.
 
 
 
@@ -596,7 +787,7 @@ f"at once: {np.random.uniform(size=5)}"
 
 ## Parallelization & sequential equivalence
 
-Sequential equivalence can be problematic in when using parallelization across multiple devices, consider the following code:
+Sequential equivalence can be problematic when using parallelization across multiple devices, consider the following code:
 
 ::: {.small}
 ```{python}
@@ -645,7 +836,7 @@ jax.random.normal(key, shape=(3,))
 ```
 :::
 
-Note that JAX does not provide a sequential equivalence guarantee - this is so that it can support vectorization for the generation of PRN.
+Note that JAX does not provide a sequential equivalence guarantee - this is so that it can support vectorization for the generation of pseudo-random numbers.
 
 
 ## Splitting keys
@@ -720,147 +911,47 @@ jax.random.normal(key3[2], shape=(3,))
 
 # JAX & jit
 
-## JAX performance
+## Just-in-time compilation
 
-::: {.small}
-```{python}
-key = jax.random.PRNGKey(1234)
-x_jnp = jax.random.normal(key, (1000,1000))
-x_np = np.array(x_jnp)
-```
-:::
+JAX's `jit()` function compiles a function using XLA (Accelerated Linear Algebra), which can significantly speed up execution by optimizing the computation graph and reducing Python overhead.
 
-::: {.small}
-```{python}
-#| eval: false
-%timeit y = x_np @ x_np
-```
-```
-1.09 ms ± 92.4 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
-```
-
-```{python}
-#| eval: false
-%timeit y = x_jnp @ x_jnp
-```
-```
-3.42 ms ± 122 μs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-```
-:::
-
-. . .
-
-::: {.small}
-```{python}
-#| eval: false
-%timeit y = 3*x_np + x_np
-```
-```
-514 μs ± 41 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
-```
-```{python}
-#| eval: false
-%timeit y = 3*x_jnp + x_jnp
-```
-```
-413 μs ± 24.2 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
-```
-:::
-
-
-## jit
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.xsmall}
 ```{python}
 def SELU_np(x, α=1.67, λ=1.05):
   "Scaled Exponential Linear Unit"
   return λ * np.where(x > 0, x, α * np.exp(x) - α)
+
+x = np.linspace(-10, 10, int(1e6))
+%timeit y = SELU_np(x)
 ```
 :::
 
-::: {.column width='50%'}
+. . .
+
+::: {.xsmall}
 ```{python}
 def SELU_jnp(x, α=1.67, λ=1.05):
   "Scaled Exponential Linear Unit"
   return λ * jnp.where(x > 0, x, α * jnp.exp(x) - α)
-```
-:::
-::::
 
-. . .
-
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| eval: false
-x = np.arange(1e6)
-%timeit y = SELU_np(x)
-```
-```
-4.08 ms ± 80 μs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+x = jnp.linspace(-10, 10, 1000000)
+%timeit -r 3 y = SELU_jnp(x)
 ```
 :::
 
-::: {.column width='50%' .fragment}
-```{python}
-#| eval: false
-x = jnp.arange(1e6)
-%timeit y = SELU_jnp(x)
-```
-```
-1.58 ms ± 68.8 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
-```
-:::
-::::
 
 
 . . .
 
-:::: {.columns .small}
-::: {.column width='50%'}
-```{python}
-#| error: true
-SELU_np_jit = jax.jit(SELU_np)
-```
-:::
-
-::: {.column width='50%'}
+::: {.xsmall}
 ```{python}
 SELU_jnp_jit = jax.jit(SELU_jnp)
-```
-:::
-::::
-
-. . .
-
-:::: {.columns .small}
-::: {.column width='50%'}
-
-```{python}
-#| error: true
-#| eval: false
-%timeit y = SELU_np_jit(x)
-```
-```
-TracerArrayConversionError: The numpy.ndarray conversion method __array__() was called on traced array with shape float32[1000000]
+%timeit -r 3 y = SELU_jnp_jit(x)
 ```
 :::
 
-::: {.column width='50%' .fragment}
 
-```{python}
-#| eval: false
-%timeit y = SELU_jnp_jit(x)
-```
-```
-418 μs ± 13 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
-```
-:::
-::::
-
-
-## jit limitations
+## jit() limitations
 
 When it works the jit tool is fantastic, but it does have a number of limitations,
 
@@ -946,7 +1037,7 @@ jax.grad(h)(2.)
 
 I would like to plot `h()` and `jax.grad(h)()` - lets see what happens,
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 #| error: true
 x = jnp.linspace(-3,3,101)
@@ -955,35 +1046,24 @@ y_grad = jax.grad(h)(x)
 ```
 :::
 
-. . .
+##
 
-As just mentiond, we can only calculate the gradient for scalar valued functions. However, we can transform our scalar function into a vectorized function using `vmap()`.
+We can only calculate the gradient for scalar valued functions. However, we can transform our scalar function into a vectorized function using `vmap()`.
 
-::: {.small}
+::: {.xxsmall}
 ```{python}
 h_grad = jax.vmap(
   jax.grad(h)
 )
-y_grad = h_grad(x)
-```
-:::
-
-::: {.aside}
-`vmap()` is significantly more powerful than just this as it allows for mapping over multiple input and output axes
-:::
-
-##
-
-::: {.xsmall}
-```{python}
-y_grad
+y_grad = h_grad(x); y_grad
 ```
 :::
 
 ```{python}
+#| fig-align: center
 #| echo: false
 
-plt.figure(figsize=(10, 4))
+plt.figure(figsize=(3, 1), layout="constrained")
 
 plt.subplot(121)
 plt.plot(x, y, "-b")
@@ -995,6 +1075,11 @@ plt.title("∇h(x)")
 
 plt.show()
 ```
+
+::: {.aside}
+`vmap()` is significantly more powerful than just this as it allows for mapping over multiple input and output axes
+:::
+
 
 ## Another quick example
 
@@ -1009,7 +1094,8 @@ y_grad = jax.vmap(jax.grad(f))(x)
 
 ```{python}
 #| echo: false
-plt.figure(figsize=(10, 4))
+#| fig-align: center
+plt.figure(figsize=(5, 2), layout="constrained")
 
 plt.subplot(121)
 plt.plot(x, y, "-b")
@@ -1021,3 +1107,120 @@ plt.title("∇f(x)")
 
 plt.show()
 ```
+
+
+# JAX & GPUs
+
+## Installation
+
+JAX requires different packages depending on your hardware. 
+
+With `uv`:
+
+::: {.small}
+```bash
+# CPU only
+uv add jax
+
+# NVIDIA GPU (CUDA)
+uv add jax[cuda13] # match the cuda version
+
+# Apple Silicon (Metal)
+uv add jax-metal
+```
+:::
+
+The GPU versions require appropriate drivers and libraries (CUDA toolkit for NVIDIA, Metal for Apple Silicon).
+
+::: {.aside}
+The GPU versions can be more fragile - if you run into issues `uv remove` and default to the CPU version.
+:::
+
+## GPU Acceleration
+
+One of JAX's main advantages is seamless GPU support. Once installed correctly, JAX automatically uses available GPUs without requiring code changes.
+
+::: {.small}
+```{python}
+jax.devices()
+```
+:::
+
+. . .
+
+To check which backend JAX is using:
+
+::: {.small}
+```{python}
+jax.default_backend()
+```
+:::
+
+. . .
+
+Arrays are automatically placed on the default device, but you can explicitly control placement:
+
+::: {.small}
+```{python}
+#| eval: false
+# Place array on specific device
+gpu = jax.devices('gpu')[0]
+x_gpu = jax.device_put(x, gpu)
+```
+:::
+
+## JAX performance (GPU)
+
+
+::: {.small}
+
+```python
+key = jax.random.PRNGKey(1234)
+x_jnp = jax.random.normal(key, (1000,1000))
+x_np = np.array(x_jnp)
+x_jnp.device
+```
+
+```
+CudaDevice(id=0)
+```
+:::
+
+. . .
+
+::: {.small}
+```python
+%timeit y = x_np @ x_np
+```
+```
+1.55 ms ± 118 μs per loop (mean ± std. dev. of 7 runs, 1,000 loops each)
+```
+
+```python
+%timeit y = x_jnp @ x_jnp
+```
+```
+99.8 μs ± 517 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+```
+:::
+
+. . .
+
+::: {.small}
+
+```python
+%timeit y = 3*x_np + x_np
+```
+
+```
+152 μs ± 612 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+```
+
+```python
+%timeit y = 3*x_jnp + x_jnp
+```
+
+```
+59.4 μs ± 41.5 ns per loop (mean ± std. dev. of 7 runs, 10,000 loops each)
+```
+:::

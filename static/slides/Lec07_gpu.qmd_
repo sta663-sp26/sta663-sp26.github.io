@@ -1,0 +1,42 @@
+---
+format: gfm
+---
+
+```{python}
+#| include: false
+import jax
+import numpy as np
+import jax.numpy as jnp
+```
+
+## JAX performance (GPU)
+
+::: {.small}
+```{python}
+key = jax.random.PRNGKey(1234)
+x_jnp = jax.random.normal(key, (1000,1000))
+x_np = np.array(x_jnp)
+x_jnp.device
+```
+:::
+
+::: {.small}
+```{python}
+%timeit y = x_np @ x_np
+```
+
+```{python}
+%timeit y = x_jnp @ x_jnp
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+%timeit y = 3*x_np + x_np
+```
+```{python}
+%timeit y = 3*x_jnp + x_jnp
+```
+:::
