@@ -99,7 +99,7 @@ schedule:
 - week: 4
   day: 2
   lecture: "scipy"
-  slides:
+  slides: Lec08
   screencast: 
   readings:
   notes: 
