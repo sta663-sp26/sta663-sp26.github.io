@@ -54,6 +54,8 @@ schedule:
     link: https://docs.python.org/3/tutorial/datastructures.html#sets
   - text: Time complexity
     link: https://wiki.python.org/moin/TimeComplexity
+  - text: Python Internals
+    link: https://github.com/zpoint/CPython-Internals
   notes:
 
 - week: 2
