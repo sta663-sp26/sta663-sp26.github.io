@@ -112,7 +112,7 @@ schedule:
   slides: Lec09
   screencast: 
   readings:
-  - text: Python for Data Analysis (Early Release)
+  - text: Python for Data Analysis
     link: https://wesmckinney.com/book/pandas-basics.html
   notes:
 
