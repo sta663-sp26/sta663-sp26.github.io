@@ -109,7 +109,7 @@ schedule:
 - week: 4
   day: 4
   lecture: "Data frames - pandas"
-  slides:
+  slides: Lec09
   screencast: 
   readings:
   - text: Python for Data Analysis (Early Release)
