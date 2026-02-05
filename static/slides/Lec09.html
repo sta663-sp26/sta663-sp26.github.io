@@ -1270,7 +1270,7 @@ dtype: float64</code></pre>
 </section>
 <section id="series-indexing" class="slide level2">
 <h2>Series indexing</h2>
-<p>Series can be subset by their index or by logical expressions (as with NumPy arrays or R vectors)</p>
+<p>Series can be subset by their index values (not position) or by logical expressions (as with NumPy arrays or R vectors)</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href></a>t <span class="op">=</span> pd.Series([<span class="dv">4</span>,<span class="dv">2</span>,<span class="dv">1</span>,<span class="dv">3</span>], index<span class="op">=</span>[<span class="st">&quot;a&quot;</span>,<span class="st">&quot;b&quot;</span>,<span class="st">&quot;c&quot;</span>,<span class="st">&quot;d&quot;</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1344,7 +1344,10 @@ dtype: int64</code></pre>
 </div>
 </div>
 </div>
-</section>
+
+<aside><div>
+<p>The first two examples would have worked if we’re using a Int or Range index</p>
+</div></aside></section>
 <section id="index-alignment" class="slide level2">
 <h2>Index alignment</h2>
 <p>When performing operations with multiple series, generally pandas will attempt to align the operation by the index values,</p>
@@ -1574,7 +1577,7 @@ dtype: object</code></pre>
 </div>
 </div></div>
 <div class="fragment">
-<div class="columns small">
+<div class="columns xsmall">
 <div class="column" style="width:50%;">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb94"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb94-1"><a href></a>pd.isna( pd.Series([<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="va">None</span>]) )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1954,37 +1957,37 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>659</td>
-<td>74.851382</td>
-<td>172.802779</td>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
 <td>2026-02-01</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
-<td>339</td>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 <td>2026-02-03</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">3</th>
-<td>866</td>
-<td>70.251167</td>
-<td>185.992392</td>
+<td>768</td>
+<td>126.885781</td>
+<td>168.055900</td>
 <td>2026-02-04</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">4</th>
-<td>626</td>
-<td>70.038094</td>
-<td>157.697184</td>
+<td>342</td>
+<td>93.758617</td>
+<td>181.371930</td>
 <td>2026-02-05</td>
 </tr>
 </tbody>
@@ -2239,20 +2242,20 @@ dtype: object</code></pre>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb143"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb143-1"><a href></a>df[<span class="st">&quot;id&quot;</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>0    659
-1    610
-2    339
-3    866
-4    626
+<pre><code>0    200
+1    995
+2    238
+3    768
+4    342
 Name: id, dtype: int64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb145"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb145-1"><a href></a>df.<span class="bu">id</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>0    659
-1    610
-2    339
-3    866
-4    626
+<pre><code>0    200
+1    995
+2    238
+3    768
+4    342
 Name: id, dtype: int64</code></pre>
 </div>
 </div>
@@ -2287,16 +2290,16 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">2</th>
-<td>339</td>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 <td>2026-02-03</td>
 </tr>
 </tbody>
@@ -2332,23 +2335,23 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>659</td>
-<td>74.851382</td>
-<td>172.802779</td>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
 <td>2026-02-01</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">2</th>
-<td>339</td>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 <td>2026-02-03</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">4</th>
-<td>626</td>
-<td>70.038094</td>
-<td>157.697184</td>
+<td>342</td>
+<td>93.758617</td>
+<td>181.371930</td>
 <td>2026-02-05</td>
 </tr>
 </tbody>
@@ -2378,9 +2381,9 @@ text-align: right;
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb151"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb151-1"><a href></a>df.iloc[<span class="dv">1</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>id                        610
-weight             112.984848
-height             187.245093
+<pre><code>id                        995
+weight              69.552249
+height             196.166608
 date      2026-02-02 00:00:00
 Name: 1, dtype: object</code></pre>
 </div>
@@ -2412,9 +2415,9 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 </tbody>
@@ -2450,16 +2453,16 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>659</td>
-<td>74.851382</td>
-<td>172.802779</td>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
 <td>2026-02-01</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 </tbody>
@@ -2493,13 +2496,13 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">1</th>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>69.552249</td>
+<td>196.166608</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">2</th>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 </tr>
 </tbody>
 </table>
@@ -2535,17 +2538,17 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>659</td>
+<td>200</td>
 <td>2026-02-01</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
+<td>995</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
-<td>339</td>
+<td>238</td>
 <td>2026-02-03</td>
 </tr>
 </tbody>
@@ -2579,18 +2582,18 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>659</td>
-<td>74.851382</td>
+<td>200</td>
+<td>57.715447</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
-<td>112.984848</td>
+<td>995</td>
+<td>69.552249</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
-<td>339</td>
-<td>65.630906</td>
+<td>238</td>
+<td>48.327161</td>
 </tr>
 </tbody>
 </table>
@@ -2625,16 +2628,16 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">1</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">3</th>
-<td>866</td>
-<td>70.251167</td>
-<td>185.992392</td>
+<td>768</td>
+<td>126.885781</td>
+<td>168.055900</td>
 <td>2026-02-04</td>
 </tr>
 </tbody>
@@ -2677,37 +2680,37 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">anna</th>
-<td>659</td>
-<td>74.851382</td>
-<td>172.802779</td>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
 <td>2026-02-01</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">bob</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">carol</th>
-<td>339</td>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 <td>2026-02-03</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">dave</th>
-<td>866</td>
-<td>70.251167</td>
-<td>185.992392</td>
+<td>768</td>
+<td>126.885781</td>
+<td>168.055900</td>
 <td>2026-02-04</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">erin</th>
-<td>626</td>
-<td>70.038094</td>
-<td>157.697184</td>
+<td>342</td>
+<td>93.758617</td>
+<td>181.371930</td>
 <td>2026-02-05</td>
 </tr>
 </tbody>
@@ -2722,9 +2725,9 @@ text-align: right;
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb160"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb160-1"><a href></a>df.loc[<span class="st">&quot;anna&quot;</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>id                        659
-weight              74.851382
-height             172.802779
+<pre><code>id                        200
+weight              57.715447
+height             156.243857
 date      2026-02-01 00:00:00
 Name: anna, dtype: object</code></pre>
 </div>
@@ -2759,9 +2762,9 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">anna</th>
-<td>659</td>
-<td>74.851382</td>
-<td>172.802779</td>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
 <td>2026-02-01</td>
 </tr>
 </tbody>
@@ -2821,23 +2824,23 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">bob</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">carol</th>
-<td>339</td>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 <td>2026-02-03</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">dave</th>
-<td>866</td>
-<td>70.251167</td>
-<td>185.992392</td>
+<td>768</td>
+<td>126.885781</td>
+<td>168.055900</td>
 <td>2026-02-04</td>
 </tr>
 </tbody>
@@ -2874,6 +2877,20 @@ text-align: right;
 </tr>
 </thead>
 <tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">anna</th>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
+<td>2026-02-01</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">carol</th>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
+<td>2026-02-03</td>
+</tr>
 </tbody>
 </table>
 
@@ -2922,13 +2939,13 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">bob</th>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>69.552249</td>
+<td>196.166608</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">erin</th>
-<td>70.038094</td>
-<td>157.697184</td>
+<td>93.758617</td>
+<td>181.371930</td>
 </tr>
 </tbody>
 </table>
@@ -3244,37 +3261,37 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">anna</th>
-<td>659</td>
-<td>74.851382</td>
-<td>172.802779</td>
+<td>200</td>
+<td>57.715447</td>
+<td>156.243857</td>
 <td>2026-02-01</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">bob</th>
-<td>610</td>
-<td>112.984848</td>
-<td>187.245093</td>
+<td>995</td>
+<td>69.552249</td>
+<td>196.166608</td>
 <td>2026-02-02</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">carol</th>
-<td>339</td>
-<td>65.630906</td>
-<td>160.493238</td>
+<td>238</td>
+<td>48.327161</td>
+<td>178.808975</td>
 <td>2026-02-03</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">dave</th>
-<td>866</td>
-<td>70.251167</td>
-<td>185.992392</td>
+<td>768</td>
+<td>126.885781</td>
+<td>168.055900</td>
 <td>2026-02-04</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">erin</th>
-<td>626</td>
-<td>70.038094</td>
-<td>157.697184</td>
+<td>342</td>
+<td>93.758617</td>
+<td>181.371930</td>
 <td>2026-02-05</td>
 </tr>
 </tbody>
@@ -3293,7 +3310,7 @@ text-align: right;
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb183"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb183-1"><a href></a>df.iat[<span class="dv">0</span>,<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>np.int64(659)</code></pre>
+<pre><code>np.int64(200)</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb185"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb185-1"><a href></a>df.<span class="bu">id</span>[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -3312,11 +3329,11 @@ text-align: right;
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb191"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb191-1"><a href></a>df.at[<span class="st">&quot;anna&quot;</span>, <span class="st">&quot;id&quot;</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>np.int64(659)</code></pre>
+<pre><code>np.int64(200)</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb193"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb193-1"><a href></a>df[<span class="st">&quot;id&quot;</span>][<span class="st">&quot;anna&quot;</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>np.int64(659)</code></pre>
+<pre><code>np.int64(200)</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb195"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb195-1"><a href></a>df[<span class="st">&quot;id&quot;</span>][<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -3367,33 +3384,33 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>0.142559</td>
-<td>-2.549740</td>
-<td>-0.827619</td>
+<td>0.555298</td>
+<td>1.237481</td>
+<td>-1.096399</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
-<td>0.090425</td>
-<td>1.525071</td>
-<td>-0.707434</td>
+<td>-0.457000</td>
+<td>-0.817442</td>
+<td>-1.658612</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
-<td>0.415434</td>
-<td>0.643247</td>
-<td>-0.323415</td>
+<td>-0.943632</td>
+<td>-0.190040</td>
+<td>-0.850275</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">3</th>
-<td>2.594474</td>
-<td>-0.957565</td>
-<td>-1.409895</td>
+<td>-0.325382</td>
+<td>-0.152456</td>
+<td>0.426736</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">4</th>
-<td>0.042587</td>
-<td>1.650910</td>
-<td>-0.474850</td>
+<td>1.276448</td>
+<td>-1.010736</td>
+<td>1.063402</td>
 </tr>
 </tbody>
 </table>
@@ -3435,21 +3452,21 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">x</th>
-<td>1.153564</td>
-<td>0.607246</td>
-<td>-0.745101</td>
+<td>-1.080576</td>
+<td>-0.032645</td>
+<td>-0.379919</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">y</th>
-<td>-0.440562</td>
-<td>1.118582</td>
-<td>-0.927971</td>
+<td>-2.691178</td>
+<td>-0.247386</td>
+<td>0.541314</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">z</th>
-<td>-0.440077</td>
-<td>-1.004909</td>
-<td>-1.058644</td>
+<td>-0.217621</td>
+<td>1.012104</td>
+<td>-0.367918</td>
 </tr>
 </tbody>
 </table>
@@ -3553,21 +3570,21 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">x</th>
-<td>-2.004805</td>
-<td>-0.317074</td>
-<td>0.319219</td>
+<td>-0.649065</td>
+<td>-0.881551</td>
+<td>1.478708</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">y</th>
-<td>-0.259864</td>
-<td>0.725242</td>
-<td>-0.450637</td>
+<td>1.534376</td>
+<td>0.202521</td>
+<td>0.195817</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">z</th>
-<td>0.409833</td>
-<td>-0.450260</td>
-<td>0.818892</td>
+<td>0.834751</td>
+<td>1.269891</td>
+<td>-1.427342</td>
 </tr>
 </tbody>
 </table>
@@ -4427,35 +4444,35 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">A</th>
 <th data-quarto-table-cell-role="th">x</th>
-<td>0.762480</td>
-<td>0.597482</td>
+<td>0.432674</td>
+<td>0.954728</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">y</th>
-<td>0.518560</td>
-<td>0.208513</td>
+<td>0.519791</td>
+<td>0.771165</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">B</th>
 <th data-quarto-table-cell-role="th">x</th>
-<td>0.871525</td>
-<td>0.974238</td>
+<td>0.949299</td>
+<td>0.521805</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">y</th>
-<td>0.846505</td>
-<td>0.649222</td>
+<td>0.809213</td>
+<td>0.208332</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">C</th>
 <th data-quarto-table-cell-role="th">x</th>
-<td>0.458415</td>
-<td>0.707400</td>
+<td>0.777001</td>
+<td>0.002249</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">y</th>
-<td>0.474986</td>
-<td>0.144077</td>
+<td>0.762001</td>
+<td>0.976363</td>
 </tr>
 </tbody>
 </table>
@@ -4510,31 +4527,31 @@ text-align: left;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">0</th>
-<td>0.963868</td>
-<td>0.556983</td>
-<td>0.971970</td>
-<td>0.437350</td>
+<td>0.660493</td>
+<td>0.181417</td>
+<td>0.784601</td>
+<td>0.691375</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">1</th>
-<td>0.816012</td>
-<td>0.322633</td>
-<td>0.403163</td>
-<td>0.810778</td>
+<td>0.137302</td>
+<td>0.545351</td>
+<td>0.640257</td>
+<td>0.525258</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">2</th>
-<td>0.468359</td>
-<td>0.732775</td>
-<td>0.250353</td>
-<td>0.043750</td>
+<td>0.009936</td>
+<td>0.646707</td>
+<td>0.128306</td>
+<td>0.315168</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">3</th>
-<td>0.357053</td>
-<td>0.125794</td>
-<td>0.510254</td>
-<td>0.481961</td>
+<td>0.320345</td>
+<td>0.371164</td>
+<td>0.558344</td>
+<td>0.280129</td>
 </tr>
 </tbody>
 </table>
@@ -4598,32 +4615,32 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.795220</td>
-<td>0.009661</td>
-<td>0.843386</td>
-<td>0.046197</td>
+<td>0.524746</td>
+<td>0.096756</td>
+<td>0.664596</td>
+<td>0.450048</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.459810</td>
-<td>0.004418</td>
-<td>0.725141</td>
-<td>0.385983</td>
+<td>0.122310</td>
+<td>0.842365</td>
+<td>0.867014</td>
+<td>0.858448</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.627062</td>
-<td>0.263611</td>
-<td>0.427911</td>
-<td>0.617691</td>
+<td>0.465433</td>
+<td>0.998055</td>
+<td>0.875562</td>
+<td>0.567632</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.746212</td>
-<td>0.229924</td>
-<td>0.831836</td>
-<td>0.737049</td>
+<td>0.911802</td>
+<td>0.745366</td>
+<td>0.449562</td>
+<td>0.006176</td>
 </tr>
 </tbody>
 </table>
@@ -4685,32 +4702,32 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.179763</td>
+<td>0.787379</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
-<td>0.202971</td>
-<td>0.128696</td>
+<td>0.823848</td>
+<td>0.654454</td>
+<td>0.494629</td>
+<td>0.924918</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.000461</td>
-<td>0.017242</td>
-<td>0.146753</td>
-<td>0.268246</td>
+<td>0.344536</td>
+<td>0.541508</td>
+<td>0.544303</td>
+<td>0.591460</td>
 </tr>
 </tbody>
 </table>
@@ -4753,24 +4770,24 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
+<td>0.179763</td>
+<td>0.787379</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
+<td>0.220432</td>
+<td>0.483390</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
+<td>0.823848</td>
+<td>0.654454</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.000461</td>
-<td>0.017242</td>
+<td>0.344536</td>
+<td>0.541508</td>
 </tr>
 </tbody>
 </table>
@@ -4795,19 +4812,19 @@ text-align: right;
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb254"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb254-1"><a href></a>data[<span class="st">&quot;A&quot;</span>,<span class="st">&quot;x&quot;</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>r1  r2
-m   l     0.922092
-    p     0.629027
-n   l     0.551053
-    p     0.000461
+m   l     0.179763
+    p     0.220432
+n   l     0.823848
+    p     0.344536
 Name: (A, x), dtype: float64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb256"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb256-1"><a href></a>data[<span class="st">&quot;A&quot;</span>][<span class="st">&quot;x&quot;</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>r1  r2
-m   l     0.922092
-    p     0.629027
-n   l     0.551053
-    p     0.000461
+m   l     0.179763
+    p     0.220432
+n   l     0.823848
+    p     0.344536
 Name: x, dtype: float64</code></pre>
 </div>
 </div>
@@ -4821,10 +4838,10 @@ Name: x, dtype: float64</code></pre>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb258"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb258-1"><a href></a>data.iloc[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>c1  c2
-A   x     0.922092
-    y     0.562895
-B   x     0.229422
-    y     0.810382
+A   x     0.179763
+    y     0.787379
+B   x     0.565183
+    y     0.665208
 Name: (m, l), dtype: float64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb260"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb260-1"><a href></a><span class="bu">type</span>(data.iloc[<span class="dv">0</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4833,7 +4850,7 @@ Name: (m, l), dtype: float64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb262"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb262-1"><a href></a>data.iloc[(<span class="dv">0</span>,<span class="dv">1</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>np.float64(0.5628949648304943)</code></pre>
+<pre><code>np.float64(0.7873788607957514)</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb264"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb264-1"><a href></a>data.iloc[[<span class="dv">0</span>,<span class="dv">1</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
@@ -4882,17 +4899,17 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.179763</td>
+<td>0.787379</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 </tbody>
 </table>
@@ -4905,10 +4922,10 @@ text-align: right;
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb265"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb265-1"><a href></a>data.iloc[:,<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>r1  r2
-m   l     0.922092
-    p     0.629027
-n   l     0.551053
-    p     0.000461
+m   l     0.179763
+    p     0.220432
+n   l     0.823848
+    p     0.344536
 Name: (A, x), dtype: float64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb267"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb267-1"><a href></a><span class="bu">type</span>(data.iloc[:,<span class="dv">0</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4917,13 +4934,13 @@ Name: (A, x), dtype: float64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb269"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb269-1"><a href></a>data.iloc[<span class="dv">0</span>,<span class="dv">1</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>np.float64(0.5628949648304943)</code></pre>
+<pre><code>np.float64(0.7873788607957514)</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb271"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb271-1"><a href></a>data.iloc[<span class="dv">0</span>,[<span class="dv">0</span>,<span class="dv">1</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>c1  c2
-A   x     0.922092
-    y     0.562895
+A   x     0.179763
+    y     0.787379
 Name: (m, l), dtype: float64</code></pre>
 </div>
 </div>
@@ -4980,17 +4997,17 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.179763</td>
+<td>0.787379</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 </tbody>
 </table>
@@ -5035,24 +5052,24 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
+<td>0.179763</td>
+<td>0.787379</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
+<td>0.220432</td>
+<td>0.483390</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
+<td>0.823848</td>
+<td>0.654454</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.000461</td>
-<td>0.017242</td>
+<td>0.344536</td>
+<td>0.541508</td>
 </tr>
 </tbody>
 </table>
@@ -5065,19 +5082,19 @@ text-align: right;
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb277"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb277-1"><a href></a>data.loc[(<span class="st">&quot;m&quot;</span>,<span class="st">&quot;l&quot;</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>c1  c2
-A   x     0.922092
-    y     0.562895
-B   x     0.229422
-    y     0.810382
+A   x     0.179763
+    y     0.787379
+B   x     0.565183
+    y     0.665208
 Name: (m, l), dtype: float64</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb279"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb279-1"><a href></a>data.loc[:,(<span class="st">&quot;A&quot;</span>,<span class="st">&quot;y&quot;</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>r1  r2
-m   l     0.562895
-    p     0.054008
-n   l     0.651368
-    p     0.017242
+m   l     0.787379
+    p     0.483390
+n   l     0.654454
+    p     0.541508
 Name: (A, y), dtype: float64</code></pre>
 </div>
 </div>
@@ -5136,32 +5153,32 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.179763</td>
+<td>0.787379</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
-<td>0.202971</td>
-<td>0.128696</td>
+<td>0.823848</td>
+<td>0.654454</td>
+<td>0.494629</td>
+<td>0.924918</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.000461</td>
-<td>0.017242</td>
-<td>0.146753</td>
-<td>0.268246</td>
+<td>0.344536</td>
+<td>0.541508</td>
+<td>0.544303</td>
+<td>0.591460</td>
 </tr>
 </tbody>
 </table>
@@ -5218,25 +5235,25 @@ text-align: right;
 <tr class="odd">
 <th data-quarto-table-cell-role="th">m</th>
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 <tr class="even">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
-<td>0.202971</td>
-<td>0.128696</td>
+<td>0.823848</td>
+<td>0.654454</td>
+<td>0.494629</td>
+<td>0.924918</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.000461</td>
-<td>0.017242</td>
-<td>0.146753</td>
-<td>0.268246</td>
+<td>0.344536</td>
+<td>0.541508</td>
+<td>0.544303</td>
+<td>0.591460</td>
 </tr>
 </tbody>
 </table>
@@ -5295,25 +5312,25 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.179763</td>
+<td>0.787379</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
-<td>0.202971</td>
-<td>0.128696</td>
+<td>0.823848</td>
+<td>0.654454</td>
+<td>0.494629</td>
+<td>0.924918</td>
 </tr>
 </tbody>
 </table>
@@ -5370,18 +5387,18 @@ text-align: right;
 <tr class="odd">
 <th data-quarto-table-cell-role="th">m</th>
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.551053</td>
-<td>0.651368</td>
-<td>0.202971</td>
-<td>0.128696</td>
+<td>0.823848</td>
+<td>0.654454</td>
+<td>0.494629</td>
+<td>0.924918</td>
 </tr>
 </tbody>
 </table>
@@ -5440,17 +5457,17 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">m</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.58928</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">n</th>
-<td>0.000461</td>
-<td>0.017242</td>
-<td>0.146753</td>
-<td>0.268246</td>
+<td>0.344536</td>
+<td>0.541508</td>
+<td>0.544303</td>
+<td>0.59146</td>
 </tr>
 </tbody>
 </table>
@@ -5494,24 +5511,24 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.562895</td>
-<td>0.810382</td>
+<td>0.787379</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.054008</td>
-<td>0.899993</td>
+<td>0.483390</td>
+<td>0.589280</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.651368</td>
-<td>0.128696</td>
+<td>0.654454</td>
+<td>0.924918</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.017242</td>
-<td>0.268246</td>
+<td>0.541508</td>
+<td>0.591460</td>
 </tr>
 </tbody>
 </table>
@@ -5566,17 +5583,17 @@ text-align: right;
 <tbody>
 <tr class="odd">
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.922092</td>
-<td>0.562895</td>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.179763</td>
+<td>0.787379</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.629027</td>
-<td>0.054008</td>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.220432</td>
+<td>0.483390</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 </tbody>
 </table>
@@ -5620,24 +5637,24 @@ text-align: right;
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">m</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.229422</td>
-<td>0.810382</td>
+<td>0.565183</td>
+<td>0.665208</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.481722</td>
-<td>0.899993</td>
+<td>0.292793</td>
+<td>0.589280</td>
 </tr>
 <tr class="odd">
 <th rowspan="2" data-quarto-table-cell-role="th" data-valign="top">n</th>
 <th data-quarto-table-cell-role="th">l</th>
-<td>0.202971</td>
-<td>0.128696</td>
+<td>0.494629</td>
+<td>0.924918</td>
 </tr>
 <tr class="even">
 <th data-quarto-table-cell-role="th">p</th>
-<td>0.146753</td>
-<td>0.268246</td>
+<td>0.544303</td>
+<td>0.591460</td>
 </tr>
 </tbody>
 </table>

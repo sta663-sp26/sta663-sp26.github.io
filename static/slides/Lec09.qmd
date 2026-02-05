@@ -167,7 +167,7 @@ np.exp(-t**2/2)
 
 ## Series indexing
 
-Series can be subset by their index or by logical expressions (as with NumPy arrays or R vectors)
+Series can be subset by their index values (not position) or by logical expressions (as with NumPy arrays or R vectors)
 
 ::: {.small}
 ```{python}
@@ -215,6 +215,10 @@ t[[1,2]]
 t.iloc[1]
 t.iloc[[1,2]]
 ```
+:::
+
+::: {.aside}
+The first two examples would have worked if we're using a Int or Range index
 :::
 
 ## Index alignment
@@ -364,7 +368,7 @@ pd.Series([True,False,None])
 
 . . .
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
 pd.isna( pd.Series([1,2,3,None]) )
