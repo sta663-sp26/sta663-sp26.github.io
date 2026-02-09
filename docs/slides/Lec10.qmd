@@ -43,130 +43,6 @@ df = pd.DataFrame(d, index = (["anna","bob","carol", "dave", "erin"]))
 ```
 
 
-## Filtering rows
-
-The `query()` method can be used for filtering rows, it evaluates a string expression in the context of the data frame. 
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.query('date == "2022-02-01"')
-df.query('weight > 50')
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.query('weight > 50 & height < 165')
-
-qid = 202
-df.query('id == @qid')
-```
-:::
-::::
-
-
-
-::: {.aside}
-For more details on query syntax see [here](https://pandas.pydata.org/docs/user_guide/indexing.html#indexing-query)
-:::
-
-## Selecting Columns
-
-Beyond the use of `loc()` and `iloc()` there is also the `filter()` method which can be used to select columns (or indices) by name with pattern matching
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-```{python}
-df.filter(items=["id","weight"])
-df.filter(like = "i")
-```
-:::
-
-::: {.column width='50%'}
-```{python}
-df.filter(regex="ght$")
-df.filter(like="a", axis=0)
-```
-:::
-::::
-
-
-
-## Adding columns
-
-Indexing with assignment allows for inplace modification of a DataFrame, while `assign()` creates a new object (but is chainable)
-
-::: {.xsmall}
-```{python}
-df['student'] = [True, True, True, False, None]
-df['age'] = [19, 22, 25, None, None]
-df
-```
-:::
-
-. . .
-
-::: {.xsmall}
-```{python}
-df.assign(
-  student = lambda x: np.where(x.student, "yes", "no"),
-  rand = np.random.rand(5)
-)
-```
-:::
-
-
-## Removing columns (and rows)
-
-Columns or rows can be removed via the `drop()` method,
-
-::: {.xsmall}
-```{python error=TRUE}
-df.drop(['student'])
-df.drop(['student'], axis=1)
-df.drop(['anna','dave'])
-```
-:::
-
-##
-
-::: {.xsmall}
-```{python error=TRUE}
-df.drop(columns = df.columns == "age")
-df.drop(columns = df.columns[df.columns == "age"])
-df.drop(columns = df.columns[df.columns.str.contains("ght")])
-```
-:::
-
-
-
-## Sorting
-
-DataFrames can be sorted on one or more columns via `sort_values()`,
-
-::: {.small}
-```{python}
-df
-```
-
-```{python error=TRUE}
-df.sort_values(by=["student","id"], ascending=[True,False])
-```
-:::
-
-
-## join vs merge vs concat
-
-All three can be used to combine data frames,
-
-* `concat()` stacks DataFrames on either axis, with basic alignment based on (row) indexes. `join` argument only supports "inner" and "outer".
-
-* `merge()` aligns based on one or more shared columns. `how` supports "inner", "outer", "left", "right", and "cross".
-
-* `join()` uses `merge()` behind the scenes, but prefers to join based on (row) indexes. Also has different default `how` compared to `merge()`, "left" vs "inner".
-
-
 ## Pivoting - long to wide 
 
 ::: {.small}
@@ -297,10 +173,9 @@ d %>%
 
 ## cereal data 
 
-::: {.small}
+::: {.xsmall}
 ```{python}
-cereal = pd.read_csv("https://sta663-sp26.github.io/slides/data/cereal.csv")
-cereal
+cereal = pd.read_csv("https://sta663-sp26.github.io/slides/data/cereal.csv"); cereal
 ```
 :::
 
@@ -310,7 +185,7 @@ From [UBC-MDS/programming-in-python-for-data-science](https://raw.githubusercont
 
 ## groupby
 
-Groups can be created within a DataFrame via `groupby()` - these groups are then used by the standard summary methods (e.g. `sum()`, `mean()`, `std()`, etc.).
+Groups can be created within a DataFrame via `groupby()` - these groups are then used by the standard aggregation methods (e.g. `sum()`, `mean()`, `std()`, etc.).
 
 ::: {.small}
 ```{python}
@@ -320,7 +195,7 @@ cereal.groupby("mfr").groups
 ```
 :::
 
-## groupby and arregation methods
+## groupby and aggregation methods
 
 ::: {.small}
 ```{python}
@@ -352,7 +227,7 @@ cereal.groupby("mfr").size()
 
 Groups can be accessed via `get_group()` 
 
-::: {.small}
+::: {.xsmall}
 ```{python error=TRUE}
 cereal.groupby("type").get_group("Hot")
 
@@ -360,12 +235,11 @@ cereal.groupby("mfr").get_group("Post")
 ```
 :::
 
-## Iterating groups
+## Iterating over groups
 
-`DataFrameGroupBy`'s can also be iterated over,
+`DataFrameGroupBy` objects can also be iterated over:
 
-
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 for name, group in cereal.groupby("type"):
   print(f"# {name}\n{group}\n\n")
@@ -377,7 +251,7 @@ for name, group in cereal.groupby("type"):
 ## Aggregation
 
 
-The `aggregate()` function or `agg()` method can be used to compute summary statistics for each group,
+The `aggregate()` (or `agg()`) method can be used to compute summary statistics for each group.
 
 ::: {.small}
 ```{python}
@@ -421,7 +295,7 @@ Note that this results in a DataFrame with a column multiindex.
 
 It is also possible to use special syntax to aggregate specific columns into a named output column,
 
-::: {.medium}
+::: {.xsmall}
 ```{python}
 cereal.groupby("mfr", as_index=False).agg(
   min_cal = ("calories", "min"),
@@ -441,9 +315,10 @@ Tuples can also be passed using `pd.NamedAgg()` but this offers no additional fu
 
 The `transform()` method returns a DataFrame with the aggregated result matching the size (or length 1) of the input group(s),
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
+#| error: true
 ( cereal
   .groupby("mfr")
   .transform(
@@ -453,7 +328,7 @@ The `transform()` method returns a DataFrame with the aggregated result matching
 ```
 :::
 
-::: {.column width='50%'}
+::: {.column width='50%' .fragment}
 ```{python}
 ( cereal
   .groupby("type")
@@ -468,9 +343,9 @@ The `transform()` method returns a DataFrame with the aggregated result matching
 
 ## Practical transformation
 
-`transform()` will generally be most useful via a user defined function, the lambda is applied to each column of each group.
+`transform()` will generally be most useful via a user-defined function; the lambda is applied to each column of each group.
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 ( cereal
   .drop(["name","type"], axis=1)
@@ -481,16 +356,16 @@ The `transform()` method returns a DataFrame with the aggregated result matching
 :::
 
 
-## Filtering groups
+## Filtering groups {.scrollable}
 
 ::: {.small}
-`filter()` also respects groups and allows for the inclusion / exclusion of groups based on user specified criteria,
+`filter()` also respects groups and allows for the inclusion / exclusion of groups based on user-specified criteria.
 :::
 
 ::: {.panel-tabset}
 
 ### filter 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 ( cereal
   .groupby("mfr")
@@ -524,7 +399,7 @@ The `transform()` method returns a DataFrame with the aggregated result matching
 > * Utilizes all available cores on your machine.
 > * Optimizes queries to reduce unneeded work/memory allocations.
 > * Handles datasets much larger than your available RAM.
-> * A consistent and predictable API.
+> * Provides a consistent and predictable API.
 > * Adheres to a strict schema (data-types should be known before running the query).
 
 ::: {.small}
@@ -615,9 +490,42 @@ pl.Series("bools",
 :::
 :::
 
+## `null` vs `NaN`
+
+::: {.small}
+In Polars, `null` and `NaN` are distinct concepts: `null` represents missing data while `NaN` is a valid IEEE 754 floating point value. This distinction matters for aggregation and filtering.
+:::
+
+::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+s = pl.Series("x", [1., 2., np.nan, None])
+s
+```
+
+```{python}
+s.is_null()
+s.is_nan()
+```
+:::
+::: {.column width='50%' .fragment}
+```{python}
+s.null_count()
+s.sum()
+s.mean()
+```
+
+```{python}
+s.fill_null(0)
+s.fill_nan(0)
+```
+:::
+:::
+
+
 ## DataFrames
 
-Data Frames can be constructed in the same was as Pandas, 
+Data Frames can be constructed in the same way as Pandas, 
 
 ```{python}
 #| include: false
@@ -645,10 +553,12 @@ df
 
 Polars makes use of lazy evaluation to improve its flexibility and computational performance.
 
+::: {.small}
 ```{python}
-bmi_expr = pl.col("weight") / (pl.col("height") ** 2)
+bmi_expr = pl.col("weight") / ((pl.col("height")/100) ** 2)
 bmi_expr
 ```
+:::
 
 <br/>
 
@@ -673,7 +583,7 @@ df.with_columns(bmi = bmi_expr)
 
 ## `filter()`
 
-::: {.columns .xsmall}
+::: {.columns .xxsmall}
 ::: {.column}
 ```{python}
 df.filter(
@@ -694,7 +604,7 @@ df.filter(
 
 ## `group_by()` & `agg()`
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 df.group_by(
   id_range = pl.col("id") - pl.col("id") % 100
@@ -721,12 +631,127 @@ df.with_columns(
 ```
 :::
 
+## `sort()` & `sort_by()`
+
+`sort()` sorts a DataFrame by one or more columns. `sort_by()` is the expression-level equivalent for use within contexts.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+df.sort("weight")
+df.sort("weight", descending=True)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df.sort("id", "height")
+```
+
+```{python}
+df.with_columns(
+  rank = pl.col("weight")
+    .rank()
+    .over("id")
+    .sort_by("weight")
+)
+```
+:::
+::::
+
+
+## Pivoting - long to wide
+
+```{python}
+#| include: false
+df_long = pl.DataFrame({
+  "country": ["A","A","A","A","B","B","B","B","C","C","C","C"],
+  "year":    [1999,1999,2000,2000,1999,1999,2000,2000,1999,1999,2000,2000],
+  "type":    ["cases","pop","cases","pop","cases","pop","cases","pop","cases","pop","cases","pop"],
+  "count":   ["0.7K", "19M", "2K", "20M", "37K", "172M", "80K", "174M", "212K", "1T", "213K", "1T"]
+})
+```
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df_long
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df_wide = df_long.pivot(
+  on="type",
+  index=["country","year"],
+  values="count"
+)
+df_wide
+```
+:::
+::::
+
+## Wide to long (unpivot)
+
+::: {.small}
+In polars, `melt()` has been renamed to `unpivot()`.
+:::
+
+```{python}
+#| include: false
+df_wide2 = pl.DataFrame({
+  "country": ["A","B","C"],
+  "1999":    ["0.7K","37K","212K"],
+  "2000":    ["2K","80K","213K"]
+})
+```
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df_wide2
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df_wide2.unpivot(
+  on=["1999", "2000"],
+  index="country",
+  variable_name="year",
+  value_name="cases"
+)
+```
+:::
+::::
+
+
+## pandas vs polars
+
+::: {.small}
+
+**pandas** is a good choice when:
+
+* Working interactively with small to medium datasets
+* Using libraries that expect pandas DataFrames (e.g. scikit-learn, statsmodels, seaborn)
+* You need the extensive ecosystem of pandas-compatible tools
+
+**polars** is a good choice when:
+
+* Working with large datasets that benefit from multi-core processing
+* Building data pipelines where lazy evaluation can optimize query plans
+* You want strict type checking and predictable behavior (no index surprises)
+
+In practice, the two are easy to convert between via `df.to_pandas()` and `pl.from_pandas()`.
+
+:::
+
 ## NYC Taxi Data
 
 ::: {.small}
 ```{python}
 df = pl.scan_parquet(
-  "~/Scratch/nyctaxi/*_fix.parquet"
+  "~/Scratch/nyctaxi/fix/*_fix.parquet"
 )
 df
 ```
@@ -738,12 +763,19 @@ df
 
 ```{python}
 df.select(pl.len()).collect()
-df.select(pl.len()).explain()
 ```
 :::
 
 ::: {.aside}
 These data are available on `rstudio.stat.duke.edu` in the `/data/nyctaxi` directory.
+:::
+
+## Query plan
+
+::: {.small}
+```{python}
+print( df.select(pl.len()).explain() )
+```
 :::
 
 ## Large lazy queries
@@ -780,7 +812,7 @@ query = (
 ```
 :::
 
-## Plan
+## Plan {.scrollable}
 
 ::: {.xsmall}
 ```{python}
@@ -797,12 +829,63 @@ query.collect()
 :::
 
 
+## pandas equivalent
+
+::: {.xsmall}
+```{python}
+# pyarrow is required for reading parquet files
+
+zone_lookup_pd = pd.read_csv(
+  "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+).rename(columns={"LocationID": "pickup_zone"})
+
+def pd_query():
+    df = pd.read_parquet("~/Scratch/nyctaxi/fix/")
+    filtered = (
+      df[df["trip_distance"] > 0]
+      .rename(columns={"PULocationID": "pickup_zone"})
+      .assign(fare_per_mile=lambda x: x["fare_amount"] / x["trip_distance"])
+    )
+    return (
+      filtered
+      .groupby("pickup_zone")
+      .agg(
+        num_rides=("fare_per_mile", "size"),
+        avg_fare_per_mile=("fare_per_mile", "mean")
+      )
+      .round({"avg_fare_per_mile": 2})
+      .reset_index()
+      .merge(zone_lookup_pd, on="pickup_zone", how="left")
+      .sort_values("pickup_zone")
+    )
+```
+:::
+
+
 ## Performance
 
+#### polars
+
+::: {.small}
 ```{python}
 #| eval: false
 %timeit query.collect()
 ```
 ```
-1.14 s ± 62 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+1.10 s ± 72 ms per loop (mean ± std. dev. of 3 runs, 1 loop each)
 ```
+:::
+
+<br/>
+
+#### pandas
+
+::: {.small}
+```{python}
+#| eval: false
+%timeit pd_query()
+```
+```
+150.8 s ± 5.9 s per loop (mean ± std. dev. of 3 runs, 1 loop each)
+```
+:::

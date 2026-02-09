@@ -119,11 +119,13 @@ schedule:
 - week: 5
   day: 2
   lecture: "Data frames - polars"
-  slides:
+  slides: Lec10
   screencast: 
   readings:
   - text: Polars user guide
     link: https://docs.pola.rs/
+  - text: Polars - Coming from Pandas
+    link: https://docs.pola.rs/user-guide/migration/pandas/
   notes:
 
 - week: 5

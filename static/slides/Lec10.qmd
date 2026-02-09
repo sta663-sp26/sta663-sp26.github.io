@@ -1,0 +1,891 @@
+---
+title: "pandas / polars"
+subtitle: "Lecture 10"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute:
+  echo: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+```{python, include=FALSE}
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+
+np.set_printoptions(edgeitems=3, linewidth=180)
+```
+
+```{python}
+#| include: false
+
+np.random.seed(42)
+
+n = 5
+d = {
+  "id":     np.random.randint(100, 999, n),
+  "weight": np.random.normal(70, 20, n),
+  "height": np.random.normal(170, 15, n),
+  "date":   pd.date_range(start='2/1/2025', periods=n, freq='D')
+}
+
+df = pd.DataFrame(d, index = (["anna","bob","carol", "dave", "erin"]))
+```
+
+
+## Pivoting - long to wide 
+
+::: {.small}
+```{python include=FALSE}
+df = pd.DataFrame({
+   "country": ["A","A","A","A","B","B","B","B","C","C","C","C"],
+    "year":   [1999,1999,2000,2000,1999,1999,2000,2000,1999,1999,2000,2000],
+    "type":   ["cases","pop","cases","pop","cases","pop","cases","pop","cases","pop","cases","pop"],
+    "count":  ["0.7K", "19M", "2K", "20M", "37K", "172M", " 80K", "174M", "212K", "1T", "213K", "1T"]
+})
+```
+:::
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df_wide = df.pivot(
+  index=["country","year"], 
+  columns="type", 
+  values="count"
+)
+df_wide
+```
+:::
+::::
+
+## pivot indexes
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df_wide.index
+df_wide.columns
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+( df_wide
+  .reset_index()
+  .rename_axis(
+    columns=None
+  )
+)
+```
+:::
+::::
+
+
+## Wide to long (melt)
+
+```{python include=FALSE}
+df = pd.DataFrame({
+  "country": ["A","B","C"],
+  "1999":    ["0.7K","37K","212K"],
+  "2000":    ["2K","80K","213K"]
+})
+```
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df_long = df.melt(
+  id_vars="country", 
+  var_name="year",
+  value_name="value"
+)
+df_long
+```
+:::
+::::
+
+
+## Exercise 1 - Tidying
+
+How would you tidy the following data frame so that the rate column is split into cases and population columns?
+
+::: {.small}
+```{python}
+df = pd.DataFrame({
+  "country": ["A","A","B","B","C","C"],
+  "year":    [1999, 2000, 1999, 2000, 1999, 2000],
+  "rate":    ["0.7K/19M", "2K/20M", "37K/172M", "80K/174M", "212K/1T", "213K/1T"]
+})
+df
+```
+:::
+
+
+
+
+# Split-Apply-Combine
+
+```{r include=FALSE}
+library(tidyverse)
+d = readr::read_csv(
+  "https://raw.githubusercontent.com/UBC-MDS/programming-in-python-for-data-science/master/data/cereal.csv"
+)
+
+d %>%
+  mutate(
+    mfr = case_when(
+      mfr == "A" ~ "Maltex",
+      mfr == "G" ~ "General Mills",
+      mfr == "K" ~ "Kellogg's",
+      mfr == "N" ~ "Nabisco",
+      mfr == "P" ~ "Post",
+      mfr == "Q" ~ "Quaker Oats",
+      mfr == "R" ~ "Ralston Purina"
+    )
+  ) %>%
+  select(-sodium, -potass, -vitamins, -shelf, -weight, -cups) %>%
+  select(-(protein:carbo)) %>%
+  write_csv("data/cereal.csv")
+```
+
+## cereal data 
+
+::: {.xsmall}
+```{python}
+cereal = pd.read_csv("https://sta663-sp26.github.io/slides/data/cereal.csv"); cereal
+```
+:::
+
+::: {.aside}
+From [UBC-MDS/programming-in-python-for-data-science](https://raw.githubusercontent.com/UBC-MDS/programming-in-python-for-data-science/master/data/)
+:::
+
+## groupby
+
+Groups can be created within a DataFrame via `groupby()` - these groups are then used by the standard aggregation methods (e.g. `sum()`, `mean()`, `std()`, etc.).
+
+::: {.small}
+```{python}
+cereal.groupby("type")
+cereal.groupby("type").groups
+cereal.groupby("mfr").groups
+```
+:::
+
+## groupby and aggregation methods
+
+::: {.small}
+```{python}
+#| error: true
+cereal.groupby("type").mean()
+```
+:::
+
+. . .
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python error=TRUE}
+( cereal
+  .groupby("type")
+  .mean(numeric_only=True)
+)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python error=TRUE}
+cereal.groupby("mfr").size()
+```
+:::
+::::
+
+## Selecting groups
+
+Groups can be accessed via `get_group()` 
+
+::: {.xsmall}
+```{python error=TRUE}
+cereal.groupby("type").get_group("Hot")
+
+cereal.groupby("mfr").get_group("Post")
+```
+:::
+
+## Iterating over groups
+
+`DataFrameGroupBy` objects can also be iterated over:
+
+::: {.xxsmall}
+```{python}
+for name, group in cereal.groupby("type"):
+  print(f"# {name}\n{group}\n\n")
+```
+:::
+
+
+
+## Aggregation
+
+
+The `aggregate()` (or `agg()`) method can be used to compute summary statistics for each group.
+
+::: {.small}
+```{python}
+#| error: true
+cereal.groupby("mfr").agg("mean")
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+#| error: true
+cereal.groupby("mfr").agg("mean", numeric_only = True)
+```
+:::
+
+::: {.aside}
+Think `summarize()` from dplyr.
+:::
+
+
+## Aggregation by column
+
+::: {.small}
+```{python}
+cereal.groupby("mfr").agg({
+  "calories": ['min', 'max'],
+  "sugars":   ['median'],
+  "rating":   ['sum', 'count']
+})
+```
+:::
+
+
+::: {.aside}
+Note that this results in a DataFrame with a column multiindex.
+:::
+
+## Named aggregation
+
+It is also possible to use special syntax to aggregate specific columns into a named output column,
+
+::: {.xsmall}
+```{python}
+cereal.groupby("mfr", as_index=False).agg(
+  min_cal = ("calories", "min"),
+  max_cal = ("calories", max),
+  med_sugar = ("sugars", "median"),
+  avg_rating = ("rating", np.mean)
+)
+```
+:::
+
+::: {.aside}
+Tuples can also be passed using `pd.NamedAgg()` but this offers no additional functionality.
+:::
+
+
+## Transformation
+
+The `transform()` method returns a DataFrame with the aggregated result matching the size (or length 1) of the input group(s),
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+#| error: true
+( cereal
+  .groupby("mfr")
+  .transform(
+    np.mean, numeric_only=True
+  )
+)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+( cereal
+  .groupby("type")
+  .transform(
+    "mean", numeric_only=True
+  )
+)
+```
+:::
+::::
+
+
+## Practical transformation
+
+`transform()` will generally be most useful via a user-defined function; the lambda is applied to each column of each group.
+
+::: {.xsmall}
+```{python}
+( cereal
+  .drop(["name","type"], axis=1)
+  .groupby("mfr")
+  .transform( lambda x: (x - np.mean(x))/np.std(x, axis=0) ) 
+)
+```
+:::
+
+
+## Filtering groups {.scrollable}
+
+::: {.small}
+`filter()` also respects groups and allows for the inclusion / exclusion of groups based on user-specified criteria.
+:::
+
+::: {.panel-tabset}
+
+### filter 
+::: {.xxsmall}
+```{python}
+( cereal
+  .groupby("mfr")
+  .filter(lambda x: len(x) > 10)
+)
+```
+:::
+
+### Group sizes
+
+::: {.columns .xsmall}
+```{python}
+( cereal
+  .groupby("mfr")
+  .size()
+)
+```
+:::
+
+
+:::
+
+# ![](imgs/polars_github_banner.svg){fig-align="center"}
+
+## polars
+
+> Polars is a blazingly fast DataFrame library for manipulating structured data. The core is written in Rust, and available for Python, R and NodeJS.
+> 
+> The goal of Polars is to provide a lightning fast DataFrame library that:
+>
+> * Utilizes all available cores on your machine.
+> * Optimizes queries to reduce unneeded work/memory allocations.
+> * Handles datasets much larger than your available RAM.
+> * Provides a consistent and predictable API.
+> * Adheres to a strict schema (data-types should be known before running the query).
+
+::: {.small}
+```{python}
+import polars as pl
+pl.__version__
+```
+:::
+
+## Series
+
+::: {.small}
+Just like Pandas, Polars also has a `Series` type used for columns. For a complete list of polars dtypes see [here](https://docs.pola.rs/api/python/stable/reference/datatypes.html).
+:::
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+pl.Series("ints", [1, 2, 3, 4, 5])
+pl.Series("dbls", [1., 2., 3., 4., 5.])
+```
+:::
+::: {.column}
+```{python}
+pl.Series("bools", [True, False, True, False, True])
+pl.Series("strs", ["A", "B", "C", "D", "E"])
+```
+:::
+:::
+
+
+
+## Missing values
+
+::: {.small}
+In Polars, missing data is represented by the value `null`. This missing value `null` is used for all data types, including numerical types.
+:::
+
+::: {.columns .xsmall}
+::: {.column width=33%}
+```{python}
+pl.Series("ints", 
+  [1, 2, 3, None])
+pl.Series("dbls", 
+  [1., 2., 3., None])
+```
+:::
+::: {.column width=33% .fragment}
+```{python}
+pl.Series("bools", 
+  [True, False, True, None])
+pl.Series("strs", 
+  ["A", "B", "C", None])
+```
+:::
+::: {.column width=33% .fragment}
+```{python}
+#| error: true
+pl.Series("ints", 
+  [1, 2, 3, np.nan])
+pl.Series("dbls", 
+  [1., 2., 3., np.nan])
+```
+:::
+:::
+
+
+## Missing value checking
+
+Checking for missing values can be done via the `is_null()` method
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+pl.Series("ints", 
+  [1, 2, 3, None]).is_null()
+pl.Series("dbls", 
+  [1., 2., 3., None]).is_null()
+```
+:::
+::: {.column}
+```{python}
+pl.Series("dbls", 
+  [1., 2., 3., np.nan]).is_null()
+pl.Series("bools", 
+  [True, False, True, None]).is_null()
+```
+:::
+:::
+
+## `null` vs `NaN`
+
+::: {.small}
+In Polars, `null` and `NaN` are distinct concepts: `null` represents missing data while `NaN` is a valid IEEE 754 floating point value. This distinction matters for aggregation and filtering.
+:::
+
+::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+s = pl.Series("x", [1., 2., np.nan, None])
+s
+```
+
+```{python}
+s.is_null()
+s.is_nan()
+```
+:::
+::: {.column width='50%' .fragment}
+```{python}
+s.null_count()
+s.sum()
+s.mean()
+```
+
+```{python}
+s.fill_null(0)
+s.fill_nan(0)
+```
+:::
+:::
+
+
+## DataFrames
+
+Data Frames can be constructed in the same way as Pandas, 
+
+```{python}
+#| include: false
+np.random.seed(42)
+```
+
+::: {.xsmall}
+```{python}
+df = pl.DataFrame(
+  {
+    "name":   ["anna","bob","carol", "dave", "erin"],
+    "id":     np.random.randint(100, 999, 5),
+    "weight": np.random.normal(70, 20, 5),
+    "height": np.random.normal(170, 15, 5),
+    "date":   pd.date_range(start='2/1/2025', periods=5, freq='D')
+  },
+  schema_overrides = {"id": pl.UInt16, "weight": pl.Float32}
+)
+df
+```
+:::
+
+
+## Expressions
+
+Polars makes use of lazy evaluation to improve its flexibility and computational performance.
+
+::: {.small}
+```{python}
+bmi_expr = pl.col("weight") / ((pl.col("height")/100) ** 2)
+bmi_expr
+```
+:::
+
+<br/>
+
+This represents a potential computation that can be executed later. Much of the power of Polars comes from the ability to chain together / compose these expressions.
+
+## Contexts
+
+Contexts are the environments in which expressions are evaluated - examples of common contexts include: `select`, `with_columns`, `filter`, and `group_by`.
+
+::: {.columns .xsmall}
+::: {.column width=33%}
+```{python}
+df.select(bmi = bmi_expr)
+```
+:::
+::: {.column width=66%}
+```{python}
+df.with_columns(bmi = bmi_expr)
+```
+:::
+:::
+
+## `filter()`
+
+::: {.columns .xxsmall}
+::: {.column}
+```{python}
+df.filter(
+  pl.col("height") > 160,
+  pl.col("id") < 500
+)
+```
+:::
+::: {.column}
+```{python}
+df.filter(
+  (pl.col("height") > 160) | 
+  (pl.col("id") < 500)
+)
+```
+:::
+:::
+
+## `group_by()` & `agg()`
+
+::: {.xsmall}
+```{python}
+df.group_by(
+  id_range = pl.col("id") - pl.col("id") % 100
+).agg(
+  pl.len(),
+  pl.col("name"),
+  bmi_expr.alias("bmi"),
+  pl.col("weight", "height").mean().name.prefix("avg_"),
+  med_height = pl.col("height").median()
+)
+```
+:::
+
+
+## More expression expansion
+
+::: {.small}
+```{python}
+num_cols = pl.col(pl.Float64, pl.Float32)
+
+df.with_columns(
+  ((num_cols - num_cols.mean())/num_cols.std()).name.suffix("_std")
+)
+```
+:::
+
+## `sort()` & `sort_by()`
+
+`sort()` sorts a DataFrame by one or more columns. `sort_by()` is the expression-level equivalent for use within contexts.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+df.sort("weight")
+df.sort("weight", descending=True)
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df.sort("id", "height")
+```
+
+```{python}
+df.with_columns(
+  rank = pl.col("weight")
+    .rank()
+    .over("id")
+    .sort_by("weight")
+)
+```
+:::
+::::
+
+
+## Pivoting - long to wide
+
+```{python}
+#| include: false
+df_long = pl.DataFrame({
+  "country": ["A","A","A","A","B","B","B","B","C","C","C","C"],
+  "year":    [1999,1999,2000,2000,1999,1999,2000,2000,1999,1999,2000,2000],
+  "type":    ["cases","pop","cases","pop","cases","pop","cases","pop","cases","pop","cases","pop"],
+  "count":   ["0.7K", "19M", "2K", "20M", "37K", "172M", "80K", "174M", "212K", "1T", "213K", "1T"]
+})
+```
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df_long
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df_wide = df_long.pivot(
+  on="type",
+  index=["country","year"],
+  values="count"
+)
+df_wide
+```
+:::
+::::
+
+## Wide to long (unpivot)
+
+::: {.small}
+In polars, `melt()` has been renamed to `unpivot()`.
+:::
+
+```{python}
+#| include: false
+df_wide2 = pl.DataFrame({
+  "country": ["A","B","C"],
+  "1999":    ["0.7K","37K","212K"],
+  "2000":    ["2K","80K","213K"]
+})
+```
+
+:::: {.columns .small}
+::: {.column width='50%'}
+```{python}
+df_wide2
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+df_wide2.unpivot(
+  on=["1999", "2000"],
+  index="country",
+  variable_name="year",
+  value_name="cases"
+)
+```
+:::
+::::
+
+
+## pandas vs polars
+
+::: {.small}
+
+**pandas** is a good choice when:
+
+* Working interactively with small to medium datasets
+* Using libraries that expect pandas DataFrames (e.g. scikit-learn, statsmodels, seaborn)
+* You need the extensive ecosystem of pandas-compatible tools
+
+**polars** is a good choice when:
+
+* Working with large datasets that benefit from multi-core processing
+* Building data pipelines where lazy evaluation can optimize query plans
+* You want strict type checking and predictable behavior (no index surprises)
+
+In practice, the two are easy to convert between via `df.to_pandas()` and `pl.from_pandas()`.
+
+:::
+
+## NYC Taxi Data
+
+::: {.small}
+```{python}
+df = pl.scan_parquet(
+  "~/Scratch/nyctaxi/fix/*_fix.parquet"
+)
+df
+```
+:::
+
+. . .
+
+::: {.small}
+
+```{python}
+df.select(pl.len()).collect()
+```
+:::
+
+::: {.aside}
+These data are available on `rstudio.stat.duke.edu` in the `/data/nyctaxi` directory.
+:::
+
+## Query plan
+
+::: {.small}
+```{python}
+print( df.select(pl.len()).explain() )
+```
+:::
+
+## Large lazy queries
+
+::: {.xsmall}
+```{python}
+zone_lookup = pl.read_csv(
+  "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+).rename(
+  {"LocationID": "pickup_zone"}
+)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+query = (
+  df
+  .filter(pl.col("trip_distance") > 0)
+  .rename({"PULocationID": "pickup_zone"})
+  .group_by("pickup_zone")
+  .agg(
+    num_rides = pl.len(),
+    avg_fare_per_mile = (pl.col("fare_amount") / pl.col("trip_distance")).mean().round(2)
+  ).join(
+    zone_lookup.lazy(),
+    on = "pickup_zone",
+    how = "left"
+  )
+  .sort("pickup_zone")
+)
+```
+:::
+
+## Plan {.scrollable}
+
+::: {.xsmall}
+```{python}
+query
+```
+:::
+
+## Result
+
+::: {.xsmall}
+```{python}
+query.collect()
+```
+:::
+
+
+## pandas equivalent
+
+::: {.xsmall}
+```{python}
+# pyarrow is required for reading parquet files
+
+zone_lookup_pd = pd.read_csv(
+  "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+).rename(columns={"LocationID": "pickup_zone"})
+
+def pd_query():
+    df = pd.read_parquet("~/Scratch/nyctaxi/fix/")
+    filtered = (
+      df[df["trip_distance"] > 0]
+      .rename(columns={"PULocationID": "pickup_zone"})
+      .assign(fare_per_mile=lambda x: x["fare_amount"] / x["trip_distance"])
+    )
+    return (
+      filtered
+      .groupby("pickup_zone")
+      .agg(
+        num_rides=("fare_per_mile", "size"),
+        avg_fare_per_mile=("fare_per_mile", "mean")
+      )
+      .round({"avg_fare_per_mile": 2})
+      .reset_index()
+      .merge(zone_lookup_pd, on="pickup_zone", how="left")
+      .sort_values("pickup_zone")
+    )
+```
+:::
+
+
+## Performance
+
+#### polars
+
+::: {.small}
+```{python}
+#| eval: false
+%timeit query.collect()
+```
+```
+1.10 s ± 72 ms per loop (mean ± std. dev. of 3 runs, 1 loop each)
+```
+:::
+
+<br/>
+
+#### pandas
+
+::: {.small}
+```{python}
+#| eval: false
+%timeit pd_query()
+```
+```
+150.8 s ± 5.9 s per loop (mean ± std. dev. of 3 runs, 1 loop each)
+```
+:::
