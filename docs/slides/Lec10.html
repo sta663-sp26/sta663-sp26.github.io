@@ -1730,12 +1730,12 @@ text-align: right;
 </div></aside></section>
 <section id="groupby" class="slide level2">
 <h2>groupby</h2>
-<p>Groups can be created within a DataFrame via <code>groupby()</code> - these groups are then used by the standard aggregation methods (e.g. <code>sum()</code>, <code>mean()</code>, <code>std()</code>, etc.).</p>
+<p>Groups can be created within a DataFrame via <code>groupby()</code> - this returns a <code>DataFrameGroupBy</code> object that contains information about the groups and how to access them.</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href></a>cereal.groupby(<span class="st">&quot;type&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>&lt;pandas.api.typing.DataFrameGroupBy object at 0x143286f90&gt;</code></pre>
+<pre><code>&lt;pandas.api.typing.DataFrameGroupBy object at 0x14d476f90&gt;</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href></a>cereal.groupby(<span class="st">&quot;type&quot;</span>).groups</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -1750,6 +1750,7 @@ text-align: right;
 </section>
 <section id="groupby-and-aggregation-methods" class="slide level2">
 <h2>groupby and aggregation methods</h2>
+<p>These groups can be used by the standard aggregation methods (e.g. <code>sum()</code>, <code>mean()</code>, <code>std()</code>, etc.)</p>
 <div class="small">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href></a>cereal.groupby(<span class="st">&quot;type&quot;</span>).mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -2370,7 +2371,7 @@ text-align: right;
 <aside><div>
 <p>Tuples can also be passed using <code>pd.NamedAgg()</code> but this offers no additional functionality.</p>
 </div></aside></section>
-<section id="transformation" class="slide level2">
+<section id="transformation" class="slide level2 scrollable">
 <h2>Transformation</h2>
 <p>The <code>transform()</code> method returns a DataFrame with the aggregated result matching the size (or length 1) of the input group(s),</p>
 <div class="columns xsmall">
@@ -2493,7 +2494,7 @@ text-align: right;
 </div>
 </div></div>
 </section>
-<section id="practical-transformation" class="slide level2">
+<section id="practical-transformation" class="slide level2 scrollable">
 <h2>Practical transformation</h2>
 <p><code>transform()</code> will generally be most useful via a user-defined function; the lambda is applied to each column of each group.</p>
 <div class="xsmall">
@@ -3284,7 +3285,7 @@ white-space: pre-wrap;
 <div class="small">
 <p>In Polars, missing data is represented by the value <code>null</code>. This missing value <code>null</code> is used for all data types, including numerical types.</p>
 </div>
-<div class="columns xsmall">
+<div class="columns xxsmall">
 <div class="column" style="width:33%;">
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb45"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href></a>pl.Series(<span class="st">&quot;ints&quot;</span>, </span>
@@ -3324,8 +3325,63 @@ white-space: pre-wrap;
 </table>
 </div>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href></a>pl.Series(<span class="st">&quot;dbls&quot;</span>, </span>
-<span id="cb46-2"><a href></a>  [<span class="fl">1.</span>, <span class="fl">2.</span>, <span class="fl">3.</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column fragment" style="width:33%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb46"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href></a>pl.Series(<span class="st">&quot;bools&quot;</span>, </span>
+<span id="cb46-2"><a href></a>  [<span class="va">True</span>, <span class="va">False</span>, <span class="va">True</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+text-align: right;
+white-space: pre-wrap;
+}
+</style>
+<small>shape: (4,)</small>
+<table class="dataframe caption-top" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">bools</th>
+</tr>
+<tr class="even">
+<td>bool</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>true</td>
+</tr>
+<tr class="even">
+<td>false</td>
+</tr>
+<tr class="odd">
+<td>true</td>
+</tr>
+<tr class="even">
+<td>null</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div><div class="column fragment" style="width:33%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href></a>pl.Series(<span class="st">&quot;ints&quot;</span>, </span>
+<span id="cb47-2"><a href></a>  [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, np.nan])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>TypeError: unexpected value while building Series of type Int64; found value of type Float64: NaN
+
+Hint: Try setting `strict=False` to allow passing data with mixed types.</code></pre>
+</div>
+</div>
+</div></div>
+<div class="columns xxsmall">
+<div class="column" style="width:33%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href></a>pl.Series(<span class="st">&quot;dbls&quot;</span>, </span>
+<span id="cb49-2"><a href></a>  [<span class="fl">1.</span>, <span class="fl">2.</span>, <span class="fl">3.</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -3364,45 +3420,8 @@ white-space: pre-wrap;
 </div>
 </div><div class="column fragment" style="width:33%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href></a>pl.Series(<span class="st">&quot;bools&quot;</span>, </span>
-<span id="cb47-2"><a href></a>  [<span class="va">True</span>, <span class="va">False</span>, <span class="va">True</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<div><style>
-.dataframe > thead > tr,
-.dataframe > tbody > tr {
-text-align: right;
-white-space: pre-wrap;
-}
-</style>
-<small>shape: (4,)</small>
-<table class="dataframe caption-top" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">bools</th>
-</tr>
-<tr class="even">
-<td>bool</td>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>true</td>
-</tr>
-<tr class="even">
-<td>false</td>
-</tr>
-<tr class="odd">
-<td>true</td>
-</tr>
-<tr class="even">
-<td>null</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb48"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb48-1"><a href></a>pl.Series(<span class="st">&quot;strs&quot;</span>, </span>
-<span id="cb48-2"><a href></a>  [<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href></a>pl.Series(<span class="st">&quot;strs&quot;</span>, </span>
+<span id="cb50-2"><a href></a>  [<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -3441,13 +3460,6 @@ white-space: pre-wrap;
 </div>
 </div><div class="column fragment" style="width:33%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb49"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href></a>pl.Series(<span class="st">&quot;ints&quot;</span>, </span>
-<span id="cb49-2"><a href></a>  [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, np.nan])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>TypeError: unexpected value while building Series of type Int64; found value of type Float64: NaN
-
-Hint: Try setting `strict=False` to allow passing data with mixed types.</code></pre>
-</div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb51"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href></a>pl.Series(<span class="st">&quot;dbls&quot;</span>, </span>
 <span id="cb51-2"><a href></a>  [<span class="fl">1.</span>, <span class="fl">2.</span>, <span class="fl">3.</span>, np.nan])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
@@ -3654,48 +3666,19 @@ white-space: pre-wrap;
 <p>In Polars, <code>null</code> and <code>NaN</code> are distinct concepts: <code>null</code> represents missing data while <code>NaN</code> is a valid IEEE 754 floating point value. This distinction matters for aggregation and filtering.</p>
 </div>
 <div class="columns xsmall">
-<div class="column" style="width:50%;">
+<div class="column">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href></a>s <span class="op">=</span> pl.Series(<span class="st">&quot;x&quot;</span>, [<span class="fl">1.</span>, <span class="fl">2.</span>, np.nan, <span class="va">None</span>])</span>
-<span id="cb56-2"><a href></a>s</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<div><style>
-.dataframe > thead > tr,
-.dataframe > tbody > tr {
-text-align: right;
-white-space: pre-wrap;
-}
-</style>
-<small>shape: (4,)</small>
-<table class="dataframe caption-top" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">x</th>
-</tr>
-<tr class="even">
-<td>f64</td>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>1.0</td>
-</tr>
-<tr class="even">
-<td>2.0</td>
-</tr>
-<tr class="odd">
-<td>NaN</td>
-</tr>
-<tr class="even">
-<td>null</td>
-</tr>
-</tbody>
-</table>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href></a>s_null <span class="op">=</span> pl.Series(<span class="st">&quot;x&quot;</span>, [<span class="fl">1.</span>, <span class="fl">2.</span>, <span class="va">None</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-</div>
-</div>
+</div><div class="column">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href></a>s.is_null()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb57"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href></a>s_nan <span class="op">=</span> pl.Series(<span class="st">&quot;x&quot;</span>, [<span class="fl">1.</span>, <span class="fl">2.</span>, np.nan])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div></div>
+<div class="columns xsmall">
+<div class="column" style="width:25%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href></a>s_null.is_null()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -3704,43 +3687,7 @@ text-align: right;
 white-space: pre-wrap;
 }
 </style>
-<small>shape: (4,)</small>
-<table class="dataframe caption-top" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">x</th>
-</tr>
-<tr class="even">
-<td>bool</td>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>false</td>
-</tr>
-<tr class="even">
-<td>false</td>
-</tr>
-<tr class="odd">
-<td>false</td>
-</tr>
-<tr class="even">
-<td>true</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb58"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href></a>s.is_nan()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<div><style>
-.dataframe > thead > tr,
-.dataframe > tbody > tr {
-text-align: right;
-white-space: pre-wrap;
-}
-</style>
-<small>shape: (4,)</small>
+<small>shape: (3,)</small>
 <table class="dataframe caption-top" data-border="1">
 <thead>
 <tr class="header">
@@ -3760,7 +3707,37 @@ white-space: pre-wrap;
 <tr class="odd">
 <td>true</td>
 </tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href></a>s_null.is_nan()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+text-align: right;
+white-space: pre-wrap;
+}
+</style>
+<small>shape: (3,)</small>
+<table class="dataframe caption-top" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">x</th>
+</tr>
 <tr class="even">
+<td>bool</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>false</td>
+</tr>
+<tr class="even">
+<td>false</td>
+</tr>
+<tr class="odd">
 <td>null</td>
 </tr>
 </tbody>
@@ -3768,23 +3745,17 @@ white-space: pre-wrap;
 </div>
 </div>
 </div>
-</div><div class="column fragment" style="width:50%;">
+</div><div class="column" style="width:25%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href></a>s.null_count()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb60"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb60-1"><a href></a>s_null.<span class="bu">sum</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>1</code></pre>
+<pre><code>3.0</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb61"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href></a>s.<span class="bu">sum</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href></a>s_null.mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>nan</code></pre>
+<pre><code>1.5</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href></a>s.mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>nan</code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href></a>s.fill_null(<span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb64"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb64-1"><a href></a>s_null.fill_null(<span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -3793,43 +3764,7 @@ text-align: right;
 white-space: pre-wrap;
 }
 </style>
-<small>shape: (4,)</small>
-<table class="dataframe caption-top" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">x</th>
-</tr>
-<tr class="even">
-<td>f64</td>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>1.0</td>
-</tr>
-<tr class="even">
-<td>2.0</td>
-</tr>
-<tr class="odd">
-<td>NaN</td>
-</tr>
-<tr class="even">
-<td>0.0</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a href></a>s.fill_nan(<span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<div><style>
-.dataframe > thead > tr,
-.dataframe > tbody > tr {
-text-align: right;
-white-space: pre-wrap;
-}
-</style>
-<small>shape: (4,)</small>
+<small>shape: (3,)</small>
 <table class="dataframe caption-top" data-border="1">
 <thead>
 <tr class="header">
@@ -3849,8 +3784,118 @@ white-space: pre-wrap;
 <tr class="odd">
 <td>0.0</td>
 </tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:25%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href></a>s_nan.is_null()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+text-align: right;
+white-space: pre-wrap;
+}
+</style>
+<small>shape: (3,)</small>
+<table class="dataframe caption-top" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">x</th>
+</tr>
 <tr class="even">
-<td>null</td>
+<td>bool</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>false</td>
+</tr>
+<tr class="even">
+<td>false</td>
+</tr>
+<tr class="odd">
+<td>false</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb66"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb66-1"><a href></a>s_nan.is_nan()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+text-align: right;
+white-space: pre-wrap;
+}
+</style>
+<small>shape: (3,)</small>
+<table class="dataframe caption-top" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">x</th>
+</tr>
+<tr class="even">
+<td>bool</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>false</td>
+</tr>
+<tr class="even">
+<td>false</td>
+</tr>
+<tr class="odd">
+<td>true</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:25%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href></a>s_nan.<span class="bu">sum</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>nan</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href></a>s_nan.mean()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>nan</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href></a>s_nan.fill_nan(<span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div><style>
+.dataframe > thead > tr,
+.dataframe > tbody > tr {
+text-align: right;
+white-space: pre-wrap;
+}
+</style>
+<small>shape: (3,)</small>
+<table class="dataframe caption-top" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">x</th>
+</tr>
+<tr class="even">
+<td>f64</td>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1.0</td>
+</tr>
+<tr class="even">
+<td>2.0</td>
+</tr>
+<tr class="odd">
+<td>0.0</td>
 </tr>
 </tbody>
 </table>
@@ -3864,17 +3909,17 @@ white-space: pre-wrap;
 <p>Data Frames can be constructed in the same way as Pandas,</p>
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb67"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href></a>df <span class="op">=</span> pl.DataFrame(</span>
-<span id="cb67-2"><a href></a>  {</span>
-<span id="cb67-3"><a href></a>    <span class="st">&quot;name&quot;</span>:   [<span class="st">&quot;anna&quot;</span>,<span class="st">&quot;bob&quot;</span>,<span class="st">&quot;carol&quot;</span>, <span class="st">&quot;dave&quot;</span>, <span class="st">&quot;erin&quot;</span>],</span>
-<span id="cb67-4"><a href></a>    <span class="st">&quot;id&quot;</span>:     np.random.randint(<span class="dv">100</span>, <span class="dv">999</span>, <span class="dv">5</span>),</span>
-<span id="cb67-5"><a href></a>    <span class="st">&quot;weight&quot;</span>: np.random.normal(<span class="dv">70</span>, <span class="dv">20</span>, <span class="dv">5</span>),</span>
-<span id="cb67-6"><a href></a>    <span class="st">&quot;height&quot;</span>: np.random.normal(<span class="dv">170</span>, <span class="dv">15</span>, <span class="dv">5</span>),</span>
-<span id="cb67-7"><a href></a>    <span class="st">&quot;date&quot;</span>:   pd.date_range(start<span class="op">=</span><span class="st">&#39;2/1/2025&#39;</span>, periods<span class="op">=</span><span class="dv">5</span>, freq<span class="op">=</span><span class="st">&#39;D&#39;</span>)</span>
-<span id="cb67-8"><a href></a>  },</span>
-<span id="cb67-9"><a href></a>  schema_overrides <span class="op">=</span> {<span class="st">&quot;id&quot;</span>: pl.UInt16, <span class="st">&quot;weight&quot;</span>: pl.Float32}</span>
-<span id="cb67-10"><a href></a>)</span>
-<span id="cb67-11"><a href></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb72-1"><a href></a>df <span class="op">=</span> pl.DataFrame(</span>
+<span id="cb72-2"><a href></a>  {</span>
+<span id="cb72-3"><a href></a>    <span class="st">&quot;name&quot;</span>:   [<span class="st">&quot;anna&quot;</span>,<span class="st">&quot;bob&quot;</span>,<span class="st">&quot;carol&quot;</span>, <span class="st">&quot;dave&quot;</span>, <span class="st">&quot;erin&quot;</span>],</span>
+<span id="cb72-4"><a href></a>    <span class="st">&quot;id&quot;</span>:     np.random.randint(<span class="dv">100</span>, <span class="dv">999</span>, <span class="dv">5</span>),</span>
+<span id="cb72-5"><a href></a>    <span class="st">&quot;weight&quot;</span>: np.random.normal(<span class="dv">70</span>, <span class="dv">20</span>, <span class="dv">5</span>),</span>
+<span id="cb72-6"><a href></a>    <span class="st">&quot;height&quot;</span>: np.random.normal(<span class="dv">170</span>, <span class="dv">15</span>, <span class="dv">5</span>),</span>
+<span id="cb72-7"><a href></a>    <span class="st">&quot;date&quot;</span>:   pd.date_range(start<span class="op">=</span><span class="st">&#39;2/1/2025&#39;</span>, periods<span class="op">=</span><span class="dv">5</span>, freq<span class="op">=</span><span class="st">&#39;D&#39;</span>)</span>
+<span id="cb72-8"><a href></a>  },</span>
+<span id="cb72-9"><a href></a>  schema_overrides <span class="op">=</span> {<span class="st">&quot;id&quot;</span>: pl.UInt16, <span class="st">&quot;weight&quot;</span>: pl.Float32}</span>
+<span id="cb72-10"><a href></a>)</span>
+<span id="cb72-11"><a href></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -3949,15 +3994,16 @@ white-space: pre-wrap;
 <p>Polars makes use of lazy evaluation to improve its flexibility and computational performance.</p>
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href></a>bmi_expr <span class="op">=</span> pl.col(<span class="st">&quot;weight&quot;</span>) <span class="op">/</span> ((pl.col(<span class="st">&quot;height&quot;</span>)<span class="op">/</span><span class="dv">100</span>) <span class="op">**</span> <span class="dv">2</span>)</span>
-<span id="cb68-2"><a href></a>bmi_expr</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb73"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href></a>bmi_expr <span class="op">=</span> pl.col(<span class="st">&quot;weight&quot;</span>) <span class="op">/</span> ((pl.col(<span class="st">&quot;height&quot;</span>)<span class="op">/</span><span class="dv">100</span>) <span class="op">**</span> <span class="dv">2</span>)</span>
+<span id="cb73-2"><a href></a>bmi_expr</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 [(col(&quot;weight&quot;)) / ([(col(&quot;height&quot;)) / (dyn int: 100)].pow([dyn int: 2]))]
 </div>
 </div>
 </div>
 <p><br></p>
-<p>This represents a potential computation that can be executed later. Much of the power of Polars comes from the ability to chain together / compose these expressions.</p>
+<p>This represents a potential computation that can be executed later.</p>
+<p>Much of the power of Polars comes from the ability to chain together / compose these expressions.</p>
 </section>
 <section id="contexts" class="slide level2">
 <h2>Contexts</h2>
@@ -3965,7 +4011,7 @@ white-space: pre-wrap;
 <div class="columns xsmall">
 <div class="column" style="width:33%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb69"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href></a>df.select(bmi <span class="op">=</span> bmi_expr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href></a>df.select(bmi <span class="op">=</span> bmi_expr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4007,7 +4053,7 @@ white-space: pre-wrap;
 </div>
 </div><div class="column" style="width:66%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb70"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a href></a>df.with_columns(bmi <span class="op">=</span> bmi_expr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb75"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href></a>df.with_columns(bmi <span class="op">=</span> bmi_expr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4089,10 +4135,10 @@ white-space: pre-wrap;
 <div class="columns xxsmall">
 <div class="column">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href></a>df.<span class="bu">filter</span>(</span>
-<span id="cb71-2"><a href></a>  pl.col(<span class="st">&quot;height&quot;</span>) <span class="op">&gt;</span> <span class="dv">160</span>,</span>
-<span id="cb71-3"><a href></a>  pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">&lt;</span> <span class="dv">500</span></span>
-<span id="cb71-4"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb76"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb76-1"><a href></a>df.<span class="bu">filter</span>(</span>
+<span id="cb76-2"><a href></a>  pl.col(<span class="st">&quot;height&quot;</span>) <span class="op">&gt;</span> <span class="dv">160</span>,</span>
+<span id="cb76-3"><a href></a>  pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">&lt;</span> <span class="dv">500</span></span>
+<span id="cb76-4"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4148,10 +4194,10 @@ white-space: pre-wrap;
 </div>
 </div><div class="column">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb72-1"><a href></a>df.<span class="bu">filter</span>(</span>
-<span id="cb72-2"><a href></a>  (pl.col(<span class="st">&quot;height&quot;</span>) <span class="op">&gt;</span> <span class="dv">160</span>) <span class="op">|</span> </span>
-<span id="cb72-3"><a href></a>  (pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">&lt;</span> <span class="dv">500</span>)</span>
-<span id="cb72-4"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href></a>df.<span class="bu">filter</span>(</span>
+<span id="cb77-2"><a href></a>  (pl.col(<span class="st">&quot;height&quot;</span>) <span class="op">&gt;</span> <span class="dv">160</span>) <span class="op">|</span> </span>
+<span id="cb77-3"><a href></a>  (pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">&lt;</span> <span class="dv">500</span>)</span>
+<span id="cb77-4"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4218,15 +4264,15 @@ white-space: pre-wrap;
 <h2><code>group_by()</code> &amp; <code>agg()</code></h2>
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb73"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href></a>df.group_by(</span>
-<span id="cb73-2"><a href></a>  id_range <span class="op">=</span> pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">-</span> pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">%</span> <span class="dv">100</span></span>
-<span id="cb73-3"><a href></a>).agg(</span>
-<span id="cb73-4"><a href></a>  pl.<span class="bu">len</span>(),</span>
-<span id="cb73-5"><a href></a>  pl.col(<span class="st">&quot;name&quot;</span>),</span>
-<span id="cb73-6"><a href></a>  bmi_expr.alias(<span class="st">&quot;bmi&quot;</span>),</span>
-<span id="cb73-7"><a href></a>  pl.col(<span class="st">&quot;weight&quot;</span>, <span class="st">&quot;height&quot;</span>).mean().name.prefix(<span class="st">&quot;avg_&quot;</span>),</span>
-<span id="cb73-8"><a href></a>  med_height <span class="op">=</span> pl.col(<span class="st">&quot;height&quot;</span>).median()</span>
-<span id="cb73-9"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb78"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb78-1"><a href></a>df.group_by(</span>
+<span id="cb78-2"><a href></a>  id_range <span class="op">=</span> pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">-</span> pl.col(<span class="st">&quot;id&quot;</span>) <span class="op">%</span> <span class="dv">100</span></span>
+<span id="cb78-3"><a href></a>).agg(</span>
+<span id="cb78-4"><a href></a>  pl.<span class="bu">len</span>(),</span>
+<span id="cb78-5"><a href></a>  pl.col(<span class="st">&quot;name&quot;</span>),</span>
+<span id="cb78-6"><a href></a>  bmi_expr.alias(<span class="st">&quot;bmi&quot;</span>),</span>
+<span id="cb78-7"><a href></a>  pl.col(<span class="st">&quot;weight&quot;</span>, <span class="st">&quot;height&quot;</span>).mean().name.prefix(<span class="st">&quot;avg_&quot;</span>),</span>
+<span id="cb78-8"><a href></a>  med_height <span class="op">=</span> pl.col(<span class="st">&quot;height&quot;</span>).median()</span>
+<span id="cb78-9"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4259,24 +4305,6 @@ white-space: pre-wrap;
 </thead>
 <tbody>
 <tr class="odd">
-<td>900</td>
-<td>1</td>
-<td>[&quot;carol&quot;]</td>
-<td>[21.212307]</td>
-<td>51.663464</td>
-<td>156.06223</td>
-<td>156.06223</td>
-</tr>
-<tr class="even">
-<td>300</td>
-<td>1</td>
-<td>[&quot;dave&quot;]</td>
-<td>[23.036622]</td>
-<td>67.517059</td>
-<td>171.197477</td>
-<td>171.197477</td>
-</tr>
-<tr class="odd">
 <td>200</td>
 <td>2</td>
 <td>[&quot;anna&quot;, &quot;erin&quot;]</td>
@@ -4286,6 +4314,15 @@ white-space: pre-wrap;
 <td>165.107601</td>
 </tr>
 <tr class="even">
+<td>900</td>
+<td>1</td>
+<td>[&quot;carol&quot;]</td>
+<td>[21.212307]</td>
+<td>51.663464</td>
+<td>156.06223</td>
+<td>156.06223</td>
+</tr>
+<tr class="odd">
 <td>500</td>
 <td>1</td>
 <td>[&quot;bob&quot;]</td>
@@ -4293,6 +4330,15 @@ white-space: pre-wrap;
 <td>97.369003</td>
 <td>175.888696</td>
 <td>175.888696</td>
+</tr>
+<tr class="even">
+<td>300</td>
+<td>1</td>
+<td>[&quot;dave&quot;]</td>
+<td>[23.036622]</td>
+<td>67.517059</td>
+<td>171.197477</td>
+<td>171.197477</td>
 </tr>
 </tbody>
 </table>
@@ -4305,11 +4351,11 @@ white-space: pre-wrap;
 <h2>More expression expansion</h2>
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href></a>num_cols <span class="op">=</span> pl.col(pl.Float64, pl.Float32)</span>
-<span id="cb74-2"><a href></a></span>
-<span id="cb74-3"><a href></a>df.with_columns(</span>
-<span id="cb74-4"><a href></a>  ((num_cols <span class="op">-</span> num_cols.mean())<span class="op">/</span>num_cols.std()).name.suffix(<span class="st">&quot;_std&quot;</span>)</span>
-<span id="cb74-5"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href></a>num_cols <span class="op">=</span> pl.col(pl.Float64, pl.Float32)</span>
+<span id="cb79-2"><a href></a></span>
+<span id="cb79-3"><a href></a>df.with_columns(</span>
+<span id="cb79-4"><a href></a>  ((num_cols <span class="op">-</span> num_cols.mean())<span class="op">/</span>num_cols.std()).name.suffix(<span class="st">&quot;_std&quot;</span>)</span>
+<span id="cb79-5"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4396,10 +4442,10 @@ white-space: pre-wrap;
 <section id="sort-sort_by" class="slide level2">
 <h2><code>sort()</code> &amp; <code>sort_by()</code></h2>
 <p><code>sort()</code> sorts a DataFrame by one or more columns. <code>sort_by()</code> is the expression-level equivalent for use within contexts.</p>
-<div class="columns xsmall">
+<div class="columns xxsmall">
 <div class="column" style="width:50%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb75"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href></a>df.sort(<span class="st">&quot;weight&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb80-1"><a href></a>df.sort(<span class="st">&quot;height&quot;</span>, descending<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4428,25 +4474,25 @@ white-space: pre-wrap;
 </thead>
 <tbody>
 <tr class="odd">
-<td>&quot;erin&quot;</td>
-<td>206</td>
-<td>29.780743</td>
-<td>167.607252</td>
-<td>2025-02-05 00:00:00</td>
+<td>&quot;bob&quot;</td>
+<td>535</td>
+<td>97.369003</td>
+<td>175.888696</td>
+<td>2025-02-02 00:00:00</td>
 </tr>
 <tr class="even">
-<td>&quot;carol&quot;</td>
-<td>960</td>
-<td>51.663464</td>
-<td>156.06223</td>
-<td>2025-02-03 00:00:00</td>
-</tr>
-<tr class="odd">
 <td>&quot;dave&quot;</td>
 <td>370</td>
 <td>67.517059</td>
 <td>171.197477</td>
 <td>2025-02-04 00:00:00</td>
+</tr>
+<tr class="odd">
+<td>&quot;erin&quot;</td>
+<td>206</td>
+<td>29.780743</td>
+<td>167.607252</td>
+<td>2025-02-05 00:00:00</td>
 </tr>
 <tr class="even">
 <td>&quot;anna&quot;</td>
@@ -4456,17 +4502,17 @@ white-space: pre-wrap;
 <td>2025-02-01 00:00:00</td>
 </tr>
 <tr class="odd">
-<td>&quot;bob&quot;</td>
-<td>535</td>
-<td>97.369003</td>
-<td>175.888696</td>
-<td>2025-02-02 00:00:00</td>
+<td>&quot;carol&quot;</td>
+<td>960</td>
+<td>51.663464</td>
+<td>156.06223</td>
+<td>2025-02-03 00:00:00</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb76"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb76-1"><a href></a>df.sort(<span class="st">&quot;weight&quot;</span>, descending<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb81-1"><a href></a>df.sort(<span class="st">&quot;id&quot;</span>, <span class="st">&quot;height&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4495,18 +4541,18 @@ white-space: pre-wrap;
 </thead>
 <tbody>
 <tr class="odd">
-<td>&quot;bob&quot;</td>
-<td>535</td>
-<td>97.369003</td>
-<td>175.888696</td>
-<td>2025-02-02 00:00:00</td>
-</tr>
-<tr class="even">
 <td>&quot;anna&quot;</td>
 <td>202</td>
 <td>79.477219</td>
 <td>162.607949</td>
 <td>2025-02-01 00:00:00</td>
+</tr>
+<tr class="even">
+<td>&quot;erin&quot;</td>
+<td>206</td>
+<td>29.780743</td>
+<td>167.607252</td>
+<td>2025-02-05 00:00:00</td>
 </tr>
 <tr class="odd">
 <td>&quot;dave&quot;</td>
@@ -4516,18 +4562,18 @@ white-space: pre-wrap;
 <td>2025-02-04 00:00:00</td>
 </tr>
 <tr class="even">
+<td>&quot;bob&quot;</td>
+<td>535</td>
+<td>97.369003</td>
+<td>175.888696</td>
+<td>2025-02-02 00:00:00</td>
+</tr>
+<tr class="odd">
 <td>&quot;carol&quot;</td>
 <td>960</td>
 <td>51.663464</td>
 <td>156.06223</td>
 <td>2025-02-03 00:00:00</td>
-</tr>
-<tr class="odd">
-<td>&quot;erin&quot;</td>
-<td>206</td>
-<td>29.780743</td>
-<td>167.607252</td>
-<td>2025-02-05 00:00:00</td>
 </tr>
 </tbody>
 </table>
@@ -4536,7 +4582,9 @@ white-space: pre-wrap;
 </div>
 </div><div class="column fragment" style="width:50%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href></a>df.sort(<span class="st">&quot;id&quot;</span>, <span class="st">&quot;height&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb82"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb82-1"><a href></a>df.select(</span>
+<span id="cb82-2"><a href></a>  pl.col(<span class="st">&quot;name&quot;</span>, <span class="st">&quot;id&quot;</span>, <span class="st">&quot;height&quot;</span>).sort_by(<span class="st">&quot;height&quot;</span>, descending<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb82-3"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4545,140 +4593,45 @@ text-align: right;
 white-space: pre-wrap;
 }
 </style>
-<small>shape: (5, 5)</small>
+<small>shape: (5, 3)</small>
 <table class="dataframe caption-top" data-border="1">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th">name</th>
 <th data-quarto-table-cell-role="th">id</th>
-<th data-quarto-table-cell-role="th">weight</th>
 <th data-quarto-table-cell-role="th">height</th>
-<th data-quarto-table-cell-role="th">date</th>
 </tr>
 <tr class="even">
 <td>str</td>
 <td>u16</td>
-<td>f32</td>
-<td>f64</td>
-<td>datetime[μs]</td>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>&quot;anna&quot;</td>
-<td>202</td>
-<td>79.477219</td>
-<td>162.607949</td>
-<td>2025-02-01 00:00:00</td>
-</tr>
-<tr class="even">
-<td>&quot;erin&quot;</td>
-<td>206</td>
-<td>29.780743</td>
-<td>167.607252</td>
-<td>2025-02-05 00:00:00</td>
-</tr>
-<tr class="odd">
-<td>&quot;dave&quot;</td>
-<td>370</td>
-<td>67.517059</td>
-<td>171.197477</td>
-<td>2025-02-04 00:00:00</td>
-</tr>
-<tr class="even">
-<td>&quot;bob&quot;</td>
-<td>535</td>
-<td>97.369003</td>
-<td>175.888696</td>
-<td>2025-02-02 00:00:00</td>
-</tr>
-<tr class="odd">
-<td>&quot;carol&quot;</td>
-<td>960</td>
-<td>51.663464</td>
-<td>156.06223</td>
-<td>2025-02-03 00:00:00</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb78"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb78-1"><a href></a>df.with_columns(</span>
-<span id="cb78-2"><a href></a>  rank <span class="op">=</span> pl.col(<span class="st">&quot;weight&quot;</span>)</span>
-<span id="cb78-3"><a href></a>    .rank()</span>
-<span id="cb78-4"><a href></a>    .over(<span class="st">&quot;id&quot;</span>)</span>
-<span id="cb78-5"><a href></a>    .sort_by(<span class="st">&quot;weight&quot;</span>)</span>
-<span id="cb78-6"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<div><style>
-.dataframe > thead > tr,
-.dataframe > tbody > tr {
-text-align: right;
-white-space: pre-wrap;
-}
-</style>
-<small>shape: (5, 6)</small>
-<table class="dataframe caption-top" data-border="1">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">name</th>
-<th data-quarto-table-cell-role="th">id</th>
-<th data-quarto-table-cell-role="th">weight</th>
-<th data-quarto-table-cell-role="th">height</th>
-<th data-quarto-table-cell-role="th">date</th>
-<th data-quarto-table-cell-role="th">rank</th>
-</tr>
-<tr class="even">
-<td>str</td>
-<td>u16</td>
-<td>f32</td>
-<td>f64</td>
-<td>datetime[μs]</td>
 <td>f64</td>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>&quot;anna&quot;</td>
-<td>202</td>
-<td>79.477219</td>
-<td>162.607949</td>
-<td>2025-02-01 00:00:00</td>
-<td>1.0</td>
-</tr>
-<tr class="even">
 <td>&quot;bob&quot;</td>
 <td>535</td>
-<td>97.369003</td>
 <td>175.888696</td>
-<td>2025-02-02 00:00:00</td>
-<td>1.0</td>
-</tr>
-<tr class="odd">
-<td>&quot;carol&quot;</td>
-<td>960</td>
-<td>51.663464</td>
-<td>156.06223</td>
-<td>2025-02-03 00:00:00</td>
-<td>1.0</td>
 </tr>
 <tr class="even">
 <td>&quot;dave&quot;</td>
 <td>370</td>
-<td>67.517059</td>
 <td>171.197477</td>
-<td>2025-02-04 00:00:00</td>
-<td>1.0</td>
 </tr>
 <tr class="odd">
 <td>&quot;erin&quot;</td>
 <td>206</td>
-<td>29.780743</td>
 <td>167.607252</td>
-<td>2025-02-05 00:00:00</td>
-<td>1.0</td>
+</tr>
+<tr class="even">
+<td>&quot;anna&quot;</td>
+<td>202</td>
+<td>162.607949</td>
+</tr>
+<tr class="odd">
+<td>&quot;carol&quot;</td>
+<td>960</td>
+<td>156.06223</td>
 </tr>
 </tbody>
 </table>
@@ -4692,7 +4645,7 @@ white-space: pre-wrap;
 <div class="columns small">
 <div class="column" style="width:50%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb79"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href></a>df_long</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb83"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb83-1"><a href></a>df_long</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4791,12 +4744,11 @@ white-space: pre-wrap;
 </div>
 </div><div class="column fragment" style="width:50%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb80-1"><a href></a>df_wide <span class="op">=</span> df_long.pivot(</span>
-<span id="cb80-2"><a href></a>  on<span class="op">=</span><span class="st">&quot;type&quot;</span>,</span>
-<span id="cb80-3"><a href></a>  index<span class="op">=</span>[<span class="st">&quot;country&quot;</span>,<span class="st">&quot;year&quot;</span>],</span>
-<span id="cb80-4"><a href></a>  values<span class="op">=</span><span class="st">&quot;count&quot;</span></span>
-<span id="cb80-5"><a href></a>)</span>
-<span id="cb80-6"><a href></a>df_wide</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb84"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb84-1"><a href></a>df_long.pivot(</span>
+<span id="cb84-2"><a href></a>  on<span class="op">=</span><span class="st">&quot;type&quot;</span>,</span>
+<span id="cb84-3"><a href></a>  index<span class="op">=</span>[<span class="st">&quot;country&quot;</span>,<span class="st">&quot;year&quot;</span>],</span>
+<span id="cb84-4"><a href></a>  values<span class="op">=</span><span class="st">&quot;count&quot;</span></span>
+<span id="cb84-5"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4868,12 +4820,12 @@ white-space: pre-wrap;
 <section id="wide-to-long-unpivot" class="slide level2">
 <h2>Wide to long (unpivot)</h2>
 <div class="small">
-<p>In polars, <code>melt()</code> has been renamed to <code>unpivot()</code>.</p>
+<p>In polars, the equivalent to <code>melt()</code> is <code>unpivot()</code>.</p>
 </div>
 <div class="columns small">
 <div class="column" style="width:50%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb81"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb81-1"><a href></a>df_wide2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb85"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb85-1"><a href></a>df_wide</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4919,12 +4871,12 @@ white-space: pre-wrap;
 </div>
 </div><div class="column fragment" style="width:50%;">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb82"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb82-1"><a href></a>df_wide2.unpivot(</span>
-<span id="cb82-2"><a href></a>  on<span class="op">=</span>[<span class="st">&quot;1999&quot;</span>, <span class="st">&quot;2000&quot;</span>],</span>
-<span id="cb82-3"><a href></a>  index<span class="op">=</span><span class="st">&quot;country&quot;</span>,</span>
-<span id="cb82-4"><a href></a>  variable_name<span class="op">=</span><span class="st">&quot;year&quot;</span>,</span>
-<span id="cb82-5"><a href></a>  value_name<span class="op">=</span><span class="st">&quot;cases&quot;</span></span>
-<span id="cb82-6"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb86"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb86-1"><a href></a>df_wide.unpivot(</span>
+<span id="cb86-2"><a href></a>  on<span class="op">=</span>[<span class="st">&quot;1999&quot;</span>, <span class="st">&quot;2000&quot;</span>],</span>
+<span id="cb86-3"><a href></a>  index<span class="op">=</span><span class="st">&quot;country&quot;</span>,</span>
+<span id="cb86-4"><a href></a>  variable_name<span class="op">=</span><span class="st">&quot;year&quot;</span>,</span>
+<span id="cb86-5"><a href></a>  value_name<span class="op">=</span><span class="st">&quot;cases&quot;</span></span>
+<span id="cb86-6"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -4984,33 +4936,20 @@ white-space: pre-wrap;
 </div>
 </div>
 </div></div>
-</section>
-<section id="pandas-vs-polars" class="slide level2">
-<h2>pandas vs polars</h2>
-<div class="small">
-<p><strong>pandas</strong> is a good choice when:</p>
-<ul>
-<li>Working interactively with small to medium datasets</li>
-<li>Using libraries that expect pandas DataFrames (e.g. scikit-learn, statsmodels, seaborn)</li>
-<li>You need the extensive ecosystem of pandas-compatible tools</li>
-</ul>
-<p><strong>polars</strong> is a good choice when:</p>
-<ul>
-<li>Working with large datasets that benefit from multi-core processing</li>
-<li>Building data pipelines where lazy evaluation can optimize query plans</li>
-<li>You want strict type checking and predictable behavior (no index surprises)</li>
-</ul>
-<p>In practice, the two are easy to convert between via <code>df.to_pandas()</code> and <code>pl.from_pandas()</code>.</p>
-</div>
+</section></section>
+<section>
+<section id="nyc-taxi-example" class="title-slide slide level1 center">
+<h1>NYC Taxi Example</h1>
+
 </section>
 <section id="nyc-taxi-data" class="slide level2">
 <h2>NYC Taxi Data</h2>
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb83"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb83-1"><a href></a>df <span class="op">=</span> pl.scan_parquet(</span>
-<span id="cb83-2"><a href></a>  <span class="st">&quot;~/Scratch/nyctaxi/fix/*_fix.parquet&quot;</span></span>
-<span id="cb83-3"><a href></a>)</span>
-<span id="cb83-4"><a href></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb87"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb87-1"><a href></a>df <span class="op">=</span> pl.scan_parquet(</span>
+<span id="cb87-2"><a href></a>  <span class="st">&quot;~/Scratch/nyctaxi/fix/*_fix.parquet&quot;</span></span>
+<span id="cb87-3"><a href></a>)</span>
+<span id="cb87-4"><a href></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <h4>NAIVE QUERY PLAN</h4><p>run <b>LazyFrame.show_graph()</b> to see the optimized version</p><!--?xml version="1.0" encoding="UTF-8" standalone="no"?-->
 
@@ -5036,7 +4975,7 @@ white-space: pre-wrap;
 <div class="fragment">
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb84"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb84-1"><a href></a>df.select(pl.<span class="bu">len</span>()).collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb88"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb88-1"><a href></a>df.select(pl.<span class="bu">len</span>()).collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -5074,7 +5013,7 @@ white-space: pre-wrap;
 <h2>Query plan</h2>
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb85"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb85-1"><a href></a><span class="bu">print</span>( df.select(pl.<span class="bu">len</span>()).explain() )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb89"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb89-1"><a href></a><span class="bu">print</span>( df.select(pl.<span class="bu">len</span>()).explain() )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>SELECT [len()]
   Parquet SCAN [/Users/rundel/Scratch/nyctaxi/fix/yellow_tripdata_2020-01_fix.parquet, ... 58 other sources]
@@ -5088,31 +5027,31 @@ white-space: pre-wrap;
 <h2>Large lazy queries</h2>
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb87"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb87-1"><a href></a>zone_lookup <span class="op">=</span> pl.read_csv(</span>
-<span id="cb87-2"><a href></a>  <span class="st">&quot;https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv&quot;</span></span>
-<span id="cb87-3"><a href></a>).rename(</span>
-<span id="cb87-4"><a href></a>  {<span class="st">&quot;LocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>}</span>
-<span id="cb87-5"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb91"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb91-1"><a href></a>zone_lookup <span class="op">=</span> pl.read_csv(</span>
+<span id="cb91-2"><a href></a>  <span class="st">&quot;https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv&quot;</span></span>
+<span id="cb91-3"><a href></a>).rename(</span>
+<span id="cb91-4"><a href></a>  {<span class="st">&quot;LocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>}</span>
+<span id="cb91-5"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 <div class="fragment">
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb88"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb88-1"><a href></a>query <span class="op">=</span> (</span>
-<span id="cb88-2"><a href></a>  df</span>
-<span id="cb88-3"><a href></a>  .<span class="bu">filter</span>(pl.col(<span class="st">&quot;trip_distance&quot;</span>) <span class="op">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb88-4"><a href></a>  .rename({<span class="st">&quot;PULocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>})</span>
-<span id="cb88-5"><a href></a>  .group_by(<span class="st">&quot;pickup_zone&quot;</span>)</span>
-<span id="cb88-6"><a href></a>  .agg(</span>
-<span id="cb88-7"><a href></a>    num_rides <span class="op">=</span> pl.<span class="bu">len</span>(),</span>
-<span id="cb88-8"><a href></a>    avg_fare_per_mile <span class="op">=</span> (pl.col(<span class="st">&quot;fare_amount&quot;</span>) <span class="op">/</span> pl.col(<span class="st">&quot;trip_distance&quot;</span>)).mean().<span class="bu">round</span>(<span class="dv">2</span>)</span>
-<span id="cb88-9"><a href></a>  ).join(</span>
-<span id="cb88-10"><a href></a>    zone_lookup.lazy(),</span>
-<span id="cb88-11"><a href></a>    on <span class="op">=</span> <span class="st">&quot;pickup_zone&quot;</span>,</span>
-<span id="cb88-12"><a href></a>    how <span class="op">=</span> <span class="st">&quot;left&quot;</span></span>
-<span id="cb88-13"><a href></a>  )</span>
-<span id="cb88-14"><a href></a>  .sort(<span class="st">&quot;pickup_zone&quot;</span>)</span>
-<span id="cb88-15"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb92"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb92-1"><a href></a>query <span class="op">=</span> (</span>
+<span id="cb92-2"><a href></a>  df</span>
+<span id="cb92-3"><a href></a>  .<span class="bu">filter</span>(pl.col(<span class="st">&quot;trip_distance&quot;</span>) <span class="op">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb92-4"><a href></a>  .rename({<span class="st">&quot;PULocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>})</span>
+<span id="cb92-5"><a href></a>  .group_by(<span class="st">&quot;pickup_zone&quot;</span>)</span>
+<span id="cb92-6"><a href></a>  .agg(</span>
+<span id="cb92-7"><a href></a>    num_rides <span class="op">=</span> pl.<span class="bu">len</span>(),</span>
+<span id="cb92-8"><a href></a>    avg_fare_per_mile <span class="op">=</span> (pl.col(<span class="st">&quot;fare_amount&quot;</span>) <span class="op">/</span> pl.col(<span class="st">&quot;trip_distance&quot;</span>)).mean().<span class="bu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb92-9"><a href></a>  ).join(</span>
+<span id="cb92-10"><a href></a>    zone_lookup.lazy(),</span>
+<span id="cb92-11"><a href></a>    on <span class="op">=</span> <span class="st">&quot;pickup_zone&quot;</span>,</span>
+<span id="cb92-12"><a href></a>    how <span class="op">=</span> <span class="st">&quot;left&quot;</span></span>
+<span id="cb92-13"><a href></a>  )</span>
+<span id="cb92-14"><a href></a>  .sort(<span class="st">&quot;pickup_zone&quot;</span>)</span>
+<span id="cb92-15"><a href></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </div>
@@ -5121,7 +5060,7 @@ white-space: pre-wrap;
 <h2>Plan</h2>
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb89"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb89-1"><a href></a>query</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb93"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb93-1"><a href></a>query</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <h4>NAIVE QUERY PLAN</h4><p>run <b>LazyFrame.show_graph()</b> to see the optimized version</p><!--?xml version="1.0" encoding="UTF-8" standalone="no"?-->
 
@@ -5226,7 +5165,7 @@ white-space: pre-wrap;
 <h2>Result</h2>
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb90"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb90-1"><a href></a>query.collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb94"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb94-1"><a href></a>query.collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div><style>
 .dataframe > thead > tr,
@@ -5355,31 +5294,31 @@ white-space: pre-wrap;
 <h2>pandas equivalent</h2>
 <div class="xsmall">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb91"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb91-1"><a href></a><span class="co"># pyarrow is required for reading parquet files</span></span>
-<span id="cb91-2"><a href></a></span>
-<span id="cb91-3"><a href></a>zone_lookup_pd <span class="op">=</span> pd.read_csv(</span>
-<span id="cb91-4"><a href></a>  <span class="st">&quot;https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv&quot;</span></span>
-<span id="cb91-5"><a href></a>).rename(columns<span class="op">=</span>{<span class="st">&quot;LocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>})</span>
-<span id="cb91-6"><a href></a></span>
-<span id="cb91-7"><a href></a><span class="kw">def</span> pd_query():</span>
-<span id="cb91-8"><a href></a>    df <span class="op">=</span> pd.read_parquet(<span class="st">&quot;~/Scratch/nyctaxi/fix/&quot;</span>)</span>
-<span id="cb91-9"><a href></a>    filtered <span class="op">=</span> (</span>
-<span id="cb91-10"><a href></a>      df[df[<span class="st">&quot;trip_distance&quot;</span>] <span class="op">&gt;</span> <span class="dv">0</span>]</span>
-<span id="cb91-11"><a href></a>      .rename(columns<span class="op">=</span>{<span class="st">&quot;PULocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>})</span>
-<span id="cb91-12"><a href></a>      .assign(fare_per_mile<span class="op">=</span><span class="kw">lambda</span> x: x[<span class="st">&quot;fare_amount&quot;</span>] <span class="op">/</span> x[<span class="st">&quot;trip_distance&quot;</span>])</span>
-<span id="cb91-13"><a href></a>    )</span>
-<span id="cb91-14"><a href></a>    <span class="cf">return</span> (</span>
-<span id="cb91-15"><a href></a>      filtered</span>
-<span id="cb91-16"><a href></a>      .groupby(<span class="st">&quot;pickup_zone&quot;</span>)</span>
-<span id="cb91-17"><a href></a>      .agg(</span>
-<span id="cb91-18"><a href></a>        num_rides<span class="op">=</span>(<span class="st">&quot;fare_per_mile&quot;</span>, <span class="st">&quot;size&quot;</span>),</span>
-<span id="cb91-19"><a href></a>        avg_fare_per_mile<span class="op">=</span>(<span class="st">&quot;fare_per_mile&quot;</span>, <span class="st">&quot;mean&quot;</span>)</span>
-<span id="cb91-20"><a href></a>      )</span>
-<span id="cb91-21"><a href></a>      .<span class="bu">round</span>({<span class="st">&quot;avg_fare_per_mile&quot;</span>: <span class="dv">2</span>})</span>
-<span id="cb91-22"><a href></a>      .reset_index()</span>
-<span id="cb91-23"><a href></a>      .merge(zone_lookup_pd, on<span class="op">=</span><span class="st">&quot;pickup_zone&quot;</span>, how<span class="op">=</span><span class="st">&quot;left&quot;</span>)</span>
-<span id="cb91-24"><a href></a>      .sort_values(<span class="st">&quot;pickup_zone&quot;</span>)</span>
-<span id="cb91-25"><a href></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb95"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb95-1"><a href></a><span class="co"># pyarrow is required for reading parquet files</span></span>
+<span id="cb95-2"><a href></a></span>
+<span id="cb95-3"><a href></a>zone_lookup_pd <span class="op">=</span> pd.read_csv(</span>
+<span id="cb95-4"><a href></a>  <span class="st">&quot;https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv&quot;</span></span>
+<span id="cb95-5"><a href></a>).rename(columns<span class="op">=</span>{<span class="st">&quot;LocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>})</span>
+<span id="cb95-6"><a href></a></span>
+<span id="cb95-7"><a href></a><span class="kw">def</span> pd_query():</span>
+<span id="cb95-8"><a href></a>    df <span class="op">=</span> pd.read_parquet(<span class="st">&quot;~/Scratch/nyctaxi/fix/&quot;</span>)</span>
+<span id="cb95-9"><a href></a>    filtered <span class="op">=</span> (</span>
+<span id="cb95-10"><a href></a>      df[df[<span class="st">&quot;trip_distance&quot;</span>] <span class="op">&gt;</span> <span class="dv">0</span>]</span>
+<span id="cb95-11"><a href></a>      .rename(columns<span class="op">=</span>{<span class="st">&quot;PULocationID&quot;</span>: <span class="st">&quot;pickup_zone&quot;</span>})</span>
+<span id="cb95-12"><a href></a>      .assign(fare_per_mile<span class="op">=</span><span class="kw">lambda</span> x: x[<span class="st">&quot;fare_amount&quot;</span>] <span class="op">/</span> x[<span class="st">&quot;trip_distance&quot;</span>])</span>
+<span id="cb95-13"><a href></a>    )</span>
+<span id="cb95-14"><a href></a>    <span class="cf">return</span> (</span>
+<span id="cb95-15"><a href></a>      filtered</span>
+<span id="cb95-16"><a href></a>      .groupby(<span class="st">&quot;pickup_zone&quot;</span>)</span>
+<span id="cb95-17"><a href></a>      .agg(</span>
+<span id="cb95-18"><a href></a>        num_rides<span class="op">=</span>(<span class="st">&quot;fare_per_mile&quot;</span>, <span class="st">&quot;size&quot;</span>),</span>
+<span id="cb95-19"><a href></a>        avg_fare_per_mile<span class="op">=</span>(<span class="st">&quot;fare_per_mile&quot;</span>, <span class="st">&quot;mean&quot;</span>)</span>
+<span id="cb95-20"><a href></a>      )</span>
+<span id="cb95-21"><a href></a>      .<span class="bu">round</span>({<span class="st">&quot;avg_fare_per_mile&quot;</span>: <span class="dv">2</span>})</span>
+<span id="cb95-22"><a href></a>      .reset_index()</span>
+<span id="cb95-23"><a href></a>      .merge(zone_lookup_pd, on<span class="op">=</span><span class="st">&quot;pickup_zone&quot;</span>, how<span class="op">=</span><span class="st">&quot;left&quot;</span>)</span>
+<span id="cb95-24"><a href></a>      .sort_values(<span class="st">&quot;pickup_zone&quot;</span>)</span>
+<span id="cb95-25"><a href></a>    )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </div>
 </section>
@@ -5388,7 +5327,7 @@ white-space: pre-wrap;
 <h4 id="polars-1">polars</h4>
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb92"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb92-1"><a href></a><span class="op">%</span>timeit query.collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb96"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb96-1"><a href></a><span class="op">%</span>timeit query.collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <pre><code>1.10 s ± 72 ms per loop (mean ± std. dev. of 3 runs, 1 loop each)</code></pre>
 </div>
@@ -5396,7 +5335,7 @@ white-space: pre-wrap;
 <h4 id="pandas">pandas</h4>
 <div class="small">
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb94"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb94-1"><a href></a><span class="op">%</span>timeit pd_query()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb98"><pre class="sourceCode numberSource python number-lines code-with-copy"><code class="sourceCode python"><span id="cb98-1"><a href></a><span class="op">%</span>timeit pd_query()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <pre><code>150.8 s ± 5.9 s per loop (mean ± std. dev. of 3 runs, 1 loop each)</code></pre>
 </div>

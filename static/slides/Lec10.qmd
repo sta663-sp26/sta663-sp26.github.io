@@ -185,7 +185,7 @@ From [UBC-MDS/programming-in-python-for-data-science](https://raw.githubusercont
 
 ## groupby
 
-Groups can be created within a DataFrame via `groupby()` - these groups are then used by the standard aggregation methods (e.g. `sum()`, `mean()`, `std()`, etc.).
+Groups can be created within a DataFrame via `groupby()` - this returns a `DataFrameGroupBy` object that contains information about the groups and how to access them.
 
 ::: {.small}
 ```{python}
@@ -196,6 +196,8 @@ cereal.groupby("mfr").groups
 :::
 
 ## groupby and aggregation methods
+
+These groups can be used by the standard aggregation methods (e.g. `sum()`, `mean()`, `std()`, etc.)
 
 ::: {.small}
 ```{python}
@@ -311,7 +313,7 @@ Tuples can also be passed using `pd.NamedAgg()` but this offers no additional fu
 :::
 
 
-## Transformation
+## Transformation {.scrollable}
 
 The `transform()` method returns a DataFrame with the aggregated result matching the size (or length 1) of the input group(s),
 
@@ -341,7 +343,7 @@ The `transform()` method returns a DataFrame with the aggregated result matching
 ::::
 
 
-## Practical transformation
+## Practical transformation {.scrollable}
 
 `transform()` will generally be most useful via a user-defined function; the lambda is applied to each column of each group.
 
@@ -438,21 +440,17 @@ pl.Series("strs", ["A", "B", "C", "D", "E"])
 In Polars, missing data is represented by the value `null`. This missing value `null` is used for all data types, including numerical types.
 :::
 
-::: {.columns .xsmall}
+::: {.columns .xxsmall}
 ::: {.column width=33%}
 ```{python}
 pl.Series("ints", 
   [1, 2, 3, None])
-pl.Series("dbls", 
-  [1., 2., 3., None])
 ```
 :::
 ::: {.column width=33% .fragment}
 ```{python}
 pl.Series("bools", 
   [True, False, True, None])
-pl.Series("strs", 
-  ["A", "B", "C", None])
 ```
 :::
 ::: {.column width=33% .fragment}
@@ -460,6 +458,26 @@ pl.Series("strs",
 #| error: true
 pl.Series("ints", 
   [1, 2, 3, np.nan])
+```
+:::
+:::
+
+::: {.columns .xxsmall}
+::: {.column width=33%}
+```{python}
+pl.Series("dbls", 
+  [1., 2., 3., None])
+```
+:::
+::: {.column width=33% .fragment}
+```{python}
+pl.Series("strs", 
+  ["A", "B", "C", None])
+```
+:::
+::: {.column width=33% .fragment}
+```{python}
+#| error: true
 pl.Series("dbls", 
   [1., 2., 3., np.nan])
 ```
@@ -497,30 +515,49 @@ In Polars, `null` and `NaN` are distinct concepts: `null` represents missing dat
 :::
 
 ::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.column}
 ```{python}
-s = pl.Series("x", [1., 2., np.nan, None])
-s
+s_null = pl.Series("x", [1., 2., None])
 ```
+:::
+::: {.column}
+```{python}
+s_nan = pl.Series("x", [1., 2., np.nan])
+```
+:::
+:::
 
-```{python}
-s.is_null()
-s.is_nan()
-```
-:::
-::: {.column width='50%' .fragment}
-```{python}
-s.null_count()
-s.sum()
-s.mean()
-```
 
+::: {.columns .xsmall}
+::: {.column width='25%'}
 ```{python}
-s.fill_null(0)
-s.fill_nan(0)
+s_null.is_null()
+s_null.is_nan()
+```
+:::
+::: {.column width='25%'}
+```{python}
+s_null.sum()
+s_null.mean()
+s_null.fill_null(0)
+```
+:::
+::: {.column width='25%'}
+```{python}
+s_nan.is_null()
+s_nan.is_nan()
+```
+:::
+::: {.column width='25%'}
+```{python}
+s_nan.sum()
+s_nan.mean()
+s_nan.fill_nan(0)
 ```
 :::
 :::
+
+
 
 
 ## DataFrames
@@ -562,7 +599,9 @@ bmi_expr
 
 <br/>
 
-This represents a potential computation that can be executed later. Much of the power of Polars comes from the ability to chain together / compose these expressions.
+This represents a potential computation that can be executed later. 
+
+Much of the power of Polars comes from the ability to chain together / compose these expressions.
 
 ## Contexts
 
@@ -635,25 +674,19 @@ df.with_columns(
 
 `sort()` sorts a DataFrame by one or more columns. `sort_by()` is the expression-level equivalent for use within contexts.
 
-:::: {.columns .xsmall}
+:::: {.columns .xxsmall}
 ::: {.column width='50%'}
 ```{python}
-df.sort("weight")
-df.sort("weight", descending=True)
+df.sort("height", descending=True)
+df.sort("id", "height")
 ```
 :::
 
 ::: {.column width='50%' .fragment}
-```{python}
-df.sort("id", "height")
-```
 
 ```{python}
-df.with_columns(
-  rank = pl.col("weight")
-    .rank()
-    .over("id")
-    .sort_by("weight")
+df.select(
+  pl.col("name", "id", "height").sort_by("height", descending=True)
 )
 ```
 :::
@@ -681,12 +714,11 @@ df_long
 
 ::: {.column width='50%' .fragment}
 ```{python}
-df_wide = df_long.pivot(
+df_long.pivot(
   on="type",
   index=["country","year"],
   values="count"
 )
-df_wide
 ```
 :::
 ::::
@@ -694,12 +726,12 @@ df_wide
 ## Wide to long (unpivot)
 
 ::: {.small}
-In polars, `melt()` has been renamed to `unpivot()`.
+In polars, the equivalent to `melt()` is `unpivot()`.
 :::
 
 ```{python}
 #| include: false
-df_wide2 = pl.DataFrame({
+df_wide = pl.DataFrame({
   "country": ["A","B","C"],
   "1999":    ["0.7K","37K","212K"],
   "2000":    ["2K","80K","213K"]
@@ -709,13 +741,13 @@ df_wide2 = pl.DataFrame({
 :::: {.columns .small}
 ::: {.column width='50%'}
 ```{python}
-df_wide2
+df_wide
 ```
 :::
 
 ::: {.column width='50%' .fragment}
 ```{python}
-df_wide2.unpivot(
+df_wide.unpivot(
   on=["1999", "2000"],
   index="country",
   variable_name="year",
@@ -726,25 +758,7 @@ df_wide2.unpivot(
 ::::
 
 
-## pandas vs polars
-
-::: {.small}
-
-**pandas** is a good choice when:
-
-* Working interactively with small to medium datasets
-* Using libraries that expect pandas DataFrames (e.g. scikit-learn, statsmodels, seaborn)
-* You need the extensive ecosystem of pandas-compatible tools
-
-**polars** is a good choice when:
-
-* Working with large datasets that benefit from multi-core processing
-* Building data pipelines where lazy evaluation can optimize query plans
-* You want strict type checking and predictable behavior (no index surprises)
-
-In practice, the two are easy to convert between via `df.to_pandas()` and `pl.from_pandas()`.
-
-:::
+# NYC Taxi Example
 
 ## NYC Taxi Data
 
