@@ -3,6 +3,12 @@ import pandas as pd
 
 ## Exercise 1
 
+df = pd.DataFrame({
+  "country": ["A","A","B","B","C","C"],
+  "year":    [1999, 2000, 1999, 2000, 1999, 2000],
+  "rate":    ["0.7K/19M", "2K/20M", "37K/172M", "80K/174M", "212K/1T", "213K/1T"]
+})
+
 # Opt 1
 
 df.assign(
@@ -24,7 +30,7 @@ df.assign(
   .explode("rate")
   .assign(
     type = lambda d: ["cases", "pop"] * 
-                     int(d.shape[0]/2)
+                     int(len(d)/2)
   )
   .pivot(
     index=["country","year"], 

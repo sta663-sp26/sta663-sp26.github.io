@@ -786,6 +786,8 @@ These data are available on `rstudio.stat.duke.edu` in the `/data/nyctaxi` direc
 
 ## Query plan
 
+Just like with DuckDB and sqlite we can ask polars to show us the query plan for a given expression.
+
 ::: {.small}
 ```{python}
 print( df.select(pl.len()).explain() )

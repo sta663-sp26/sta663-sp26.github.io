@@ -2,6 +2,10 @@ options(
   width=80
 )
 
+knitr::opts_chunk$set(
+  fig.align = "center"
+)
+
 local({
   hook_err_old <- knitr::knit_hooks$get("error")  # save the old hook
   knitr::knit_hooks$set(error = function(x, options) {

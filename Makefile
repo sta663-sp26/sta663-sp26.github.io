@@ -25,7 +25,7 @@ clean:
 	rm -f static/slides/*.pdf
 
 static/slides/%.html: static/slides/%.qmd
-	quarto render $<
+	uv run quarto render $<
 	
 static/slides/%.pdf: static/slides/%.html
 	Rscript -e "renderthis::to_pdf('$<')"
