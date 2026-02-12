@@ -173,7 +173,7 @@ plt.show()
 ```{python}
 #| fig-align: center
 #| output-location: column
-#| code-line-numbers: "|3-6|10-13|15"
+#| code-line-numbers: "|3-6|10-13|15-16"
 x = np.linspace(-2, 2, 101)
 
 fig, axs = plt.subplots(
@@ -194,9 +194,7 @@ for ax in axs.flat:
 :::
 
 
-::: {.aside}
 `axs` here is a 2x2 numpy array of axes
-:::
 
 
 ## Fancy subplots (mosaic)
@@ -224,9 +222,8 @@ axd['right'].set_title("Cubic")
 :::
 
 
-::: {.aside}
 `axd` here is a *dictionary* of axes
-:::
+
 
 ## Format strings
 
@@ -414,7 +411,7 @@ ax.set_title(f"Bivariate normal ($\\rho={rho}$)")
 
 ## Scales
 
-Axis scales can be changed via `plt.xscale()`, `plt.yscale()`, `ax.set_xscale()`, or `ax.set_yscale()`. Supported values are "linear", "log", "symlog", and "logit".
+Axis scales can be changed via `plt.xscale()`, `plt.yscale()`, `ax.set_xscale()`, or `ax.set_yscale()`.
 
 ::: {.xsmall}
 ```{python}
@@ -513,22 +510,6 @@ plt.show()
 ::: {.aside}
 [matplotlib.org/stable/plot_types/](https://matplotlib.org/stable/plot_types/index.html)
 :::
-
-
-## Exercise 1
-
-To the best of your ability recreate the following plot,
-
-```{r}
-#| echo: false
-#| out-width: 50%
-knitr::include_graphics("imgs/pyplot_simple.webp")
-```
-
-::: {.aside}
-From matplotlib [examples](https://matplotlib.org/stable/gallery/index.html)
-:::
-
 
 # Seaborn
 
