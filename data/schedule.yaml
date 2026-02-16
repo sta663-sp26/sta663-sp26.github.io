@@ -145,7 +145,7 @@ schedule:
 - week: 6
   day: 2
   lecture: "scikit-learn"
-  slides:
+  slides: Lec12
   screencast: 
   readings:
   - text: scikit-learn user guide
