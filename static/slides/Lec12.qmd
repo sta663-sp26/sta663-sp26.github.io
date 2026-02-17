@@ -39,6 +39,13 @@ plt.rcParams['figure.dpi'] = 200
 > * Built on NumPy, SciPy, and matplotlib
 > * Open source, commercially usable - BSD license
 
+::: {.small}
+```{python}
+import sklearn
+sklearn.__version__
+```
+:::
+
 
 ::: {.aside}
 This is one of several other "scikits" (e.g. scikit-image) which are scientific toolboxes built on top of scipy. For a more complete list see [here](https://pypi.org/search/?q=scikit).
@@ -46,7 +53,9 @@ This is one of several other "scikits" (e.g. scikit-image) which are scientific 
 
 ## Installation
 
-To add scikit-learn to your python environment, you can use:
+You probably noticed - the package is called `scikit-learn` but the module is called `sklearn` - this is a common source of confusion.
+
+To install the package use the longer name:
 
 ```shell
 uv add scikit-learn
@@ -144,7 +153,7 @@ g = sns.relplot(data=books, x="volume", y="weight", hue="cover")
 
 ## Linear regression
 
-scikit-learn uses an object oriented system for implementing the various modeling approaches, the class for `LinearRegression` is part of the `linear_model` submodule.
+scikit-learn uses an object oriented system for implementing the various modeling approaches, the class `LinearRegression` is part of the `linear_model` submodule.
 
 ::: {.small}
 ```{python}
@@ -154,7 +163,7 @@ from sklearn.linear_model import LinearRegression
 
 . . .
 
-Each modeling class needs to be constructed (potentially with options) and then the resulting object will provide attributes and methods. 
+Each modeling class needs to be constructed (potentially with options) and then the resulting object will provide attributes and methods for fitting and using the model. 
 
 . . .
 
@@ -176,7 +185,6 @@ m.intercept_
 :::
 
 ::: {.column width='50%' .fragment}
-Note `lm` and `m` are labels for the same underlying `LinearRegression` object,
 
 ::: {.small}
 ```{python}
@@ -184,6 +192,9 @@ lm.coef_
 lm.intercept_
 ```
 :::
+
+Note `lm` and `m` are labels for the same underlying `LinearRegression` object,
+
 :::
 ::::
 
@@ -260,14 +271,14 @@ lm.coef_
 
 Once the model coefficients have been fit, it is possible to predict from the model via the `predict()` method, this method requires a matrix-like `X` as input and in the case of `LinearRegression` returns an array of predicted y values. 
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 lm.predict(X = books[["volume"]])
 ```
 
 ```{python}
 books = books.assign(
-  weight_lm_pred = lambda x: lm.predict(X = x[["volume"]])
+  pred = lambda x: lm.predict(X = x[["volume"]])
 )
 books
 ```
@@ -279,7 +290,7 @@ books
 ```{python}
 plt.figure()
 sns.scatterplot(data=books, x="volume", y="weight", hue="cover")
-sns.lineplot(data=books, x="volume", y="weight_lm_pred", color="c")
+sns.lineplot(data=books, x="volume", y="pred", color="c")
 plt.show()
 ```
 :::
@@ -291,13 +302,13 @@ There is no built in functionality for calculating residuals, so this needs to b
 
 ::: {.small}
 ```{python}
-books["resid_lm_pred"] = books["weight"] - books["weight_lm_pred"]
+books["resid"] = books["weight"] - books["pred"]
 ```
 
 ```{python}
 #| out-width: 66%
 plt.figure(layout="constrained")
-ax = sns.scatterplot(data=books, x="volume", y="resid_lm_pred", hue="cover")
+ax = sns.scatterplot(data=books, x="volume", y="resid", hue="cover")
 ax.axhline(c="k", ls="--", lw=1)
 plt.show()
 ```
@@ -365,7 +376,7 @@ summary(lm)
 
 ## Avoiding co-linearity
 
-:::: {.columns .small}
+:::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
 lm1 = LinearRegression(
@@ -422,7 +433,7 @@ These are a collection of transformer classes present in the `sklearn.preprocess
 Like the modeling classes, they have an object oriented design that shares a common interface (methods and attributes) for bringing in data, transforming it, and returning it.
 
 
-## OneHotEncoder
+## OneHotEncoder {.scrollable}
 
 For dummy coding we can use the `OneHotEncoder` preprocessor, the default is to use one hot encoding but standard dummy coding can be achieved via the `drop` parameter.
 
@@ -443,7 +454,9 @@ enc.transform(X = books[["cover"]])
 
 ::: {.column width='50%' .fragment}
 ```{python}
-enc = OneHotEncoder(sparse_output=False, drop="first")
+enc = OneHotEncoder(
+  sparse_output=False, drop="first"
+)
 enc.fit_transform(X = books[["cover"]])
 ```
 :::
@@ -514,9 +527,9 @@ lm2.coef_
 
 ::: {.column width='50%' .fragment}
 ```{python}
-books["weight_lm2_pred"] = lm2.predict(X=X)
+books["pred2"] = lm2.predict(X=X)
 books.drop(
-  ["weight_lm_pred", "resid_lm_pred"], 
+  ["pred", "resid"], 
   axis=1
 )
 ```
@@ -533,7 +546,7 @@ We'll see a more elegant way of doing this in the near future
 #| echo: false
 plt.figure()
 sns.scatterplot(data=books, x="volume", y="weight", hue="cover")
-sns.lineplot(data=books, x="volume", y="weight_lm2_pred", hue="cover")
+sns.lineplot(data=books, x="volume", y="pred2", hue="cover")
 plt.show()
 ```
 
@@ -541,10 +554,10 @@ plt.show()
 
 ```{python}
 #| echo: false
-books["resid_lm2_pred"] = books["weight"] - books["weight_lm2_pred"]
+books["resid2"] = books["weight"] - books["pred2"]
 
 plt.figure(layout="constrained")
-ax = sns.scatterplot(data=books, x="volume", y="resid_lm2_pred", hue="cover")
+ax = sns.scatterplot(data=books, x="volume", y="resid2", hue="cover")
 ax.axhline(c="k", ls="--", lw=1)
 plt.show()
 ```
@@ -565,24 +578,24 @@ import sklearn.metrics as metrics
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
-metrics.r2_score(books.weight, books.weight_lm_pred)
+metrics.r2_score(books.weight, books.pred)
 metrics.mean_squared_error(
-  books.weight, books.weight_lm_pred
+  books.weight, books.pred
 )
 metrics.root_mean_squared_error(
-  books.weight, books.weight_lm_pred
+  books.weight, books.pred
 )
 ```
 :::
 
 ::: {.column width='50%'}
 ```{python}
-metrics.r2_score(books.weight, books.weight_lm2_pred)
+metrics.r2_score(books.weight, books.pred2)
 metrics.mean_squared_error(
-  books.weight, books.weight_lm2_pred
+  books.weight, books.pred2
 ) 
 metrics.root_mean_squared_error(
-  books.weight, books.weight_lm2_pred
+  books.weight, books.pred2
 )
 ```
 :::
@@ -764,6 +777,7 @@ pf.get_feature_names_out()
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
+from sklearn.metrics import root_mean_squared_error as rmse
 def poly_model(X, y, degree):
   X  = PolynomialFeatures(
     degree=degree, include_bias=False
@@ -776,12 +790,12 @@ def poly_model(X, y, degree):
   ).predict(
     X
   )
-  return metrics.root_mean_squared_error(y, y_pred)
+  return rmse(y, y_pred)
 ```
 
 ```{python}
-poly_model(X = df[["x"]], y = df.y, degree = 2)
-poly_model(X = df[["x"]], y = df.y, degree = 3)
+poly_model(X=df[["x"]], y=df.y, degree=2)
+poly_model(X=df[["x"]], y=df.y, degree=3)
 ```
 :::
 
@@ -825,7 +839,7 @@ g = sns.relplot(
 # Pipelines
 
 
-## Pipelines
+## Pipelines {.scrollable}
 
 You may have noticed that `PolynomialFeatures` takes a model matrix as input and returns a new model matrix as output which is then used as the input for `LinearRegression`. This is not an accident, and by structuring the library in this way sklearn is designed to enable the connection of these steps together, into what sklearn calls a *pipeline*.
 
@@ -917,7 +931,7 @@ p.steps[1][1].n_features_in_
 
 
 
-## What about step parameters?
+## What about step parameters? {.scrollable}
 
 By accessing each step we can adjust their parameters (via `set_params()`),
 
@@ -948,7 +962,7 @@ p.named_steps["linearregression"].coef_
 :::
 
 
-## Pipeline parameter names
+## Pipeline parameter names {.scrollable}
 
 These parameters can also be directly accessed at the pipeline level, names are constructed as step name + `__` + parameter name:
 
@@ -1039,6 +1053,12 @@ ct.get_feature_names_out()
 
 ::: {.xsmall}
 ```{python}
+#| include: false
+np.set_printoptions(precision=4)
+```
+
+```{python}
+
 ct.transform(books)
 ```
 :::
@@ -1065,7 +1085,7 @@ ct1 = make_column_transformer(
   ),
   ( OneHotEncoder(),
     make_column_selector(
-      dtype_include=[object, bool]
+      dtype_include=[str, bool]
     )
   )
 )
@@ -1082,7 +1102,7 @@ ct2 = make_column_transformer(
   ),
   ( OneHotEncoder(),
     books.select_dtypes(
-      include=['object']
+      include=['str']
     ).columns
   )
 )
