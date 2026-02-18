@@ -1,6 +1,6 @@
 ---
 title: "scikit-learn<br/>Cross-validation &<br/>Classification"
-subtitle: "Lecture 12"
+subtitle: "Lecture 13"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:
@@ -33,11 +33,7 @@ np.set_printoptions(
   #formatter=dict(float=lambda x: "%.5g" % x)
 )
 
-books = pd.read_csv("data/daag_books.csv")
-
-
-from sklearn.metrics import mean_squared_error, root_mean_squared_error, classification_report
-from sklearn.preprocessing import PolynomialFeatures
+from sklearn.metrics import root_mean_squared_error, classification_report
 from sklearn.linear_model import LinearRegression
 ```
 
@@ -46,11 +42,11 @@ from sklearn.linear_model import LinearRegression
 ```
 
 
-# Cross validation &<br/>hyper parameter tuning
+# Cross validation &<br/>hyperparameter tuning
 
 ## Ridge regression
 
-One way to expand on the idea of least squares regression is to modify the loss function. One such approach is known as Ridge regression, which adds a scaled penalty for the sum of the squared $\beta$s to the least squares loss. 
+One way to expand on the idea of least squares regression is to modify the loss function. Ridge regression is one such approach - it adds a scaled penalty for the sum of the squared $\beta$s to the least squares loss. 
 
 ::: {.small}
 $$ \underset{\boldsymbol{\beta}}{\text{argmin}} \; \lVert \boldsymbol{y} - \boldsymbol{X} \boldsymbol{\beta} \rVert^2 + \lambda (\boldsymbol{\beta}^T\boldsymbol{\beta}) $$
@@ -71,9 +67,9 @@ d = pd.get_dummies(d); d
 :::
 
 
-## Fitting a ridge regession model
+## Fitting a ridge regression model
 
-The `linear_model` submodule also contains the `Ridge` model which can be used to fit a ridge regression. Usage is identical other than `Ridge()` takes the parameter `alpha` to specify the regularization parameter.
+The `linear_model` submodule also contains the `Ridge` model which can be used to fit a ridge regression model. Usage is identical other than `Ridge()` takes the parameter `alpha` to specify the regularization parameter.
 
 ::: {.xsmall}
 ```{python}
@@ -157,9 +153,9 @@ y_test.shape
 
 ## Train vs Test rmse
 
-::: {.xsmall}
+::: {.columns .xsmall}
+::: {.column}
 ```{python}
-#| output-location: column
 alpha = np.logspace(-2,1, 100)
 train_rmse = []
 test_rmse = []
@@ -179,14 +175,21 @@ for a in alpha:
       ) 
     )
 
-res = pd.DataFrame(
-  data = {"alpha": alpha, 
-          "train": train_rmse, 
-          "test": test_rmse}
-)
+res = pd.DataFrame( {
+  "alpha": alpha, 
+   "train": train_rmse, 
+   "test": test_rmse
+} )
+```
+:::
+::: {.column}
+```{python}
 res
 ```
 :::
+:::
+
+
 
 ##
 
@@ -226,7 +229,7 @@ res.iloc[[min_i],:]
 
 ## k-fold cross validation
 
-The previous approach was relatively straight forward, but it required a fair bit of bookkeeping  to implement and we only examined a single test/train split. If we would like to perform k-fold cross validation we can use `cross_val_score` from the `model_selection` submodule. 
+The previous approach was relatively straightforward, but it required a fair bit of bookkeeping  to implement and we only examined a single test/train split. If we would like to perform k-fold cross validation we can use `cross_val_score` from the `model_selection` submodule. 
 
 ::: {.small}
 ```{python}
@@ -266,7 +269,7 @@ cross_val_score(
 
 ## KFold object
 
-`KFold()` returns a class object which provides the method `split()` which in turn is a generator that returns a tuple with the indexes of the training and testing selects for each fold given a model matrix `X`,
+`KFold()` returns a class object which provides the method `split()` which in turn is a generator that returns a tuple with the indexes of the training and test selections for each fold given a model matrix `X`,
 
 ::: {.xsmall}
 ```{python}
@@ -363,7 +366,7 @@ from sklearn.model_selection import GridSearchCV
 
 gs = GridSearchCV(
   Ridge(fit_intercept=False),
-  {"alpha": np.logspace(-2, 1, 30)},
+  param_grid = {"alpha": np.logspace(-2, 1, 30)},
   cv = KFold(5, shuffle=True, random_state=1234),
   scoring = "neg_root_mean_squared_error"
 ).fit(
@@ -382,7 +385,7 @@ gs.best_params_
 gs.best_score_
 ```
 
-## `best_estimator_` attribute
+## `best_estimator_` attribute {.scrollable}
 
 If `refit = True` (default) with `GridSearchCV()` then the `best_estimator_` attribute will be available which gives direct access to the "best" model or pipeline object. This model is constructed by using the parameter(s) that achieved the minimum score and refitting the model to the complete data set.
 
@@ -397,7 +400,7 @@ gs.best_estimator_.predict(X)
 :::
 
 
-## `cv_results_` attribute
+## `cv_results_` attribute {.scrollable}
 
 Other useful details about the grid search process are stored as a dictionary in the `cv_results_` attribute which includes things like average test scores, fold level test scores, test ranks, test runtimes, etc.
 
@@ -537,30 +540,31 @@ d = read.csv("data/email.csv") |>
   dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
 ```
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-*R output*
+R output
 
+::: {.xsmall}
 ```{r}
 glm(spam~.-1, data=d, family=binomial) |>
   coef()
 ```
 :::
 
-::: {.column width='50%'}
-*sklearn output*
+<br/>
 
+sklearn output
+
+::: {.xsmall}
 ```{python}
 m.feature_names_in_
 m.coef_
 ```
 :::
-::::
+
 
 
 ## `sklearn.linear_model.LogisticRegression`
 
-From the documentations,
+From the documentation,
 
 > This class implements regularized logistic regression using the ‘liblinear’ library, ‘newton-cg’, ‘sag’, ‘saga’ and ‘lbfgs’ solvers. **Note that regularization is applied by default.** It can handle both dense and sparse input. Use C-ordered arrays or CSR matrices containing 64-bit floats for optimal performance; any other input format will be converted (and copied).
 
@@ -569,12 +573,14 @@ From the documentations,
 
 🚩🚩🚩 
 
-`LogisticRegression()` has a parameter called penalty that applies a `"l1"` (lasso), `"l2"` (ridge), `"elasticnet"` or `None` with `"l2"` being the default. To make matters worse, the regularization is controlled by the parameter `C` which defaults to 1 (not 0) - also `C` is the inverse regularization strength (e.g. different from `alpha` for ridge and lasso models). 
+`LogisticRegression()` has a parameter called penalty that applies a `"l1"` (lasso), `"l2"` (ridge), `"elasticnet"` or `None` with `"l2"` being the default. To make matters worse, the regularization is controlled by the parameter `C` which defaults to 1. `C` here is the inverse regularization strength (e.g. the inverse of `alpha` for ridge and lasso models). 
 
 🚩🚩🚩
 
 $$
-\min_{w, c} \frac{1 - \rho}{2}w^T w + \rho |w|_1 + C \sum_{i=1}^n \log(\exp(- y_i (X_i^T w + c)) + 1),
+\min_{w} \sum_{i=1}^n
+\left(-y_i \log(\hat{p}(X_i)) - (1 - y_i) \log(1 - \hat{p}(X_i))\right)
++ \frac{1}{C}\, \left(\frac{1 - \rho}{2}w^T w + \rho \|w\|_1\right)
 $$
 
 
@@ -585,35 +591,34 @@ d = read.csv("data/email.csv") |>
   dplyr::select(spam, exclaim_mess, format, num_char, line_breaks, number)
 ```
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-*R output*
 
+
+R output
+
+::: {.xsmall}
 ```{r}
 glm(spam~.-1, data = d, family=binomial) |>
   coef()
 ```
 :::
 
-::: {.column width='50%'}
-*sklearn output (penalty `None`)*
 
+sklearn output (penalty `None`)
+
+::: {.xsmall}
 ```{python}
 m = LogisticRegression(
   fit_intercept = False, penalty=None
-).fit(
-  X, y
-)
+).fit(X, y)
 m.feature_names_in_
 m.coef_
 ```
 :::
-::::
 
 
 ## Solver parameter
 
-It is also possible specify the solver to use when fitting a logistic regression model, to complicate matters somewhat the choice of the algorithm depends on the penalty chosen: 
+It is also possible to specify the solver to use when fitting a logistic regression model, to complicate matters somewhat the choice of the algorithm depends on the penalty chosen: 
 
 * `newton-cg` - [`"l2"`, `None`]
 * `lbfgs` - [`"l2"`, `None`]
@@ -626,7 +631,7 @@ Also there can be issues with feature scales for some of these solvers:
 > **Note:** ‘sag’ and ‘saga’ fast convergence is only guaranteed on features with approximately the same scale. You can preprocess the data with a scaler from sklearn.preprocessing.
 
 
-## Prediction
+## Prediction {.scrollable}
 
 Classification models have multiple prediction methods depending on what type of output you would like,
 
@@ -688,11 +693,10 @@ confusion_matrix(y, m.predict(X), labels=m.classes_)
 
 ## Scoring visualizations - confusion matrix
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 from sklearn.metrics import ConfusionMatrixDisplay
 cm = confusion_matrix(y, m.predict(X), labels=m.classes_)
-
 disp = ConfusionMatrixDisplay(cm).plot()
 plt.show()
 ```
@@ -704,7 +708,6 @@ plt.show()
 ::: {.small}
 ```{python}
 from sklearn.metrics import auc, roc_curve, RocCurveDisplay
-
 fpr, tpr, thresholds = roc_curve(y, m.predict_proba(X)[:,1])
 roc_auc = auc(fpr, tpr)
 disp = RocCurveDisplay(fpr=fpr, tpr=tpr, roc_auc=roc_auc,
@@ -719,12 +722,43 @@ plt.show()
 ::: {.small}
 ```{python}
 from sklearn.metrics import precision_recall_curve, PrecisionRecallDisplay
-
 precision, recall, _ = precision_recall_curve(y, m.predict_proba(X)[:,1])
 disp = PrecisionRecallDisplay(precision=precision, recall=recall).plot()
 plt.show()
 ```
 :::
+
+## StratifiedKFold
+
+For classification problems, `StratifiedKFold` is preferred over `KFold` - it ensures each fold preserves the same class proportions as the full dataset, which is particularly important for imbalanced classes.
+
+::: {.xsmall}
+```{python}
+from sklearn.model_selection import StratifiedKFold
+print(f'overall spam%={y.mean():.3f}')
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+*`KFold`*
+```{python}
+cv = KFold(5, shuffle=True, random_state=1234)
+for i, (train, test) in enumerate(cv.split(X, y)):
+  print(f'fold {i+1}: spam%={y.iloc[test].mean():.3f}')
+```
+:::
+
+::: {.column width='50%'}
+*`StratifiedKFold`*
+```{python}
+cv = StratifiedKFold(5, shuffle=True, random_state=1234)
+for i, (train, test) in enumerate(cv.split(X, y)):
+  print(f'fold {i+1}: spam%={y.iloc[test].mean():.3f}')
+```
+:::
+::::
+
 
 
 # MNIST
@@ -781,23 +815,24 @@ To properly assess our modeling we will create a training and testing set of the
 ::: {.small}
 ```{python}
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, shuffle=True, random_state=1234
+    X, y, test_size=0.33, shuffle=True, stratify=y, random_state=1234
 )
 ```
 :::
 
 
-## Multiclass logistic regression
 
-Fitting a multiclass logistic regression model will involve selecting a value for the `multi_class` parameter, which can be either `multinomial` for multinomial regression or `ovr` for one-vs-rest where `k` binary models are fit.
+## Multiclass logistic regression {.scrollable}
+
+Fitting a multiclass logistic regression model in recent versions of sklearn uses multinomial logistic regression by default. We can use `GridSearchCV` with `StratifiedKFold` to explore the available solver options (all of which support `penalty=None`).
 
 ::: {.xsmall}
 ```{python}
 #| code-line-numbers: |3
 mc_log_cv = GridSearchCV(
   LogisticRegression(penalty=None, max_iter = 5000),
-  param_grid = {"multi_class": ["multinomial", "ovr"]},
-  cv = KFold(10, shuffle=True, random_state=12345)
+  param_grid = {"solver": ["lbfgs", "newton-cg", "sag", "saga"]},
+  cv = StratifiedKFold(10, shuffle=True, random_state=12345)
 ).fit(
   X_train, y_train
 )
@@ -817,8 +852,8 @@ mc_log_cv.best_score_
 
 ::: {.xsmall}
 ```{python}
-for param, score in  zip(mc_log_cv.cv_results_["params"], mc_log_cv.cv_results_["mean_test_score"]):
-  f"{param=}, {score=}"
+for param, score in zip(mc_log_cv.cv_results_["params"], mc_log_cv.cv_results_["mean_test_score"]):
+  print(f"{param=}, {score=}")
 ```
 :::
 
@@ -900,7 +935,7 @@ mc_log_cv.best_estimator_.predict(X_test)
 
 ::: {.column width='50%'}
 ```{python}
-mc_log_cv.best_estimator_.predict_proba(X_test),
+mc_log_cv.best_estimator_.predict_proba(X_test)
 ```
 :::
 ::::
@@ -926,7 +961,7 @@ plt.show()
 
 ## Example 1 - DecisionTreeClassifier
 
-Using these data we will now fit a `DecisionTreeClassifier` to these data, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+Using these data we will now fit a `DecisionTreeClassifier`, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
 
 ::: {.small}
 ```{python}
@@ -936,7 +971,7 @@ digits = load_digits(as_frame=True)
 
 X, y = digits.data, digits.target
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, shuffle=True, random_state=1234
+    X, y, test_size=0.33, shuffle=True, stratify=y, random_state=1234
 )
 ```
 :::
