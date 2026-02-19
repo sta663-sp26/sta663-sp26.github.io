@@ -58,7 +58,7 @@ d = pd.read_csv("data/ridge.csv"); d
 ```
 :::
 
-## dummy coding
+## Dummy coding
 
 ::: {.small}
 ```{python}
@@ -151,7 +151,7 @@ y_test.shape
 ::::
 
 
-## Train vs Test rmse
+## Train vs Test RMSE
 
 ::: {.columns .xsmall}
 ::: {.column}
@@ -233,6 +233,7 @@ The previous approach was relatively straightforward, but it required a fair bit
 
 ::: {.small}
 ```{python}
+#| code-line-numbers: "|4|5|6|7"
 from sklearn.model_selection import cross_val_score
 
 cross_val_score(
@@ -244,10 +245,10 @@ cross_val_score(
 ```
 :::
 
+. . .
 
-::: {.aside}
-🚩🚩🚩 Note that the default k-fold cross validation used here does not shuffle the data which can be massively problematic if the data is ordered 🚩🚩🚩 
-:::
+🚩🚩🚩 Note that the default k-fold cross validation used here does not shuffle the data which can be massively problematic if the data is *ordered* 🚩🚩🚩 
+
 
 ## Controlling k-fold behavior
 
@@ -269,7 +270,7 @@ cross_val_score(
 
 ## KFold object
 
-`KFold()` returns a class object which provides the method `split()` which in turn is a generator that returns a tuple with the indexes of the training and test selections for each fold given a model matrix `X`,
+`KFold()` returns a class object that provides the `split()` method — a generator yielding tuples of training and test indices for each fold.
 
 ::: {.xsmall}
 ```{python}
@@ -282,7 +283,7 @@ ex = pd.DataFrame(data = list(range(10)), columns=["x"])
 ```{python}
 cv = KFold(5)
 for train, test in cv.split(ex):
-  print(f'Train: {train} | test: {test}')
+  print(f'Train: {train} | Test: {test}')
 ```
 :::
 
@@ -290,14 +291,18 @@ for train, test in cv.split(ex):
 ```{python}
 cv = KFold(5, shuffle=True, random_state=1234)
 for train, test in cv.split(ex):
-  print(f'Train: {train} | test: {test}')
+  print(f'Train: {train} | Test: {test}')
 ```
 :::
 ::::
 
 ## `scoring`
 
-For most of the cross validation functions we pass in a string instead of a scoring function from the metrics submodule - if you are interested in seeing the names of the possible metrics, these are available via `sklearn.metrics.get_scorer_names()`,
+::: {.small}
+For most of the cross validation functions we pass in either a string or a callable (with signature `scorer(estimator, X, y)`). 
+ 
+The names of the possible metrics are available via `sklearn.metrics.get_scorer_names()`.
+:::
 
 ::: {.xsmall}
 ```{python}
@@ -306,7 +311,7 @@ np.array( sklearn.metrics.get_scorer_names() )
 :::
 
 
-## Train vs Test rmse (again)
+## Train vs Test RMSE (again)
 
 ::: {.small}
 ```{python}
@@ -357,7 +362,9 @@ g = sns.relplot(
 
 ## Grid Search
 
-We can further reduce the amount of code needed if there is a specific set of parameter values we would like to explore using cross validation. This is done using the `GridSearchCV` function from the `model_selection` submodule.
+We can further reduce the amount of code needed if there is a specific set of parameter values we would like to explore using cross validation. 
+
+This is done using the `GridSearchCV` function from the `model_selection` submodule.
 
 ::: {.small}
 ```{python}
@@ -379,15 +386,17 @@ gs = GridSearchCV(
 
 `GridSearchCV()`'s return object contains attributes with details on the "best" model based on the chosen scoring metric.
 
+::: {.small}
 ```{python}
 gs.best_index_
 gs.best_params_
 gs.best_score_
 ```
+:::
 
 ## `best_estimator_` attribute {.scrollable}
 
-If `refit = True` (default) with `GridSearchCV()` then the `best_estimator_` attribute will be available which gives direct access to the "best" model or pipeline object. This model is constructed by using the parameter(s) that achieved the minimum score and refitting the model to the complete data set.
+If `refit = True` (default) with `GridSearchCV()` then the `best_estimator_` attribute will be available which gives direct access to the "best" model or pipeline object. This model is constructed by using the parameter(s) that achieved the minimum score and refitting the model to the *complete* data set.
 
 ::: {.xsmall}
 ```{python}
@@ -657,7 +666,7 @@ m.predict_log_proba(X)
 
 ## Scoring
 
-Classification models also include a `score()` method which returns the model's *accuracy*,
+All estimators include a `score()` method which returns the default scorer for a given model, on the case of classification models this is the *accuracy*,
 
 ::: {.xsmall}
 ```{python}
@@ -691,7 +700,7 @@ confusion_matrix(y, m.predict(X), labels=m.classes_)
 :::
 ::::
 
-## Scoring visualizations - confusion matrix
+## Confusion matrix
 
 ::: {.xsmall}
 ```{python}
@@ -703,7 +712,7 @@ plt.show()
 :::
 
 
-## Scoring visualizations - ROC curve {.smaller}
+## ROC curve {.smaller}
 
 ::: {.small}
 ```{python}
@@ -717,7 +726,7 @@ plt.show()
 :::
 
 
-## Scoring visualizations - Precision Recall {.smaller}
+## Precision Recall curve {.smaller}
 
 ::: {.small}
 ```{python}
@@ -732,38 +741,49 @@ plt.show()
 
 For classification problems, `StratifiedKFold` is preferred over `KFold` - it ensures each fold preserves the same class proportions as the full dataset, which is particularly important for imbalanced classes.
 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 from sklearn.model_selection import StratifiedKFold
-print(f'overall spam%={y.mean():.3f}')
+```
+
+```{python}
+print(f'overall % spam = {y.mean():.3f}')
 ```
 :::
 
-:::: {.columns .xsmall}
+:::: {.columns}
 ::: {.column width='50%'}
 *`KFold`*
+
+::: {.xxsmall}
 ```{python}
 cv = KFold(5, shuffle=True, random_state=1234)
 for i, (train, test) in enumerate(cv.split(X, y)):
-  print(f'fold {i+1}: spam%={y.iloc[test].mean():.3f}')
+  print(f'fold {i+1}: % spam = {y.iloc[test].mean():.3f}')
 ```
+:::
 :::
 
 ::: {.column width='50%'}
 *`StratifiedKFold`*
+
+::: {.xxsmall}
 ```{python}
 cv = StratifiedKFold(5, shuffle=True, random_state=1234)
 for i, (train, test) in enumerate(cv.split(X, y)):
-  print(f'fold {i+1}: spam%={y.iloc[test].mean():.3f}')
+  print(f'fold {i+1}: % spam = {y.iloc[test].mean():.3f}')
 ```
+:::
 :::
 ::::
 
 
 
-# MNIST
+# MNIST (sklearn)
 
-## MNIST handwritten digits
+## MNIST (sklearn) handwritten digits
+
+These are a simplified (and cleaned) version of the original MNIST data set, which consists of 8x8 pixel images of handwritten digits.
 
 ::: {.xsmall}
 ```{python}
@@ -824,9 +844,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 ## Multiclass logistic regression {.scrollable}
 
-Fitting a multiclass logistic regression model in recent versions of sklearn uses multinomial logistic regression by default. We can use `GridSearchCV` with `StratifiedKFold` to explore the available solver options (all of which support `penalty=None`).
+Fitting a multiclass logistic regression model (in recent versions of sklearn) uses multinomial logistic regression by default. We can use `GridSearchCV` with `StratifiedKFold` to explore the available solver options (all of which support `penalty=None`).
 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 #| code-line-numbers: |3
 mc_log_cv = GridSearchCV(
@@ -841,7 +861,7 @@ mc_log_cv = GridSearchCV(
 
 . . .
 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 mc_log_cv.best_estimator_
 mc_log_cv.best_score_
@@ -850,7 +870,7 @@ mc_log_cv.best_score_
 
 . . .
 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python}
 for param, score in zip(mc_log_cv.cv_results_["params"], mc_log_cv.cv_results_["mean_test_score"]):
   print(f"{param=}, {score=}")
@@ -961,7 +981,7 @@ plt.show()
 
 ## Example 1 - DecisionTreeClassifier
 
-Using these data we will now fit a `DecisionTreeClassifier`, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
+Using these data we will now fit a `DecisionTreeClassifier`, we will employ `GridSearchCV` to tune some of the parameters (`max_depth` at a minimum) - see the full list or parameters [here](https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html).
 
 ::: {.small}
 ```{python}
