@@ -976,4 +976,103 @@ X_train, X_test, y_train, y_test = train_test_split(
 ```
 :::
 
+## Example 1 - Fitting
+
+::: {.small}
+```{python}
+from sklearn.tree import DecisionTreeClassifier
+
+digits_tree = GridSearchCV(
+  DecisionTreeClassifier(),
+  param_grid = {
+    "criterion": ["gini", "entropy"],
+    "max_depth": range(2,16)
+  },
+  cv = KFold(5, shuffle=True, random_state=12345)
+).fit(
+  X_train, y_train
+)
+```
+:::
+
+## Example 1 - Results
+
+::: {.small}
+```{python}
+digits_tree.best_estimator_
+digits_tree.best_score_
+```
+:::
+
+. . .
+
+::: {.small}
+```{python}
+accuracy_score(y_test, digits_tree.best_estimator_.predict(X_test))
+confusion_matrix(
+  y_test, digits_tree.best_estimator_.predict(X_test)
+)
+```
+:::
+
+
 # Example 2 - GridSearchCV w/ Multiple models <br/> (Trees vs Forests)
+
+## Example 2 - Setup
+
+To compare fundamentally different model types with `GridSearchCV` we can use a `Pipeline` where the estimator itself becomes a parameter in the grid search. The `param_grid` then takes a **list of dicts**, one per model family.
+
+::: {.small}
+```{python}
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+
+pipe = Pipeline([("clf", DecisionTreeClassifier())])
+```
+:::
+
+## Example 2 - Fitting
+
+::: {.xsmall}
+```{python}
+param_grid = [
+  {
+    "clf": [DecisionTreeClassifier()],
+    "clf__criterion": ["gini", "entropy"],
+    "clf__max_depth": range(2, 16)
+  },
+  {
+    "clf": [RandomForestClassifier()],
+    "clf__n_estimators": [50, 100, 200],
+    "clf__max_depth": [None, 5, 10]
+  }
+]
+
+trees_vs_forests = GridSearchCV(
+  pipe,
+  param_grid,
+  cv = StratifiedKFold(5, shuffle=True, random_state=12345)
+).fit(X_train, y_train)
+```
+:::
+
+## Example 2 - Results
+
+::: {.small}
+```{python}
+trees_vs_forests.best_estimator_
+trees_vs_forests.best_params_
+trees_vs_forests.best_score_
+```
+:::
+
+## Example 2 - Test Performance
+
+::: {.small}
+```{python}
+accuracy_score(y_test, trees_vs_forests.best_estimator_.predict(X_test))
+confusion_matrix(
+  y_test, trees_vs_forests.best_estimator_.predict(X_test)
+)
+```
+:::

@@ -4,19 +4,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 import sklearn
-sklearn.set_config(display="text")
 
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold, train_test_split
+from sklearn.datasets import load_digits
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.model_selection import GridSearchCV, KFold, StratifiedKFold, train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.tree import DecisionTreeClassifier
+
+sklearn.set_config(display="text")
 
 
 ## Digits
 
-from sklearn.datasets import load_digits
 digits = load_digits(as_frame=True)
 
 ## Classification Tree
@@ -47,3 +48,35 @@ confusion_matrix(
 )
 
 
+## Trees vs Forests
+
+pipe = Pipeline([("clf", DecisionTreeClassifier())])
+
+param_grid = [
+  {
+    "clf": [DecisionTreeClassifier()],
+    "clf__criterion": ["gini", "entropy"],
+    "clf__max_depth": range(2, 16)
+  },
+  {
+    "clf": [RandomForestClassifier()],
+    "clf__n_estimators": [50, 100, 200],
+    "clf__max_depth": [None, 5, 10]
+  }
+]
+
+trees_vs_forests = GridSearchCV(
+  pipe,
+  param_grid,
+  cv = StratifiedKFold(5, shuffle=True, random_state=12345),
+  n_jobs = 4
+).fit(X_train, y_train)
+
+trees_vs_forests.best_estimator_
+trees_vs_forests.best_params_
+trees_vs_forests.best_score_
+
+accuracy_score(y_test, trees_vs_forests.best_estimator_.predict(X_test))
+confusion_matrix(
+  y_test, trees_vs_forests.best_estimator_.predict(X_test)
+)
