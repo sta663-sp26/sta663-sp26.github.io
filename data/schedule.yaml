@@ -158,7 +158,7 @@ schedule:
 - week: 6
   day: 4
   lecture: "scikit-learn - CV & Classification"
-  slides:
+  slides: Lec13
   screencast: 
   readings:
   notes: 
