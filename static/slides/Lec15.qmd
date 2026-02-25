@@ -302,7 +302,6 @@ E: Unable to lock directory /var/lib/apt/lists/
 W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
 W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
 ```
-```
 :::
 
 . . .
@@ -645,7 +644,7 @@ r-base-core: /usr/bin/R
 
 ## System libraries
 
-These are shared common components that are used by a variety of software on a linux system. For the most part they are a collection of compiled code (typically C / C++) that are stored in a single file.
+These are shared common components that are used by a variety of software on a Linux system. For the most part they are a collection of compiled code (typically C / C++) that are stored in a single file.
 
 * Allows for code reuse
 
@@ -679,7 +678,7 @@ lrwxrwxrwx 1 root root      16 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl.so
 
 ## Getting what you want
 
-The following is a basic heuristic of library package naming schemes for the two primary distro families, there are exceptions and edge cases.
+The following is a basic heuristic of library package naming schemes for the two primary distro families; there are exceptions and edge cases.
 
 These are the names that would then be used with something like `apt install` or `dnf install` respectively.
 
@@ -987,7 +986,7 @@ See 'docker run --help'.
 
 <br/>
 
-This occurs when the docker daemon (service) is not running, this can be fixed by enabling & starting the docker service / daemon, 
+This occurs when the docker daemon (service) is not running. This can be fixed by enabling and starting the docker service / daemon:
 
 <br/>
 
@@ -1057,7 +1056,7 @@ permission denied while trying to connect to the docker API at unix:///var/run/d
 
 . . .
 
-You must either be root or be a member of the `docker` group to use docker. Currently, your VM may or may not have a docker group and your account is likely not a member. If you get tired of typing sudo + your password there is an easy fix,
+You must either be root or be a member of the `docker` group to use Docker. Currently, your VM may or may not have a docker group and your account is likely not a member. If you get tired of typing sudo + your password there is an easy fix,
 
 . . .
 
@@ -1153,7 +1152,7 @@ ubuntu:latest                             d1e2e92c075e        117MB         31.7
 
 ::: {.xsmall}
 ```shell
-docker pull ubuntu:24.10
+docker pull ubuntu:25.10
 ```
 ```
 25.10: Pulling from library/ubuntu
@@ -1238,9 +1237,9 @@ docker images
 IMAGE                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
 ghcr.io/dukestatsci/r_gh_actions:latest   0c15f386b4e0        3.5GB          888MB        
 hello-world:latest                        ef54e839ef54       21.8kB         9.52kB        
-ubuntu:22.04                              3ba65aa20f86        116MB         31.5MB        
 ubuntu:24.04                              d1e2e92c075e        117MB         31.7MB        
-ubuntu:latest                             d1e2e92c075e        117MB         31.7MB   
+ubuntu:25.10                              4a9232cc47bf        134MB         36.6MB        
+ubuntu:latest                             d1e2e92c075e        117MB         31.7MB  
 ```
 :::
 
@@ -1439,7 +1438,7 @@ docker run --rm python:latest python -V
 ```
 
 ```
-Python 3.13.2
+Python 3.14.3
 ```
 :::
 
@@ -1495,7 +1494,7 @@ docker run -it --rm python:latest
 ```
 
 ```
-Python 3.13.2 (main, Mar 18 2025, 03:30:45) [GCC 12.2.0] on linux
+Python 3.14.3 (main, Mar 18 2025, 03:30:45) [GCC 12.2.0] on linux
 Type "help", "copyright", "credits" or "license" for more information.
 >>> 
 ```
