@@ -1,0 +1,1643 @@
+---
+title: "Basic linux<br/>& Docker"
+subtitle: "Lecture 15"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+
+
+## {background-image="imgs/Docker/linux_tree.png" background-size=contain}
+
+```{css}
+/*| echo: false*/
+.reveal pre code {
+  text-wrap-mode: nowrap !important;
+}
+```
+
+# Duke VCM
+
+##
+
+
+![](imgs/Docker/vcm1.png){fig-align="center" width="100%"}
+
+<br/><br/>
+
+::: {.center}
+[vcm.duke.edu](https://vcm.duke.edu/)
+:::
+
+##
+
+![](imgs/Docker/vcm2.png){fig-align="center" width="100%"}
+
+
+##
+
+![](imgs/Docker/vcm3.png){fig-align="center" width="100%"}
+
+# Getting Started
+
+## Connecting
+
+::: {.xsmall}
+```shell
+rundel@tbBook [~]$ ssh cr173@vcm-52470.vm.duke.edu
+```
+:::
+. . .
+
+::: {.xsmall}
+```
+The authenticity of host 'vcm-52470.vm.duke.edu (67.159.69.176)' can't be established.
+ED25519 key fingerprint is SHA256:fSZfURPpnL4M+0bWv6S3jMYtalAeKZWSLH6DR+sxOe0.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? 
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```
+Warning: Permanently added 'vcm-52470.vm.duke.edu' (ED25519) to the list of known hosts.
+cr173@vcm-52470.vm.duke.edu's password:
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-100-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Tue Feb 24 09:50:33 PM EST 2026
+
+  System load:    0.0               Processes:             150
+  Usage of /home: 2.1% of 17.93GB   Users logged in:       0
+  Memory usage:   28%               IPv4 address for eth0: 67.159.65.108
+  Swap usage:     16%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+*** System restart required ***
+** Important Notice about your VCM VM **
+
+This server is set to patch daily via unattended upgrades, and will be shut off every day.
+Learn about unattended upgrades for ubuntu: https://linuxcapable.com/how-to-configure-unattended-upgrades-on-ubuntu-linux/
+```
+:::
+
+
+## Determining Distribution
+
+::: {.panel-tabset}
+
+### Ubuntu / Debian
+
+::: {.xxsmall}
+```shell
+cr173@vcm-52470:~$ cat /etc/os-release
+```
+
+```
+PRETTY_NAME="Ubuntu 24.04.2 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.2 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+```
+:::
+
+### Fedora / RHEL
+
+::: {.xxsmall}
+```shell
+cr173@germain [~]$ cat /etc/os-release
+```
+
+```
+NAME="Fedora Linux"
+VERSION="40 (Server Edition)"
+ID=fedora
+VERSION_ID=40
+VERSION_CODENAME=""
+PLATFORM_ID="platform:f40"
+PRETTY_NAME="Fedora Linux 40 (Server Edition)"
+ANSI_COLOR="0;38;2;60;110;180"
+LOGO=fedora-logo-icon
+CPE_NAME="cpe:/o:fedoraproject:fedora:40"
+HOME_URL="https://fedoraproject.org/"
+DOCUMENTATION_URL="https://docs.fedoraproject.org/en-US/fedora/f40/system-administrators-guide/"
+SUPPORT_URL="https://ask.fedoraproject.org/"
+BUG_REPORT_URL="https://bugzilla.redhat.com/"
+REDHAT_BUGZILLA_PRODUCT="Fedora"
+REDHAT_BUGZILLA_PRODUCT_VERSION=40
+REDHAT_SUPPORT_PRODUCT="Fedora"
+REDHAT_SUPPORT_PRODUCT_VERSION=40
+SUPPORT_END=2025-05-13
+VARIANT="Server Edition"
+VARIANT_ID=server
+```
+:::
+:::
+
+
+# System Details
+
+## Filesystem Hierarchy Standard {.scrollable}
+
+::: {.columns}
+
+::: {.column width=50% .small}
+
+<br/><br/><br/>
+
+Some common folders:
+
+* `/bin/` & `/usr/bin/` - executables
+
+* `/etc/` - configuration files
+
+* `/lib*/` & `/usr/lib*/` - Static and shared libraries
+
+* `/usr/include/` - header files
+
+* `/home/` - user home directories
+
+* `/var/` - logs
+
+* `/tmp/` - temporary files
+
+:::
+
+::: {.column width=50%}
+
+::: {.panel-tabset}
+
+### Primary
+
+::: {.xxsmall .limit400}
+```{.shell}
+cr173@vcm-52470:~$ tree -d -L 1 /
+```
+
+```
+/
+├── bin -> usr/bin
+├── bin.usr-is-merged
+├── boot
+├── cdrom
+├── dev
+├── etc
+├── home
+├── lib -> usr/lib
+├── lib64 -> usr/lib64
+├── lib.usr-is-merged
+├── media
+├── mnt
+├── opt
+├── proc
+├── root
+├── run
+├── sbin -> usr/sbin
+├── sbin.usr-is-merged
+├── snap
+├── srv
+├── sys
+├── tmp
+├── usr
+└── var
+
+25 directories
+```
+:::
+
+
+### Secondary
+
+::: {.xxsmall}
+```shell
+cr173@algebra2 [~]$ tree -d -L 1 /usr
+```
+
+```
+/usr
+├── bin
+├── games
+├── include
+├── lib
+├── lib64
+├── libexec
+├── local
+├── sbin
+├── share
+└── src
+
+11 directories
+```
+:::
+:::
+
+:::
+
+:::
+
+
+::: {.aside}
+See Wikipedia's [Filesystem Hierarchy Standard](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard) article
+:::
+
+
+# Installing packages with `apt` (Ubuntu, Debian, etc.)
+
+## Update the package list
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ apt update
+```
+
+```
+Reading package lists... Done
+E: Could not open lock file /var/lib/apt/lists/lock - open (13: Permission denied)
+E: Unable to lock directory /var/lib/apt/lists/
+W: Problem unlinking the file /var/cache/apt/pkgcache.bin - RemoveCaches (13: Permission denied)
+W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13: Permission denied)
+```
+```
+:::
+
+. . .
+
+![](https://imgs.xkcd.com/comics/sandwich.png){fig-align="center" width="33%"}
+
+::: {.xsmall .center}
+[XKCD 149 - Sandwich](https://xkcd.com/149/)
+:::
+
+
+## Update the package list
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt update
+```
+
+```
+[sudo] password for cr173: 
+Hit:1 http://archive.linux.duke.edu/ubuntu focal InRelease
+Get:2 http://archive.linux.duke.edu/ubuntu focal-updates InRelease [114 kB]
+Hit:3 https://falcon-dl.oit.duke.edu/ubuntu focal InRelease
+Get:4 http://archive.linux.duke.edu/ubuntu focal-backports InRelease [108 kB]
+Get:5 http://archive.linux.duke.edu/ubuntu focal-security InRelease [114 kB]
+Get:6 http://archive.linux.duke.edu/ubuntu focal-updates/main amd64 Packages [1,711 kB]
+Get:7 http://archive.linux.duke.edu/ubuntu focal-updates/main i386 Packages [628 kB]
+Get:8 http://archive.linux.duke.edu/ubuntu focal-updates/main Translation-en [320 kB]
+Get:9 http://archive.linux.duke.edu/ubuntu focal-updates/restricted amd64 Packages [917 kB]
+Get:10 http://archive.linux.duke.edu/ubuntu focal-updates/restricted Translation-en [131 kB]
+Get:11 http://archive.linux.duke.edu/ubuntu focal-updates/universe amd64 Packages [916 kB]
+Get:12 http://archive.linux.duke.edu/ubuntu focal-updates/universe i386 Packages [676 kB]
+Get:13 http://archive.linux.duke.edu/ubuntu focal-updates/universe Translation-en [204 kB]
+Get:14 http://archive.linux.duke.edu/ubuntu focal-updates/universe amd64 c-n-f Metadata [20.4 kB]
+Get:15 http://archive.linux.duke.edu/ubuntu focal-security/main i386 Packages [416 kB]
+Get:16 http://archive.linux.duke.edu/ubuntu focal-security/main amd64 Packages [1,383 kB]
+Get:17 http://archive.linux.duke.edu/ubuntu focal-security/main Translation-en [239 kB]
+Get:18 http://archive.linux.duke.edu/ubuntu focal-security/restricted amd64 Packages [859 kB]
+Get:19 http://archive.linux.duke.edu/ubuntu focal-security/restricted Translation-en [122 kB]
+Get:20 http://archive.linux.duke.edu/ubuntu focal-security/universe i386 Packages [547 kB]
+Get:21 http://archive.linux.duke.edu/ubuntu focal-security/universe amd64 Packages [696 kB]
+Get:22 http://archive.linux.duke.edu/ubuntu focal-security/universe Translation-en [122 kB]
+Get:23 http://archive.linux.duke.edu/ubuntu focal-security/universe amd64 c-n-f Metadata [14.1 kB]
+Fetched 10.3 MB in 3s (4,100 kB/s)
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+1 package can be upgraded. Run 'apt list --upgradable' to see it.
+```
+:::
+
+
+## Installing R
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt install r-base
+```
+
+```
+[sudo] password for cr173:
+```
+```
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+The following additional packages will be installed:
+  build-essential bzip2-doc cpp cpp-9 dpkg-dev fakeroot fontconfig fontconfig-config fonts-dejavu-core g++ g++-9 gcc gcc-9 gcc-9-base gfortran gfortran-9 icu-devtools
+  libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libasan5 libatomic1 libauthen-sasl-perl libblas-dev libblas3 libbz2-dev libcairo2 libcc1-0
+  libdata-dump-perl libdatrie1 libdpkg-perl libdrm-amdgpu1 libdrm-intel1 libdrm-nouveau2 libdrm-radeon1 libencode-locale-perl libfakeroot libfile-basedir-perl
+  libfile-desktopentry-perl libfile-fcntllock-perl libfile-listing-perl libfile-mimeinfo-perl libfont-afm-perl libfontconfig1 libfontenc1 libgcc-9-dev libgfortran-9-dev
+  libgfortran5 libgl1 libgl1-mesa-dri libglapi-mesa libglvnd0 libglx-mesa0 libglx0 libgomp1 libgraphite2-3 libharfbuzz0b libhtml-form-perl libhtml-format-perl
+  libhtml-parser-perl libhtml-tagset-perl libhtml-tree-perl libhttp-cookies-perl libhttp-daemon-perl libhttp-date-perl libhttp-message-perl libhttp-negotiate-perl libice6
+  libicu-dev libio-html-perl libio-socket-ssl-perl libio-stringy-perl libipc-system-simple-perl libisl22 libitm1 libjbig0 libjpeg-dev libjpeg-turbo8 libjpeg-turbo8-dev libjpeg8
+  libjpeg8-dev liblapack-dev liblapack3 libllvm12 liblsan0 liblwp-mediatypes-perl liblwp-protocol-https-perl liblzma-dev libmailtools-perl libmpc3 libmpfr6 libncurses-dev
+  libncurses5-dev libnet-dbus-perl libnet-http-perl libnet-smtp-ssl-perl libnet-ssleay-perl libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 libpaper-utils libpaper1
+  libpciaccess0 libpcre16-3 libpcre2-16-0 libpcre2-32-0 libpcre2-dev libpcre2-posix2 libpcre3-dev libpcre32-3 libpcrecpp0v5 libpixman-1-0 libpng-dev libpng-tools libquadmath0
+  libreadline-dev libsensors-config libsensors5 libsm6 libstdc++-9-dev libtcl8.6 libthai-data libthai0 libtie-ixhash-perl libtiff5 libtimedate-perl libtk8.6 libtry-tiny-perl
+  libtsan0 libubsan1 liburi-perl libvulkan1 libwayland-client0 libwebp6 libwww-perl libwww-robotrules-perl libx11-protocol-perl libx11-xcb1 libxaw7 libxcb-dri2-0 libxcb-dri3-0
+  libxcb-glx0 libxcb-present0 libxcb-randr0 libxcb-render0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcomposite1 libxcursor1 libxfixes3 libxft2 libxi6
+  libxinerama1 libxkbfile1 libxml-parser-perl libxml-twig-perl libxml-xpathengine-perl libxmu6 libxpm4 libxrandr2 libxrender1 libxshmfence1 libxss1 libxt6 libxtst6 libxv1
+  libxxf86dga1 libxxf86vm1 make mesa-vulkan-drivers perl-openssl-defaults pkg-config r-base-core r-base-dev r-base-html r-cran-boot r-cran-class r-cran-cluster r-cran-codetools
+  r-cran-foreign r-cran-kernsmooth r-cran-lattice r-cran-mass r-cran-matrix r-cran-mgcv r-cran-nlme r-cran-nnet r-cran-rpart r-cran-spatial r-cran-survival r-doc-html
+  r-recommended unzip x11-common x11-utils x11-xserver-utils xdg-utils zip zlib1g-dev
+Suggested packages:
+  cpp-doc gcc-9-locales debian-keyring g++-multilib g++-9-multilib gcc-9-doc gcc-multilib autoconf automake libtool flex bison gdb gcc-doc gcc-9-multilib gfortran-multilib
+  gfortran-doc gfortran-9-multilib gfortran-9-doc libcoarrays-dev libdigest-hmac-perl libgssapi-perl liblapack-doc bzr icu-doc libcrypt-ssleay-perl liblzma-doc ncurses-doc
+  readline-doc lm-sensors libstdc++-9-doc tcl8.6 tk8.6 libauthen-ntlm-perl libunicode-map8-perl libunicode-string-perl xml-twig-tools make-doc elpa-ess r-doc-info | r-doc-pdf
+  r-mathlib texlive-base texlive-latex-base texlive-plain-generic texlive-fonts-recommended texlive-fonts-extra texlive-extra-utils texlive-latex-recommended texlive-latex-extra
+  texinfo mozilla | www-browser mesa-utils nickle cairo-5c xorg-docs-core
+The following NEW packages will be installed:
+  build-essential bzip2-doc cpp cpp-9 dpkg-dev fakeroot fontconfig fontconfig-config fonts-dejavu-core g++ g++-9 gcc gcc-9 gcc-9-base gfortran gfortran-9 icu-devtools
+  libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libasan5 libatomic1 libauthen-sasl-perl libblas-dev libblas3 libbz2-dev libcairo2 libcc1-0
+  libdata-dump-perl libdatrie1 libdpkg-perl libdrm-amdgpu1 libdrm-intel1 libdrm-nouveau2 libdrm-radeon1 libencode-locale-perl libfakeroot libfile-basedir-perl
+  libfile-desktopentry-perl libfile-fcntllock-perl libfile-listing-perl libfile-mimeinfo-perl libfont-afm-perl libfontconfig1 libfontenc1 libgcc-9-dev libgfortran-9-dev
+  libgfortran5 libgl1 libgl1-mesa-dri libglapi-mesa libglvnd0 libglx-mesa0 libglx0 libgomp1 libgraphite2-3 libharfbuzz0b libhtml-form-perl libhtml-format-perl
+  libhtml-parser-perl libhtml-tagset-perl libhtml-tree-perl libhttp-cookies-perl libhttp-daemon-perl libhttp-date-perl libhttp-message-perl libhttp-negotiate-perl libice6
+  libicu-dev libio-html-perl libio-socket-ssl-perl libio-stringy-perl libipc-system-simple-perl libisl22 libitm1 libjbig0 libjpeg-dev libjpeg-turbo8 libjpeg-turbo8-dev libjpeg8
+  libjpeg8-dev liblapack-dev liblapack3 libllvm12 liblsan0 liblwp-mediatypes-perl liblwp-protocol-https-perl liblzma-dev libmailtools-perl libmpc3 libmpfr6 libncurses-dev
+  libncurses5-dev libnet-dbus-perl libnet-http-perl libnet-smtp-ssl-perl libnet-ssleay-perl libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 libpaper-utils libpaper1
+  libpciaccess0 libpcre16-3 libpcre2-16-0 libpcre2-32-0 libpcre2-dev libpcre2-posix2 libpcre3-dev libpcre32-3 libpcrecpp0v5 libpixman-1-0 libpng-dev libpng-tools libquadmath0
+  libreadline-dev libsensors-config libsensors5 libsm6 libstdc++-9-dev libtcl8.6 libthai-data libthai0 libtie-ixhash-perl libtiff5 libtimedate-perl libtk8.6 libtry-tiny-perl
+  libtsan0 libubsan1 liburi-perl libvulkan1 libwayland-client0 libwebp6 libwww-perl libwww-robotrules-perl libx11-protocol-perl libx11-xcb1 libxaw7 libxcb-dri2-0 libxcb-dri3-0
+  libxcb-glx0 libxcb-present0 libxcb-randr0 libxcb-render0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcomposite1 libxcursor1 libxfixes3 libxft2 libxi6
+  libxinerama1 libxkbfile1 libxml-parser-perl libxml-twig-perl libxml-xpathengine-perl libxmu6 libxpm4 libxrandr2 libxrender1 libxshmfence1 libxss1 libxt6 libxtst6 libxv1
+  libxxf86dga1 libxxf86vm1 make mesa-vulkan-drivers perl-openssl-defaults pkg-config r-base r-base-core r-base-dev r-base-html r-cran-boot r-cran-class r-cran-cluster
+  r-cran-codetools r-cran-foreign r-cran-kernsmooth r-cran-lattice r-cran-mass r-cran-matrix r-cran-mgcv r-cran-nlme r-cran-nnet r-cran-rpart r-cran-spatial r-cran-survival
+  r-doc-html r-recommended unzip x11-common x11-utils x11-xserver-utils xdg-utils zip zlib1g-dev
+0 upgraded, 202 newly installed, 0 to remove and 0 not upgraded.
+Need to get 158 MB of archives.
+After this operation, 914 MB of additional disk space will be used.
+Do you want to continue? [Y/n]
+```
+:::
+
+
+## Removing R
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt remove r-base
+```
+
+```
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+The following packages were automatically installed and are no longer required:
+  fontconfig fontconfig-config fonts-dejavu-core gfortran gfortran-9 icu-devtools libblas-dev libblas3 libbz2-dev libcairo2 libdatrie1 libdrm-amdgpu1 libdrm-intel1
+  libdrm-nouveau2 libdrm-radeon1 libfile-basedir-perl libfile-desktopentry-perl libfile-mimeinfo-perl libfontconfig1 libfontenc1 libgfortran-9-dev libgfortran5 libgl1
+  libgl1-mesa-dri libglapi-mesa libglvnd0 libglx-mesa0 libglx0 libgraphite2-3 libharfbuzz0b libice6 libicu-dev libio-stringy-perl libipc-system-simple-perl libjbig0 libjpeg-dev
+  libjpeg-turbo8 libjpeg-turbo8-dev libjpeg8 libjpeg8-dev liblapack-dev liblapack3 libllvm12 liblzma-dev libncurses-dev libncurses5-dev libnet-dbus-perl libpango-1.0-0
+  libpangocairo-1.0-0 libpangoft2-1.0-0 libpaper-utils libpaper1 libpciaccess0 libpcre16-3 libpcre2-16-0 libpcre2-32-0 libpcre2-dev libpcre2-posix2 libpcre3-dev libpcre32-3
+  libpcrecpp0v5 libpixman-1-0 libpng-dev libpng-tools libreadline-dev libsensors-config libsensors5 libsm6 libtcl8.6 libthai-data libthai0 libtie-ixhash-perl libtiff5 libtk8.6
+  libvulkan1 libwayland-client0 libwebp6 libx11-protocol-perl libx11-xcb1 libxaw7 libxcb-dri2-0 libxcb-dri3-0 libxcb-glx0 libxcb-present0 libxcb-randr0 libxcb-render0
+  libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcomposite1 libxcursor1 libxfixes3 libxft2 libxi6 libxinerama1 libxkbfile1 libxml-parser-perl libxml-twig-perl
+  libxml-xpathengine-perl libxmu6 libxpm4 libxrandr2 libxrender1 libxshmfence1 libxss1 libxt6 libxtst6 libxv1 libxxf86dga1 libxxf86vm1 mesa-vulkan-drivers pkg-config r-base-core
+  r-base-dev r-base-html r-cran-boot r-cran-class r-cran-cluster r-cran-codetools r-cran-foreign r-cran-kernsmooth r-cran-lattice r-cran-mass r-cran-matrix r-cran-mgcv
+  r-cran-nlme r-cran-nnet r-cran-rpart r-cran-spatial r-cran-survival r-doc-html r-recommended unzip x11-common x11-utils x11-xserver-utils xdg-utils zip zlib1g-dev
+Use 'sudo apt autoremove' to remove them.
+The following packages will be REMOVED:
+  r-base
+0 upgraded, 0 newly installed, 1 to remove and 1 not upgraded.
+After this operation, 62.5 kB disk space will be freed.
+```
+:::
+
+## and all of its dependencies
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt autoremove
+```
+```
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+The following packages will be REMOVED:
+  fontconfig fontconfig-config fonts-dejavu-core gfortran gfortran-9 icu-devtools libblas-dev libblas3 libbz2-dev libcairo2 libdatrie1 libdrm-amdgpu1 libdrm-intel1
+  libdrm-nouveau2 libdrm-radeon1 libfile-basedir-perl libfile-desktopentry-perl libfile-mimeinfo-perl libfontconfig1 libfontenc1 libgfortran-9-dev libgfortran5 libgl1
+  libgl1-mesa-dri libglapi-mesa libglvnd0 libglx-mesa0 libglx0 libgraphite2-3 libharfbuzz0b libice6 libicu-dev libio-stringy-perl libipc-system-simple-perl libjbig0 libjpeg-dev
+  libjpeg-turbo8 libjpeg-turbo8-dev libjpeg8 libjpeg8-dev liblapack-dev liblapack3 libllvm12 liblzma-dev libncurses-dev libncurses5-dev libnet-dbus-perl libpango-1.0-0
+  libpangocairo-1.0-0 libpangoft2-1.0-0 libpaper-utils libpaper1 libpciaccess0 libpcre16-3 libpcre2-16-0 libpcre2-32-0 libpcre2-dev libpcre2-posix2 libpcre3-dev libpcre32-3
+  libpcrecpp0v5 libpixman-1-0 libpng-dev libpng-tools libreadline-dev libsensors-config libsensors5 libsm6 libtcl8.6 libthai-data libthai0 libtie-ixhash-perl libtiff5 libtk8.6
+  libvulkan1 libwayland-client0 libwebp6 libx11-protocol-perl libx11-xcb1 libxaw7 libxcb-dri2-0 libxcb-dri3-0 libxcb-glx0 libxcb-present0 libxcb-randr0 libxcb-render0
+  libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 libxcomposite1 libxcursor1 libxfixes3 libxft2 libxi6 libxinerama1 libxkbfile1 libxml-parser-perl libxml-twig-perl
+  libxml-xpathengine-perl libxmu6 libxpm4 libxrandr2 libxrender1 libxshmfence1 libxss1 libxt6 libxtst6 libxv1 libxxf86dga1 libxxf86vm1 mesa-vulkan-drivers pkg-config r-base-core
+  r-base-dev r-base-html r-cran-boot r-cran-class r-cran-cluster r-cran-codetools r-cran-foreign r-cran-kernsmooth r-cran-lattice r-cran-mass r-cran-matrix r-cran-mgcv
+  r-cran-nlme r-cran-nnet r-cran-rpart r-cran-spatial r-cran-survival r-doc-html r-recommended unzip x11-common x11-utils x11-xserver-utils xdg-utils zip zlib1g-dev
+0 upgraded, 0 newly installed, 140 to remove and 1 not upgraded.
+After this operation, 749 MB disk space will be freed.
+Do you want to continue? [Y/n]
+```
+:::
+
+
+## Updating & Upgrading
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt update
+```
+```
+Hit:1 http://archive.linux.duke.edu/ubuntu focal InRelease
+Hit:2 http://archive.linux.duke.edu/ubuntu focal-updates InRelease
+Hit:3 http://archive.linux.duke.edu/ubuntu focal-backports InRelease
+Hit:4 http://archive.linux.duke.edu/ubuntu focal-security InRelease
+Hit:5 https://falcon-dl.oit.duke.edu/ubuntu focal InRelease
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+1 package can be upgraded. Run 'apt list --upgradable' to see it.
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt upgrade
+```
+```
+Reading package lists... Done
+Building dependency tree
+Reading state information... Done
+Calculating upgrade... Done
+The following packages will be upgraded:
+  libfribidi0
+1 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+1 standard security update
+Need to get 24.2 kB of archives.
+After this operation, 0 B of additional disk space will be used.
+Do you want to continue? [Y/n]
+```
+:::
+
+
+## Aside - Conflicts
+
+::: {.xsmall}
+```{.shell code-line-numbers="|9-18"}
+...
+update-initramfs: deferring update (trigger activated)
+amd64-microcode: microcode will be updated at next boot
+Setting up intel-microcode (3.20180807a.0ubuntu0.18.04.1) ...
+update-initramfs: deferring update (trigger activated)
+intel-microcode: microcode will be updated at next boot
+Setting up kmod (24-1ubuntu3.1) ...
+
+*Configuration file '/etc/modprobe.d/blacklist.conf'
+* ==> Modified (by you or by a script) since installation.
+* ==> Package distributor has shipped an updated version.
+*   What would you like to do about it ?  Your options are:
+*    Y or I  : install the package maintainer's version
+*    N or O  : keep your currently-installed version
+*      D     : show the differences between the versions
+*      Z     : start a shell to examine the situation
+* The default action is to keep your current version.
+**** blacklist.conf (Y/I/N/O/D/Z) [default=N] ?
+Setting up initramfs-tools-core (0.130ubuntu3.6) ...
+Setting up linux-headers-4.15.0-43-generic (4.15.0-43.46) ...
+Setting up initramfs-tools (0.130ubuntu3.6) ...
+
+...
+```
+:::
+
+
+## Package Details
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ apt show r-base
+```
+```
+Package: r-base
+Version: 3.6.3-2
+Priority: optional
+Section: universe/math
+Origin: Ubuntu
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Original-Maintainer: Dirk Eddelbuettel <edd@debian.org>
+Bugs: https://bugs.launchpad.net/ubuntu/+filebug
+Installed-Size: 62.5 kB
+Depends: r-base-core (>= 3.6.3-2), r-recommended (= 3.6.3-2)
+Recommends: r-base-html, r-doc-html
+Suggests: elpa-ess, r-doc-info | r-doc-pdf
+Homepage: http://www.r-project.org/
+Download-Size: 9,308 B
+APT-Manual-Installed: yes
+APT-Sources: http://archive.linux.duke.edu/ubuntu focal/universe amd64 Packages
+Description: GNU R statistical computation and graphics system
+ R is a system for statistical computation and graphics.  It consists
+ of a language plus a run-time environment with graphics, a debugger,
+ access to certain system functions, and the ability to run programs
+ stored in script files.
+...
+```
+:::
+
+## Package Contents
+
+To list the files installed by a package,
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ dpkg -L r-base
+```
+```
+/.
+/usr
+/usr/share
+/usr/share/doc
+/usr/share/doc/r-base
+/usr/share/doc/r-base/README.Debian
+/usr/share/doc/r-base/copyright
+/usr/share/doc/r-base/changelog.Debian.gz
+```
+:::
+
+<br/>
+or if you want to find which package created a file,
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ dpkg -S /usr/bin/R
+```
+```
+r-base-core: /usr/bin/R
+```
+:::
+
+
+
+
+## Package Manager Comparison
+
+::: {.xsmall}
+
+|                       | Ubuntu / Debian                        | RHEL / Fedora                              | Requires root  |
+|:----------------------|:---------------------------------------|:-------------------------------------------|:---------------|
+| Install               | `apt install`                          | `dnf install`                              | Yes            |
+| Install Local         | `dpkg -i pkg.deb`                      | `dnf install pkg.rpm`                      | Yes            |
+| Remove                | `apt remove`                           | `dnf remove`                               | Yes            |
+| Update                | `apt update`                           | `dnf check-update`                         | Yes            |
+| Upgrade               | `apt upgrade` <br/> `apt full-upgrade` | `dnf upgrade`                              | Yes            |
+| Clean Deps.           | `apt autoremove`                       | `dnf autoremove`                           | Yes            |
+| Reinstall             | `apt install --reinstall`              | `dnf reinstall`                            | Yes            |
+| Details.              | `apt show`                             | `dnf info`                                 | No             |
+| Dependencies          | `apt show`                             | `dnf repoquery --requires`                 | No             |
+| Pkg -> Files          | `dpkg -L`                              | `rpm -ql` or <br/> `dnf repoquery -l`      | No             |
+| Files -> Pkg          | `dpkg -S`                              | `rpm -qf`                                  | No             |
+
+:::
+
+
+
+
+# A bit about libraries
+
+## System libraries
+
+These are shared common components that are used by a variety of software on a linux system. For the most part they are a collection of compiled code (typically C / C++) that are stored in a single file.
+
+* Allows for code reuse
+
+* Allows for multiple (concurrent) versions
+
+* Avoids reinventing and/or duplicating the wheel
+
+* Installed in `/lib`, `/usr/lib`, `/usr/local/lib`, etc.
+
+* Two flavors: static (`.a`) and dynamic / shared (`.so`)
+
+## `libcurl`
+
+::: {.xxsmall}
+```shell
+cr173@vcm-52470:~$ ls -la /usr/lib/x86_64-linux-gnu/libcurl*
+```
+
+```
+-rw-r--r-- 1 root root 1057632 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl.a
+lrwxrwxrwx 1 root root      19 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl-gnutls.so.3 -> libcurl-gnutls.so.4
+lrwxrwxrwx 1 root root      23 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl-gnutls.so.4 -> libcurl-gnutls.so.4.5.0
+-rw-r--r-- 1 root root  510408 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl-gnutls.so.4.5.0
+-rw-r--r-- 1 root root     951 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl.la
+lrwxrwxrwx 1 root root      16 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl.so -> libcurl.so.4.5.0
+lrwxrwxrwx 1 root root      16 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl.so.4 -> libcurl.so.4.5.0
+-rw-r--r-- 1 root root  518600 Oct 29 08:10 /usr/lib/x86_64-linux-gnu/libcurl.so.4.5.0
+```
+:::
+
+
+## Getting what you want
+
+The following is a basic heuristic of library package naming schemes for the two primary distro families, there are exceptions and edge cases.
+
+These are the names that would then be used with something like `apt install` or `dnf install` respectively.
+
+<br/>
+
+|                       | Debian          | Redhat          |
+|-----------------------|-----------------|-----------------|
+| Dynamic library (.so) | `lib{name}`     | `{name}`        |
+| Headers               | `lib{name}-dev` | `{name}-devel`  |
+| Static library (.a)   | `lib{name}-dev` | `{name}-static` |
+| Documentation         | `lib{name}-doc` | `{name}-devel`  | 
+
+
+## Troubleshooting dynamic libraries
+
+::: {.xxsmall}
+```shell
+cr173@vcm-52470:~$ ldd /usr/lib/x86_64-linux-gnu/libcurl.so
+```
+
+```
+	linux-vdso.so.1 (0x00007ffd98176000)
+	libnghttp2.so.14 => /usr/lib/x86_64-linux-gnu/libnghttp2.so.14 (0x00007f1e3dc60000)
+	libidn2.so.0 => /usr/lib/x86_64-linux-gnu/libidn2.so.0 (0x00007f1e3da43000)
+	librtmp.so.1 => /usr/lib/x86_64-linux-gnu/librtmp.so.1 (0x00007f1e3d827000)
+	libpsl.so.5 => /usr/lib/x86_64-linux-gnu/libpsl.so.5 (0x00007f1e3d619000)
+	libssl.so.1.1 => /usr/lib/x86_64-linux-gnu/libssl.so.1.1 (0x00007f1e3d3af000)
+	libcrypto.so.1.1 => /usr/lib/x86_64-linux-gnu/libcrypto.so.1.1 (0x00007f1e3cf37000)
+	libgssapi_krb5.so.2 => /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2 (0x00007f1e3ccec000)
+	libldap_r-2.4.so.2 => /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 (0x00007f1e3ca9a000)
+	liblber-2.4.so.2 => /usr/lib/x86_64-linux-gnu/liblber-2.4.so.2 (0x00007f1e3c88c000)
+	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f1e3c66f000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f1e3c450000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f1e3c05f000)
+	libunistring.so.2 => /usr/lib/x86_64-linux-gnu/libunistring.so.2 (0x00007f1e3bce1000)
+	libgnutls.so.30 => /usr/lib/x86_64-linux-gnu/libgnutls.so.30 (0x00007f1e3b97c000)
+	libhogweed.so.4 => /usr/lib/x86_64-linux-gnu/libhogweed.so.4 (0x00007f1e3b748000)
+	libnettle.so.6 => /usr/lib/x86_64-linux-gnu/libnettle.so.6 (0x00007f1e3b512000)
+	libgmp.so.10 => /usr/lib/x86_64-linux-gnu/libgmp.so.10 (0x00007f1e3b291000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f1e3b08d000)
+	libkrb5.so.3 => /usr/lib/x86_64-linux-gnu/libkrb5.so.3 (0x00007f1e3adb7000)
+	libk5crypto.so.3 => /usr/lib/x86_64-linux-gnu/libk5crypto.so.3 (0x00007f1e3ab85000)
+	libcom_err.so.2 => /lib/x86_64-linux-gnu/libcom_err.so.2 (0x00007f1e3a981000)
+	libkrb5support.so.0 => /usr/lib/x86_64-linux-gnu/libkrb5support.so.0 (0x00007f1e3a776000)
+	libresolv.so.2 => /lib/x86_64-linux-gnu/libresolv.so.2 (0x00007f1e3a55b000)
+	libsasl2.so.2 => /usr/lib/x86_64-linux-gnu/libsasl2.so.2 (0x00007f1e3a340000)
+	libgssapi.so.3 => /usr/lib/x86_64-linux-gnu/libgssapi.so.3 (0x00007f1e3a0ff000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f1e3e104000)
+	libp11-kit.so.0 => /usr/lib/x86_64-linux-gnu/libp11-kit.so.0 (0x00007f1e39dd0000)
+	libtasn1.so.6 => /usr/lib/x86_64-linux-gnu/libtasn1.so.6 (0x00007f1e39bbd000)
+	libkeyutils.so.1 => /lib/x86_64-linux-gnu/libkeyutils.so.1 (0x00007f1e399b9000)
+	libheimntlm.so.0 => /usr/lib/x86_64-linux-gnu/libheimntlm.so.0 (0x00007f1e397b0000)
+	libkrb5.so.26 => /usr/lib/x86_64-linux-gnu/libkrb5.so.26 (0x00007f1e39523000)
+	libasn1.so.8 => /usr/lib/x86_64-linux-gnu/libasn1.so.8 (0x00007f1e39281000)
+	libhcrypto.so.4 => /usr/lib/x86_64-linux-gnu/libhcrypto.so.4 (0x00007f1e3904b000)
+	libroken.so.18 => /usr/lib/x86_64-linux-gnu/libroken.so.18 (0x00007f1e38e35000)
+	libffi.so.6 => /usr/lib/x86_64-linux-gnu/libffi.so.6 (0x00007f1e38c2d000)
+	libwind.so.0 => /usr/lib/x86_64-linux-gnu/libwind.so.0 (0x00007f1e38a04000)
+	libheimbase.so.1 => /usr/lib/x86_64-linux-gnu/libheimbase.so.1 (0x00007f1e387f5000)
+	libhx509.so.5 => /usr/lib/x86_64-linux-gnu/libhx509.so.5 (0x00007f1e385ab000)
+	libsqlite3.so.0 => /usr/lib/x86_64-linux-gnu/libsqlite3.so.0 (0x00007f1e382a2000)
+	libcrypt.so.1 => /lib/x86_64-linux-gnu/libcrypt.so.1 (0x00007f1e3806a000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f1e37ccc000)
+```
+:::
+
+
+## Python management
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ pip install torch
+```
+```
+Command 'pip' not found, but can be installed with:
+
+apt install python3-pip
+Please ask your administrator.
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt install python3-pip
+```
+```
+[sudo] password for cr173:
+```
+```
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  build-essential bzip2 cpp cpp-13 cpp-13-x86-64-linux-gnu cpp-x86-64-linux-gnu dpkg-dev fakeroot g++ g++-13 g++-13-x86-64-linux-gnu g++-x86-64-linux-gnu gcc gcc-13 gcc-13-base
+  gcc-13-x86-64-linux-gnu gcc-x86-64-linux-gnu javascript-common libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libasan8 libatomic1 libcc1-0 libdpkg-perl
+  libexpat1-dev libfakeroot libfile-fcntllock-perl libgcc-13-dev libgomp1 libhwasan0 libisl23 libitm1 libjs-jquery libjs-sphinxdoc libjs-underscore liblsan0 libmpc3 libpython3-dev
+  libpython3.12-dev libquadmath0 libstdc++-13-dev libtsan2 libubsan1 lto-disabled-list make python3-dev python3-wheel python3.12-dev zlib1g-dev
+Suggested packages:
+  bzip2-doc cpp-doc gcc-13-locales cpp-13-doc debian-keyring g++-multilib g++-13-multilib gcc-13-doc gcc-multilib autoconf automake libtool flex bison gdb gcc-doc gcc-13-multilib
+  gdb-x86-64-linux-gnu apache2 | lighttpd | httpd bzr libstdc++-13-doc make-doc
+The following NEW packages will be installed:
+  build-essential bzip2 cpp cpp-13 cpp-13-x86-64-linux-gnu cpp-x86-64-linux-gnu dpkg-dev fakeroot g++ g++-13 g++-13-x86-64-linux-gnu g++-x86-64-linux-gnu gcc gcc-13 gcc-13-base
+  gcc-13-x86-64-linux-gnu gcc-x86-64-linux-gnu javascript-common libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl libasan8 libatomic1 libcc1-0 libdpkg-perl
+  libexpat1-dev libfakeroot libfile-fcntllock-perl libgcc-13-dev libgomp1 libhwasan0 libisl23 libitm1 libjs-jquery libjs-sphinxdoc libjs-underscore liblsan0 libmpc3 libpython3-dev
+  libpython3.12-dev libquadmath0 libstdc++-13-dev libtsan2 libubsan1 lto-disabled-list make python3-dev python3-pip python3-wheel python3.12-dev zlib1g-dev
+0 upgraded, 51 newly installed, 0 to remove and 0 not upgraded.
+Need to get 72.6 MB of archives.
+After this operation, 251 MB of additional disk space will be used.
+Do you want to continue? [Y/n]
+```
+:::
+
+
+## Package manager vs pip
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo apt install python3-numpy
+```
+```
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  libblas3 libgfortran5 liblapack3
+Suggested packages:
+  gfortran python3-pytest
+The following NEW packages will be installed:
+  libblas3 libgfortran5 liblapack3 python3-numpy
+0 upgraded, 4 newly installed, 0 to remove and 0 not upgraded.
+Need to get 8,238 kB of archives.
+After this operation, 35.2 MB of additional disk space will be used.
+Do you want to continue? [Y/n] 
+```
+:::
+
+## pip install & PEP 668
+
+::: {.panel-tabset}
+
+### pip
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ sudo pip install numpy --upgrade
+```
+
+```
+sudo pip install numpy --upgrade
+error: externally-managed-environment
+
+× This environment is externally managed
+╰─> To install Python packages system-wide, try apt install
+    python3-xyz, where xyz is the package you are trying to
+    install.
+    
+    If you wish to install a non-Debian-packaged Python package,
+    create a virtual environment using python3 -m venv path/to/venv.
+    Then use path/to/venv/bin/python and path/to/venv/bin/pip. Make
+    sure you have python3-full installed.
+    
+    If you wish to install a non-Debian packaged Python application,
+    it may be easiest to use pipx install xyz, which will manage a
+    virtual environment for you. Make sure you have pipx installed.
+    
+    See /usr/share/doc/python3.12/README.venv for more information.
+
+note: If you believe this is a mistake, please contact your Python installation or OS distribution provider. You can override this, at the risk of breaking your Python installation or OS, by passing --break-system-packages.
+hint: See PEP 668 for the detailed specification.
+```
+:::
+
+### uv
+
+::: {.xsmall}
+```shell
+cr173@vcm-52470:~$ curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+```
+downloading uv 0.10.6 x86_64-unknown-linux-gnu
+no checksums to verify
+installing to /home/cr173/.local/bin
+  uv
+  uvx
+everything's installed!
+
+To add $HOME/.local/bin to your PATH, either restart your shell or run:
+
+    source $HOME/.local/bin/env (sh, bash, zsh)
+    source $HOME/.local/bin/env.fish (fish)
+```
+
+```shell
+cr173@vcm-52470:~$ .local/bin/uv self version
+```
+```
+uv 0.10.6
+```
+:::
+
+:::
+
+
+
+# Docker
+
+## Docker
+
+::: {.xsmall}
+> Docker can package an application and its dependencies in a virtual container that can run on any Linux, Windows, or macOS computer. This enables the application to run in a variety of locations, such as on-premises, in the public or private cloud. When running on Linux, Docker uses the resource isolation features of the Linux kernel (such as cgroups and kernel namespaces) and a union-capable file system to allow containers to run within a single Linux instance, avoiding the overhead of starting and maintaining virtual machines. 
+>
+>From [Wikipedia](https://en.wikipedia.org/wiki/Docker_%28software%29)
+:::
+
+:::: {.columns}
+::: {.column width='50%'}
+![](imgs/Docker/docker2.webp){fig-align="center" width="75%"}
+:::
+
+::: {.column width='50%'}
+![](imgs/Docker/docker1.webp){fig-align="center" width="75%"}
+:::
+::::
+
+
+## Installation - Ubuntu / Debian {.scrollable}
+
+See official Docker install [docs](https://docs.docker.com/engine/install/ubuntu/)
+
+::: {.xxsmall}
+```shell
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+```
+# Executing docker install script, commit: f381ee68b32e515bb4dc034b339266aff1fbc460
++ sh -c apt-get -qq update >/dev/null
++ sh -c DEBIAN_FRONTEND=noninteractive apt-get -y -qq install ca-certificates curl >/dev/null
++ sh -c install -m 0755 -d /etc/apt/keyrings
++ sh -c curl -fsSL "https://download.docker.com/linux/ubuntu/gpg" -o /etc/apt/keyrings/docker.asc
++ sh -c chmod a+r /etc/apt/keyrings/docker.asc
++ sh -c echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" > /etc/apt/sources.list.d/docker.list
++ sh -c apt-get -qq update >/dev/null
++ sh -c DEBIAN_FRONTEND=noninteractive apt-get -y -qq install docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-ce-rootless-extras docker-buildx-plugin docker-model-plugin >/dev/null
+Scanning processes...                                                                                                                                               
+Scanning linux images...                                                                                                                                            
+Using systemd to manage Docker service
++ sh -c systemctl enable --now docker.service
+
+...
+
+INFO: Docker daemon enabled and started
+
++ sh -c docker version
+Client: Docker Engine - Community
+ Version:           29.2.1
+ API version:       1.53
+ Go version:        go1.25.6
+ Git commit:        a5c7197
+ Built:             Mon Feb  2 17:17:26 2026
+ OS/Arch:           linux/amd64
+ Context:           default
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          29.2.1
+  API version:      1.53 (minimum version 1.44)
+  Go version:       go1.25.6
+  Git commit:       6bc6209
+  Built:            Mon Feb  2 17:17:26 2026
+  OS/Arch:          linux/amd64
+  Experimental:     false
+ containerd:
+  Version:          v2.2.1
+  GitCommit:        dea7da592f5d1d2b7755e3a161be07f43fad8f75
+ runc:
+  Version:          1.3.4
+  GitCommit:        v1.3.4-0-gd6d73eb8
+ docker-init:
+  Version:          0.19.0
+  GitCommit:        de40ad0
+
+...
+```
+:::
+ 
+
+## Troubleshooting - daemon
+
+::: {.xsmall}
+```shell
+sudo docker run hello-world
+```
+```
+docker: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?.
+See 'docker run --help'.
+```
+:::
+
+. . .
+
+<br/>
+
+This occurs when the docker daemon (service) is not running, this can be fixed by enabling & starting the docker service / daemon, 
+
+<br/>
+
+::: {.xsmall}
+```shell
+sudo systemctl enable docker
+```
+```
+Synchronizing state of docker.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable docker
+```
+
+
+```shell
+sudo systemctl start docker
+```
+:::
+
+## Success
+
+::: {.xsmall}
+```shell
+sudo docker run hello-world
+```
+```
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+1b930d010525: Pull complete 
+Digest: sha256:2557e3c07ed1e38f26e389462d03ed943586f744621577a99efb77324b0fe535
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+```
+:::
+
+
+## Troubleshooting - permissions
+
+::: {.xsmall}
+```shell
+docker run hello-world
+```
+
+```
+permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
+```
+:::
+
+. . .
+
+You must either be root or be a member of the `docker` group to use docker. Currently, your VM may or may not have a docker group and your account is likely not a member. If you get tired of typing sudo + your password there is an easy fix,
+
+. . .
+
+<br class="small">
+
+::: {.xsmall}
+```shell
+sudo groupadd docker
+sudo usermod -aG docker $USER
+groups
+```
+:::
+
+<br class="small">
+
+If docker is not listed by `groups` - log out and log back in
+
+
+## Success
+
+::: {.xsmall}
+```shell
+docker run hello-world
+```
+```
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+```
+:::
+
+
+
+# Getting Started
+
+
+## {background-image="imgs/Docker/docker_sketch.png" background-size=contain}
+
+## Getting images
+
+::: {.xsmall}
+```shell
+docker pull ubuntu
+```
+
+```
+Using default tag: latest
+latest: Pulling from library/ubuntu
+5a7813e071bf: Pull complete 
+Digest: sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782
+Status: Downloaded newer image for ubuntu:latest
+docker.io/library/ubuntu:latest
+```
+:::
+
+. . .
+
+<br/>
+
+::: {.xsmall}
+```shell
+docker images
+```
+```
+IMAGE                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+hello-world:latest                        ef54e839ef54       21.8kB         9.52kB        
+ubuntu:latest                             d1e2e92c075e        117MB         31.7MB   
+```
+:::
+
+
+## {background-image="imgs/Docker/dockerhub_ubuntu.png" background-size=contain}
+
+
+## Tags (versions)
+
+::: {.xsmall}
+```shell
+docker pull ubuntu:24.10
+```
+```
+25.10: Pulling from library/ubuntu
+16c195d4c5e9: Pull complete 
+458996317100: Download complete 
+Digest: sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
+Status: Downloaded newer image for ubuntu:25.10
+docker.io/library/ubuntu:25.10
+```
+
+```shell
+docker pull ubuntu:24.04
+```
+```
+24.04: Pulling from library/ubuntu
+Digest: sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782
+Status: Downloaded newer image for ubuntu:24.04
+docker.io/library/ubuntu:24.04
+```
+:::
+
+::: {.xsmall}
+```shell
+docker images
+```
+```
+IMAGE                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+hello-world:latest                        ef54e839ef54       21.8kB         9.52kB        
+ubuntu:24.04                              d1e2e92c075e        117MB         31.7MB        
+ubuntu:25.10                              4a9232cc47bf        134MB         36.6MB        
+ubuntu:latest                             d1e2e92c075e        117MB         31.7MB    
+```
+:::
+
+
+## Other sources
+
+DockerHub is not the only source of images - there are many other possible hosts and all you need to provide is a URL along with the image name.
+
+. . .
+
+
+::: {.xxsmall}
+```shell
+docker pull ghcr.io/dukestatsci/r_gh_actions:latest
+```
+```
+latest: Pulling from dukestatsci/r_gh_actions
+4f4fb700ef54: Pull complete 
+20043066d3d5: Pull complete 
+a7f34fb66e20: Pull complete 
+4eca9b252235: Pull complete 
+def0e092fa23: Pull complete 
+685ec124a2b4: Pull complete 
+19147305769e: Pull complete 
+600a4a837ad4: Pull complete 
+644298603b9d: Pull complete 
+d43d99a2c25f: Pull complete 
+2adec7c973e0: Pull complete 
+c0de31d8db54: Pull complete 
+b66843124b28: Pull complete 
+147156882b74: Pull complete 
+83797ba50aaf: Pull complete 
+7a7094a09d9b: Download complete 
+Digest: sha256:0c15f386b4e0a0fe8ac18e4a513db49294a0f05558f92741beb4604f22109298
+Status: Downloaded newer image for ghcr.io/dukestatsci/r_gh_actions:latest
+ghcr.io/dukestatsci/r_gh_actions:latest
+```
+:::
+
+::: {.aside}
+See our image on GitHub [here](https://github.com/orgs/DukeStatSci/packages/container/package/r_gh_actions) and the underlying [repo](https://github.com/DukeStatSci/r_gh_actions)
+:::
+
+## 
+
+::: {.xsmall}
+```shell
+docker images
+```
+```
+IMAGE                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+ghcr.io/dukestatsci/r_gh_actions:latest   0c15f386b4e0        3.5GB          888MB        
+hello-world:latest                        ef54e839ef54       21.8kB         9.52kB        
+ubuntu:22.04                              3ba65aa20f86        116MB         31.5MB        
+ubuntu:24.04                              d1e2e92c075e        117MB         31.7MB        
+ubuntu:latest                             d1e2e92c075e        117MB         31.7MB   
+```
+:::
+
+
+
+
+## Running a container
+
+:::: {.columns .xxsmall}
+::: {.column width='50%'}
+```shell
+docker run --rm ubuntu cat /etc/os-release
+```
+
+```
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+```
+:::
+
+::: {.column width='50%' .fragment}
+```shell
+docker run --rm ubuntu:25.10 cat /etc/os-release
+```
+```
+PRETTY_NAME="Ubuntu 25.10"
+NAME="Ubuntu"
+VERSION_ID="25.10"
+VERSION="25.10 (Questing Quokka)"
+VERSION_CODENAME=questing
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=questing
+LOGO=ubuntu-logo
+```
+:::
+::::
+
+## 
+
+::: {.xxsmall}
+```shell
+docker run --rm fedora:latest cat /etc/os-release
+```
+```
+Unable to find image 'fedora:latest' locally
+latest: Pulling from library/fedora
+0c5a86865c5d: Pull complete 
+Digest: sha256:3ec60eb34fa1a095c0c34dd37cead9fd38afb62612d43892fcf1d3425c32bc1e
+Status: Downloaded newer image for fedora:latest
+NAME="Fedora Linux"
+VERSION="41 (Container Image)"
+RELEASE_TYPE=stable
+ID=fedora
+VERSION_ID=41
+VERSION_CODENAME=""
+PLATFORM_ID="platform:f41"
+PRETTY_NAME="Fedora Linux 41 (Container Image)"
+ANSI_COLOR="0;38;2;60;110;180"
+LOGO=fedora-logo-icon
+CPE_NAME="cpe:/o:fedoraproject:fedora:41"
+DEFAULT_HOSTNAME="fedora"
+HOME_URL="https://fedoraproject.org/"
+DOCUMENTATION_URL="https://docs.fedoraproject.org/en-US/fedora/f41/system-administrators-guide/"
+SUPPORT_URL="https://ask.fedoraproject.org/"
+BUG_REPORT_URL="https://bugzilla.redhat.com/"
+REDHAT_BUGZILLA_PRODUCT="Fedora"
+REDHAT_BUGZILLA_PRODUCT_VERSION=41
+REDHAT_SUPPORT_PRODUCT="Fedora"
+REDHAT_SUPPORT_PRODUCT_VERSION=41
+SUPPORT_END=2025-05-13
+VARIANT="Container Image"
+VARIANT_ID=container
+```
+:::
+
+
+
+## docker run common options
+
+<br/>
+```
+docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
+```
+
+<br/>
+
+::: {.medium}
+
+| Option         | Description                                                      |
+|----------------|:-----------------------------------------------------------------|
+| `--name`       | Give your container a name                                       |
+| `--rm`         | Automatically remove the container when it exits                 |
+| `-i -t`        | Allow for interaction with container (STDIN & tty specifically)  |
+| `-p host:cont` | Publish a container's port                                       |
+| `-v host:cont` | Share filesystems                                                |
+| `-e "VAR=VAL"` | Define environmental variables                                   |
+:::
+
+::: {.aside}
+See <https://docs.docker.com/engine/reference/run/> for more details
+:::
+
+## Other useful commands
+
+::: {.medium}
+
+| command                                 | Description                                  |
+|-----------------------------------------|:---------------------------------------------|
+| `docker pull NAME[:TAG]`                | Pull docker image (usually from DockerHub)   |
+| `docker images`                         | List docker images                           |
+| `docker rmi IMAGE`                      | Remove an image                              |
+| `docker container ls [--all]`           | List (all) docker containers                 |
+| `docker rm CONTAINER`                   | Remove a container                           |
+| `docker stop CONTAINER`                 | Stop a running container                     |
+| `docker start CONTAINER`                | Start a stopped container                    |
+| `docker attach CONTAINER`               | Attach to a running container                |
+| `docker exec CONTAINER CMD`             | Runs a new command in a running container    |
+| `docker commit CONTAINER REPO[:TAG]`    | Create an image from a container             |
+| `docker rename CONTAINER NAME`          | Rename a container                           |
+
+:::
+
+## rocker
+
+::: {.center .giant}
+  `r fontawesome::fa("docker")` + `r fontawesome::fa("r-project")` = [Rocker](https://www.rocker-project.org/)
+:::
+
+::: {.small}
+> The rocker project provides a collection of containers suited for different needs. find a base image to extend or images with popular software and optimized libraries pre-installed. Get the latest version or a reproducibly fixed environment.
+:::
+
+. . .
+
+:::: {.columns}
+::: {.column width='50%'}
+![](imgs/Docker/rocker1.png){fig-align="center" width="100%"}
+
+:::
+
+::: {.column width='50%'}
+![](imgs/Docker/rocker2.png){fig-align="center" width="100%"}
+
+:::
+::::
+
+
+## {background-image="imgs/Docker/rocker_ver_sketch.png" background-size=contain}
+
+
+## {background-image="imgs/Docker/Docker_python.png" background-size=contain}
+
+## Docker + Python
+
+::: {.xsmall}
+```shell
+docker pull python:latest
+```
+
+```
+latest: Pulling from library/python
+7cd785773db4: Pull complete 
+091eb8249475: Pull complete 
+255774e0027b: Pull complete 
+353e14e5cc47: Pull complete 
+70847531e23d: Pull complete 
+af0b544b1a82: Pull complete 
+379f06e37dbb: Pull complete 
+Digest: sha256:8c55c44b9e81d537f8404d0000b7331863d134db87c1385dd0ec7fefff656495
+Status: Downloaded newer image for python:latest
+docker.io/library/python:latest
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+docker run --rm python:latest python -V
+```
+
+```
+Python 3.13.2
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+docker run --rm python:latest pip install numpy
+```
+
+```
+Collecting numpy
+  Downloading numpy-2.2.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (62 kB)
+Downloading numpy-2.2.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (16.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.1/16.1 MB 77.0 MB/s eta 0:00:00
+Installing collected packages: numpy
+Successfully installed numpy-2.2.4
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable.It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 24.3.1 -> 25.0.1
+[notice] To update, run: pip install --upgrade pip
+```
+:::
+
+##
+
+::: {.xsmall}
+```shell
+docker run --rm python:latest cat /etc/os-release
+```
+```
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.3
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+```
+:::
+
+
+## Interactive usage
+
+For interactive use we use the `-it` (or `-i -t`) flags,
+
+::: {.xsmall}
+```shell
+docker run -it --rm python:latest
+```
+
+```
+Python 3.13.2 (main, Mar 18 2025, 03:30:45) [GCC 12.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> 
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+docker run -it --rm python:latest bash
+```
+```
+root@0200ab573e93:/# 
+```
+:::
+
+. . .
+
+<br/>
+
+::: {.xsmall}
+```shell
+docker ps
+```
+```
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+docker ps --all
+```
+```
+CONTAINER ID   IMAGE           COMMAND     CREATED          STATUS                      PORTS     NAMES
+fa52839a6bb0   python:latest   "bash"      4 seconds ago    Exited (0) 2 seconds ago              elated_pare
+41de571bce2d   python:latest   "python3"   12 seconds ago   Exited (0) 10 seconds ago             zealous_knuth
+```
+:::
+
+## Building a container interactively
+
+::: {.xsmall}
+```shell
+docker run -it --name python-uv python:latest bash
+```
+```
+root@b08cd30d4148:/# pip install uv
+Collecting uv
+  Downloading uv-0.10.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (11 kB)
+Downloading uv-0.10.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (23.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.2/23.2 MB 159.3 MB/s  0:00:00
+Installing collected packages: uv
+Successfully installed uv-0.10.6
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.3 -> 26.0.1
+[notice] To update, run: pip install --upgrade pip
+root@b08cd30d4148:/# uv self version
+uv 0.10.6
+```
+:::
+
+## Container -> Image
+
+::: {.xsmall}
+```shell
+docker ps --all
+```
+```
+CONTAINER ID   IMAGE           COMMAND     CREATED              STATUS                     PORTS     NAMES
+b08cd30d4148   python:latest   "bash"      About a minute ago   Exited (0) 4 seconds ago             python-uv
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+docker commit python-uv python-uv:latest
+```
+```
+sha256:7cc45fe8b0b7796015f3d796d2740403a52d75d9e157da7a2f792c72b0335980
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```shell
+docker images
+```
+```
+IMAGE                                     ID             DISK USAGE   CONTENT SIZE   EXTRA
+fedora:latest                             781b7642e8bf        261MB         70.7MB        
+ghcr.io/dukestatsci/r_gh_actions:latest   0c15f386b4e0        3.5GB          888MB        
+hello-world:latest                        ef54e839ef54       21.8kB         9.52kB        
+python-uv:latest                          7cc45fe8b0b7       1.74GB          465MB        
+python:latest                             61346539f7b2       1.61GB          432MB    U   
+ubuntu:24.04                              d1e2e92c075e        117MB         31.7MB        
+ubuntu:25.10                              4a9232cc47bf        134MB         36.6MB        
+ubuntu:latest                             d1e2e92c075e        117MB         31.7MB  
+```
+:::
+
+## Using the image
+
+::: {.xsmall}
+```shell
+docker run --rm -it python-uv:latest
+```
+```
+root@7ea404da10d1:/# mkdir proj
+root@7ea404da10d1:/# cd proj/
+root@7ea404da10d1:/proj# uv init --bare
+Initialized project `proj`
+root@7ea404da10d1:/proj# uv add numpy scipy matplotlib
+Using CPython 3.14.3 interpreter at: /usr/local/bin/python3
+Creating virtual environment at: .venv
+Resolved 13 packages in 336ms
+Prepared 12 packages in 1.56s
+Installed 12 packages in 1.44s
+ + contourpy==1.3.3
+ + cycler==0.12.1
+ + fonttools==4.61.1
+ + kiwisolver==1.4.9
+ + matplotlib==3.10.8
+ + numpy==2.4.2
+ + packaging==26.0
+ + pillow==12.1.1
+ + pyparsing==3.3.2
+ + python-dateutil==2.9.0.post0
+ + scipy==1.17.1
+ + six==1.17.0
+root@7ea404da10d1:/proj# uv run python
+Python 3.14.3 (main, Feb 24 2026, 21:41:39) [GCC 14.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import numpy
+>>> import numpy as np
+>>> np.__version__
+'2.4.2'
+```
+:::

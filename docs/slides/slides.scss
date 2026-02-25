@@ -98,10 +98,6 @@ blockquote {
   padding-bottom: 0 !important;
 }
 
-.reveal pre.sourceCode code {
-  max-height: 575px;
-}
-
 .reveal div.sourceCode {
   margin-bottom: 0.33em !important;
 }
@@ -136,8 +132,26 @@ kbd {
 
 .reveal pre code {
   text-wrap-mode: nowrap !important;
-  max-height: 520px !important;
+  max-height: 520px;
 }
+
+.reveal .limit400 pre.sourceCode code {
+  max-height: 400px !important;
+}
+
+.panel-tabset li {
+  font-size: 0.66em;
+}
+
+
+p:has(br.small:only-child) {
+  margin-top: 0;
+  margin-bottom: 0;
+  line-height: 50%;
+}
+
+
+
 
 pre.shell > code > span > a::before {
   content: ">" !important;

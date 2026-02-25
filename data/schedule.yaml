@@ -181,15 +181,21 @@ schedule:
 
 - week: 7
   day: 4
-  lecture: "MLOPs - Basic Linux & Docker"
-  slides:
+  lecture: "MLOPs - Basic Linux & Basic Docker"
+  slides: Lec15
   screencast:
   readings:
+  - text: MIT's Missing Semester - Introduction to the Shell
+    link: https://missing.csail.mit.edu/2026/course-shell/
+  - text: MIT's Missing Semester - Command-line Environment
+    link: https://missing.csail.mit.edu/2026/command-line-environment/
+  - text: Docker - Get Started
+    link: https://docs.docker.com/get-started/
   notes:
 
 - week: 8
   day: 2
-  lecture: "MLOPs - Docker & Vetiver"
+  lecture: "MLOPs - Dockerfiles & Vetiver"
   slides:
   screencast:
   readings:
