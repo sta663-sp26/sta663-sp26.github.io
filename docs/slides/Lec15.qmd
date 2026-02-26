@@ -1,5 +1,5 @@
 ---
-title: "Basic linux<br/>& Docker"
+title: "Linux & Docker Basics"
 subtitle: "Lecture 15"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
@@ -18,15 +18,11 @@ execute:
 ```
 
 
+## {background-image="https://images.squarespace-cdn.com/content/v1/660d89dc96ccfa3a66eeb7ef/1712262249220-NGDRJVOCHGLMO8AM2HF0/sticker-cosplaying-as-a-sysadmin.png?format=1500w" background-size=50%}
 
-## {background-image="imgs/Docker/linux_tree.png" background-size=contain}
-
-```{css}
-/*| echo: false*/
-.reveal pre code {
-  text-wrap-mode: nowrap !important;
-}
-```
+::: {.aside}
+Source - Jeff Geerling / [Red Shirt Jeff](https://www.redshirtjeff.com/shop/p/cosplaying-as-a-sysadmin-stickers)
+:::
 
 # Duke VCM
 
@@ -117,6 +113,15 @@ Learn about unattended upgrades for ubuntu: https://linuxcapable.com/how-to-conf
 ```
 :::
 
+## {background-image="imgs/Docker/linux_tree.png" background-size=contain}
+
+```{css}
+/*| echo: false*/
+.reveal pre code {
+  text-wrap-mode: nowrap !important;
+}
+```
+
 
 ## Determining Distribution
 
@@ -188,7 +193,9 @@ VARIANT_ID=server
 
 ::: {.column width=50% .small}
 
-<br/><br/><br/>
+See Wikipedia's [article](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard) 
+
+<br class="small"/>
 
 Some common folders:
 
@@ -216,7 +223,7 @@ Some common folders:
 
 ::: {.xxsmall .limit400}
 ```{.shell}
-cr173@vcm-52470:~$ tree -d -L 1 /
+tree -d -L 1 /
 ```
 
 ```
@@ -281,9 +288,27 @@ cr173@algebra2 [~]$ tree -d -L 1 /usr
 :::
 
 
-::: {.aside}
-See Wikipedia's [Filesystem Hierarchy Standard](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard) article
+## Basic Filesystem Navigation
+
+::: {.small}
+| Command | Description |
+|:--------|:------------|
+| `pwd` | Print working directory |
+| `ls` | List directory contents (`-l` long, `-a` include hidden) |
+| `cd <dir>` | Change directory |
+| `cd ..` | Move up one level |
+| `cd ~` | Go to home directory |
+| `mkdir <dir>` | Create a directory |
+| `rm <file>` | Remove a file (`-r` for directories, `-f` force) |
+| `cp <src> <dst>` | Copy file or directory (`-r` for directories) |
+| `mv <src> <dst>` | Move or rename file/directory |
+| `cat <file>` | Print file contents |
+| `less <file>` | Page through file contents |
 :::
+
+. . .
+
+Useful shortcuts: `.` = current directory, `..` = parent, `~` = home
 
 
 # Installing packages with `apt` (Ubuntu, Debian, etc.)
@@ -292,7 +317,7 @@ See Wikipedia's [Filesystem Hierarchy Standard](https://en.wikipedia.org/wiki/Fi
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ apt update
+apt update
 ```
 
 ```
@@ -317,7 +342,7 @@ W: Problem unlinking the file /var/cache/apt/srcpkgcache.bin - RemoveCaches (13:
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt update
+sudo apt update
 ```
 
 ```
@@ -356,9 +381,9 @@ Reading state information... Done
 
 ## Installing R
 
-::: {.xsmall}
+::: {.xxsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt install r-base
+sudo apt install r-base
 ```
 
 ```
@@ -422,7 +447,7 @@ Do you want to continue? [Y/n]
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt remove r-base
+sudo apt remove r-base
 ```
 
 ```
@@ -453,7 +478,7 @@ After this operation, 62.5 kB disk space will be freed.
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt autoremove
+sudo apt autoremove
 ```
 ```
 Reading package lists... Done
@@ -482,7 +507,7 @@ Do you want to continue? [Y/n]
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt update
+sudo apt update
 ```
 ```
 Hit:1 http://archive.linux.duke.edu/ubuntu focal InRelease
@@ -501,7 +526,7 @@ Reading state information... Done
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt upgrade
+sudo apt upgrade
 ```
 ```
 Reading package lists... Done
@@ -554,25 +579,24 @@ Setting up initramfs-tools (0.130ubuntu3.6) ...
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ apt show r-base
+apt show r-base
 ```
 ```
 Package: r-base
-Version: 3.6.3-2
+Version: 4.3.3-2build2
 Priority: optional
 Section: universe/math
 Origin: Ubuntu
 Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
 Original-Maintainer: Dirk Eddelbuettel <edd@debian.org>
 Bugs: https://bugs.launchpad.net/ubuntu/+filebug
-Installed-Size: 62.5 kB
-Depends: r-base-core (>= 3.6.3-2), r-recommended (= 3.6.3-2)
+Installed-Size: 33.8 kB
+Depends: r-base-core (>= 4.3.3-2build2), r-recommended (= 4.3.3-2build2)
 Recommends: r-base-html, r-doc-html
 Suggests: elpa-ess, r-doc-info | r-doc-pdf
 Homepage: http://www.r-project.org/
-Download-Size: 9,308 B
-APT-Manual-Installed: yes
-APT-Sources: http://archive.linux.duke.edu/ubuntu focal/universe amd64 Packages
+Download-Size: 9,304 B
+APT-Sources: http://archive.linux.duke.edu/ubuntu noble/universe amd64 Packages
 Description: GNU R statistical computation and graphics system
  R is a system for statistical computation and graphics.  It consists
  of a language plus a run-time environment with graphics, a debugger,
@@ -588,7 +612,7 @@ To list the files installed by a package,
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ dpkg -L r-base
+dpkg -L r-base
 ```
 ```
 /.
@@ -602,12 +626,12 @@ cr173@vcm-52470:~$ dpkg -L r-base
 ```
 :::
 
-<br/>
+<br class=class/>
 or if you want to find which package created a file,
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ dpkg -S /usr/bin/R
+dpkg -S /usr/bin/R
 ```
 ```
 r-base-core: /usr/bin/R
@@ -660,7 +684,7 @@ These are shared common components that are used by a variety of software on a L
 
 ::: {.xxsmall}
 ```shell
-cr173@vcm-52470:~$ ls -la /usr/lib/x86_64-linux-gnu/libcurl*
+ls -la /usr/lib/x86_64-linux-gnu/libcurl*
 ```
 
 ```
@@ -696,7 +720,7 @@ These are the names that would then be used with something like `apt install` or
 
 ::: {.xxsmall}
 ```shell
-cr173@vcm-52470:~$ ldd /usr/lib/x86_64-linux-gnu/libcurl.so
+ldd /usr/lib/x86_64-linux-gnu/libcurl.so
 ```
 
 ```
@@ -750,7 +774,7 @@ cr173@vcm-52470:~$ ldd /usr/lib/x86_64-linux-gnu/libcurl.so
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ pip install torch
+pip install torch
 ```
 ```
 Command 'pip' not found, but can be installed with:
@@ -764,7 +788,7 @@ Please ask your administrator.
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt install python3-pip
+sudo apt install python3-pip
 ```
 ```
 [sudo] password for cr173:
@@ -798,7 +822,7 @@ Do you want to continue? [Y/n]
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo apt install python3-numpy
+sudo apt install python3-numpy
 ```
 ```
 Reading package lists... Done
@@ -815,7 +839,21 @@ Need to get 8,238 kB of archives.
 After this operation, 35.2 MB of additional disk space will be used.
 Do you want to continue? [Y/n] 
 ```
+
+
+```shell
+python3
+```
+```
+Python 3.12.3 (main, Jan 22 2026, 20:57:42) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import numpy as np
+>>> np.__version__
+'1.26.4'
+```
 :::
+
+
 
 ## pip install & PEP 668
 
@@ -825,7 +863,7 @@ Do you want to continue? [Y/n]
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ sudo pip install numpy --upgrade
+sudo pip install numpy --upgrade
 ```
 
 ```
@@ -857,7 +895,18 @@ hint: See PEP 668 for the detailed specification.
 
 ::: {.xsmall}
 ```shell
-cr173@vcm-52470:~$ curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo apt install python3-uv
+```
+```
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+E: Unable to locate package python3-uv
+```
+
+::: {.fragment}
+```shell
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 ```
@@ -875,11 +924,12 @@ To add $HOME/.local/bin to your PATH, either restart your shell or run:
 ```
 
 ```shell
-cr173@vcm-52470:~$ .local/bin/uv self version
+.local/bin/uv self version
 ```
 ```
 uv 0.10.6
 ```
+:::
 :::
 
 :::
@@ -909,7 +959,7 @@ uv 0.10.6
 
 ## Installation - Ubuntu / Debian {.scrollable}
 
-See official Docker install [docs](https://docs.docker.com/engine/install/ubuntu/)
+See official Docker install [docs](https://docs.docker.com/engine/install/ubuntu/) - below is the yolo method.
 
 ::: {.xxsmall}
 ```shell
@@ -1056,7 +1106,7 @@ permission denied while trying to connect to the docker API at unix:///var/run/d
 
 . . .
 
-You must either be root or be a member of the `docker` group to use Docker. Currently, your VM may or may not have a docker group and your account is likely not a member. If you get tired of typing sudo + your password there is an easy fix,
+You must either be root or be a member of the `docker` group to use most Docker commands. Currently, your VM may or may not have a docker group and your account is likely not a member. If you get tired of typing sudo + your password there is an easy fix,
 
 . . .
 
@@ -1067,6 +1117,9 @@ You must either be root or be a member of the `docker` group to use Docker. Curr
 sudo groupadd docker
 sudo usermod -aG docker $USER
 groups
+```
+```
+cr173 docker
 ```
 :::
 

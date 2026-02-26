@@ -181,7 +181,7 @@ schedule:
 
 - week: 7
   day: 4
-  lecture: "MLOPs - Basic Linux & Basic Docker"
+  lecture: "MLOPs - Linux & Docker Basics"
   slides: Lec15
   screencast:
   readings:
