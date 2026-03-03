@@ -3,6 +3,7 @@ name = "website"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
+    "fastapi[standard]>=0.134.0",
     "jax>=0.9.0",
     "jupyter>=1.1.1",
     "jupyter-cache>=1.0.1",
@@ -15,4 +16,5 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
     "statsmodels>=0.14.6",
+    "vetiver>=0.2.6",
 ]

@@ -2,7 +2,7 @@
 title: "FastAPI"
 subtitle: "Lecture 23"
 author: "Dr. Colin Rundel"
-footer: "Sta 663 - Spring 2023"
+footer: "Sta 663 - Spring 2026"
 format:
   revealjs:
     theme: slides.scss

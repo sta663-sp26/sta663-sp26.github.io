@@ -1,0 +1,9 @@
+api_version: 1
+created: 20260303T084706Z
+description: null
+file: mnist_X_train.joblib
+file_size: 735985
+pin_hash: 8d738a2ca229b4aa
+title: 'mnist_X_train: a pinned ndarray object'
+type: joblib
+user: {}

@@ -1,0 +1,9 @@
+api_version: 1
+created: 20260303T084706Z
+description: null
+file: mnist_X_test.joblib
+file_size: 184561
+pin_hash: ec02fb24a215e4e0
+title: 'mnist_X_test: a pinned ndarray object'
+type: joblib
+user: {}
