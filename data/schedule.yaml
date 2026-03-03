@@ -196,7 +196,7 @@ schedule:
 - week: 8
   day: 2
   lecture: "MLOPs - Dockerfiles & Vetiver"
-  slides:
+  slides: Lec16
   screencast:
   readings:
   - text: MLOps with Vetiver
