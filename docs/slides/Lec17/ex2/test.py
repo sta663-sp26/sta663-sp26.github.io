@@ -1,9 +1,7 @@
 import numpy as np
 import requests
 import json
-
-def pretty_print(j, indent=2):
-  print(json.dumps(j, indent=indent))
+from pprint import pprint
 
 rng = np.random.default_rng(seed=1234)
 
@@ -35,10 +33,17 @@ r = requests.post(
 r.status_code
 pretty_print(r.json())
 
+## Plot endpoint
+r = requests.get('http://0.0.0.0:8000/plot')
+r.status_code
+r.headers["content-type"]
+from IPython.display import Image
+Image(r.content)
+
 
 ## Other endpoints
-pretty_print( requests.get('http://0.0.0.0:8000/coefs').json() )
+pprint( requests.get('http://0.0.0.0:8000/coefs').json() )
 
-pretty_print( requests.get('http://0.0.0.0:8000/reset').json() )
+pprint( requests.get('http://0.0.0.0:8000/reset').json() )
 
-pretty_print( requests.get('http://0.0.0.0:8000/coefs').json() )
+pprint( requests.get('http://0.0.0.0:8000/coefs').json() )

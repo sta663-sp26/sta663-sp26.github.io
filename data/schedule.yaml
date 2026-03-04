@@ -206,7 +206,7 @@ schedule:
 - week: 8
   day: 4
   lecture: "MLOPs - FastAPI (<i>async</i>)"
-  slides:
+  slides: Lec17
   screencast:
   readings:
   - text: FastAPI User Guide
