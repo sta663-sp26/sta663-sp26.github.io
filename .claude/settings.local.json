@@ -3,7 +3,11 @@
     "allow": [
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(uv run:*)",
-      "Bash(quarto render static/slides/Lec18.qmd)"
+      "Bash(quarto render static/slides/Lec18.qmd)",
+      "Bash(Rscript -e \" library\\(knitr\\) # Look at internal hook-related functions cat\\(deparse\\(knitr:::output_chunk\\), sep=''\\\\n''\\) \")",
+      "Bash(Rscript -e \" library\\(knitr\\) cat\\(deparse\\(knitr:::sew.knit_asis\\), sep=''\\\\n''\\) cat\\(''\\\\n---\\\\n''\\) cat\\(deparse\\(knitr:::sew\\), sep=''\\\\n''\\) \")",
+      "Bash(Rscript -e \" library\\(knitr\\) # Look at how error hook output is collected/processed cat\\(deparse\\(knitr:::process_chunk\\), sep=''\\\\n''\\) \")",
+      "Bash(Rscript -e \" library\\(knitr\\) # Look at wrap function which processes hook output cat\\(deparse\\(knitr:::wrap\\), sep=''\\\\n''\\) \")"
     ]
   }
 }

@@ -135,6 +135,12 @@ kbd {
   max-height: 520px;
 }
 
+.reveal .wrap .cell-output pre,
+.reveal .wrap .cell-output pre code {
+  text-wrap-mode: wrap !important;
+  overflow-wrap: break-word;
+}
+
 .reveal .limit400 pre.sourceCode code {
   max-height: 400px !important;
 }
