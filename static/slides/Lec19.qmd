@@ -1,6 +1,6 @@
 ---
 title: "PyMC - Samplers"
-subtitle: "Lecture 25"
+subtitle: "Lecture 19"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:
@@ -23,6 +23,7 @@ execute:
 
 import numpy as np
 import matplotlib as mpl
+from PIL.Image import init
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -32,6 +33,11 @@ import patsy
 
 import pymc as pm
 import arviz as az
+import xarray as xr
+xr.set_options(display_style="text")
+
+import os
+os.environ["COLUMNS"] = "110"
 
 plt.rcParams['figure.dpi'] = 200
 
@@ -54,7 +60,7 @@ def offset(l, shift=False):
     res = [res[0]] + res[:-1]
   return res
 
-def mh_trajectories(trace, colors = ["magenta","green","yellow","blue"], use_offset=True, chains = None):
+def mh_trajectories(trace, colors = ["magenta","green","orange","blue"], use_offset=True, chains = None):
   
   n = trace.posterior.sizes.get("chain",1)
   if chains is None:
@@ -75,10 +81,89 @@ def mh_trajectories(trace, colors = ["magenta","green","yellow","blue"], use_off
   
   plt.legend()
 
+def mh_trace(trace, colors = ["magenta","green","orange","blue"], chains = None):
+
+  n = trace.posterior.sizes.get("chain",1)
+  if chains is None:
+    chains = range(n)
+
+  fig, (ax1, ax2) = plt.subplots(2, 1, layout="constrained")
+
+  for i in chains:
+    x1 = trace.posterior["x1"].sel(chain=i).values
+    x2 = trace.posterior["x2"].sel(chain=i).values
+    draws = range(len(x1))
+
+    ax1.plot(draws, x1, "-", c=colors[i], alpha=0.5)
+    ax2.plot(draws, x2, "-", c=colors[i], alpha=0.5)
+
+  ax1.set_ylabel("x1")
+  ax2.set_ylabel("x2")
+  ax2.set_xlabel("Draw")
+
 ```
 
 
-# Samplers - Metropolis-Hastings
+## Effective Sample Size (ESS)
+
+::: {.medium}
+Because consecutive MCMC draws are correlated, $N$ draws are worth fewer than $N$ independent samples. The ESS quantifies this:
+
+$$\text{ESS} = \frac{N}{1 + 2\sum_{t=1}^{\infty} \rho_t}$$
+
+where $\rho_t$ is the autocorrelation at lag $t$. The denominator $\tau = 1 + 2\sum_{t=1}^{\infty} \rho_t$ is the **integrated autocorrelation time** — the effective number of draws needed to produce one independent sample.
+
+- If draws are independent ($\rho_t = 0$ for all $t > 0$) then $\text{ESS} = N$
+- High autocorrelation $\Rightarrow$ large $\tau$ $\Rightarrow$ small ESS
+:::
+
+::: {.aside}
+In practice we estimate $\rho_t$ from the MCMC samples and truncate the sum at some lag where $\rho_t$ becomes small.
+:::
+
+
+
+## Banana Distribution
+
+::: {.xsmall}
+```{python}
+# Data
+n = 100
+x1_mu = .75
+x2_mu = .75
+y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
+
+# Model
+with pm.Model() as banana:
+  x1 = pm.Normal("x1", mu=0, sigma=1)
+  x2 = pm.Normal("x2", mu=0, sigma=1)
+
+  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
+
+```
+:::
+
+## Joint posterior of x1 & x2
+
+```{python}
+#| echo: false
+
+with banana:
+  trace = pm.sample(draws=100000, chains=1, random_seed=1234, progressbar=False)
+```
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+plt.show()
+```
+
+
+# Metropolis-Hastings
 
 ## Algorithm
 
@@ -106,44 +191,10 @@ Some considerations:
 
 * Results are for the limit as $t \to \infty$
 
-* Concerns are around computational efficiency
+* Concerns are around efficiency (ess / s)
 :::
 
 
-## Banana Distribution
-
-::: {.xsmall}
-```{python}
-# Data
-n = 100
-x1_mu = .75
-x2_mu = .75
-y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
-
-# Model
-with pm.Model() as banana:
-  x1 = pm.Normal("x1", mu=0, sigma=1)
-  x2 = pm.Normal("x2", mu=0, sigma=1)
-
-  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
-```
-:::
-
-## Joint posterior of x1 & x2
-
-```{python}
-#| echo: false
-
-with banana:
-  trace = pm.sample(draws=50000, chains=1, random_seed=1234, progressbar=False)
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-plt.show()
-```
 
 ## Metropolis-Hastings Sampler
 
@@ -158,33 +209,30 @@ with banana:
   mh = pm.sample(
     draws=100, tune=0,
     step=pm.Metropolis([x1,x2]),
-    random_seed=1234,
-    progressbar=False
+    random_seed=1234
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(mh)
 ```
 :::
 
+
 ### Traces
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(mh)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(mh.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+#| out-width: "100%"
+ax = az.plot_autocorr(mh, max_lag=25, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -203,15 +251,12 @@ mh_trajectories(mh, use_offset=False)
 
 plt.show()
 ```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh.sel(chain=0), max_lag=50)
-plt.show()
-```
 :::
+
+
+
+
+
 
 
 ## MH with Tuning (burnin + adaptation)
@@ -227,15 +272,9 @@ with banana:
   mht = pm.sample(
     draws=100, tune=1000,
     step=pm.Metropolis([x1,x2]),
-    random_seed=1234, 
-    progressbar=False
+    random_seed=1234
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(mht)
 ```
@@ -245,15 +284,16 @@ az.summary(mht)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mht.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(mht)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(mht.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mht, max_lag=25, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -264,20 +304,12 @@ plt.show()
 
 plt.figure(layout="constrained")
 sns.kdeplot(
-  trace.posterior.to_dataframe(), 
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
 mh_trajectories(mht, use_offset=False)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mht.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
@@ -304,20 +336,15 @@ There are two confounded effects from letting the sampler tune / burn-in:
 
 ::: {.xsmall}
 ```{python}
-#| code-line-numbers: "|3"
 with banana:
   mh_more = pm.sample(
     draws=1000, tune=1000,
     step=pm.Metropolis([x1,x2]),
-    random_seed=1234,
-    progressbar=False
+    random_seed=1234
+  ).sel(
+    draw=slice(None,None,10)
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(mh_more)
 ```
@@ -327,15 +354,16 @@ az.summary(mh_more)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh_more.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(mh_more)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(mh_more.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mh_more, max_lag=25, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -346,20 +374,12 @@ plt.show()
 
 plt.figure(layout="constrained")
 sns.kdeplot(
-  trace.posterior.to_dataframe(), 
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(mh_more, chains=[0])
+mh_trajectories(mh_more)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh_more.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
@@ -372,23 +392,15 @@ plt.show()
 
 ::: {.xsmall}
 ```{python}
-#| code-line-numbers: "|3"
 with banana:
   mh_more2 = pm.sample(
     draws=10000, tune=1000,
     step=pm.Metropolis([x1,x2]),
-    random_seed=1234,
-    progressbar=False
+    random_seed=1234
   ).sel(
-    draw=slice(0,None,100)
+    draw=slice(None,None,100)
   )
 ```
-:::
-
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(mh_more2)
 ```
@@ -398,15 +410,16 @@ az.summary(mh_more2)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh_more2.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(mh_more2)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(mh_more2.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mh_more2, max_lag=50, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -417,128 +430,22 @@ plt.show()
 
 plt.figure(layout="constrained")
 sns.kdeplot(
-  trace.posterior.to_dataframe(), 
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(mh_more2, chains=[0])
+mh_trajectories(mh_more2)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh_more2.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
 
 
-## Bivariate Normal Distribution
-
-::: {.xsmall}
-```{python}
-# Data
-n = 100
-y = pm.draw(pm.MvNormal.dist(mu=np.zeros(2), cov=np.eye(2,2), shape=(n,2)))
-
-# Model
-with pm.Model() as bv_normal:
-  x1 = pm.Normal("x1", mu=0, sigma=1)
-  x2 = pm.Normal("x2", mu=0, sigma=1)
-
-  y = pm.MvNormal("y", mu=[x1,x2], cov=np.eye(2,2), observed=y)
-```
-:::
-
-## Joint posterior
-
-```{python}
-#| echo: false
-with bv_normal:
-  bv_trace = pm.sample(draws=10000, chains=1, random_seed=1234, progressbar=False, cores=1)
-
-plt.figure(layout="constrained")
-sns.kdeplot(
-  bv_trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-plt.show()
-```
-
-
-## BVM w/ MH
-
-::: {.panel-tabset}
-
-### Model
-
-::: {.xsmall}
-```{python}
-with bv_normal:
-  mh_bvn = pm.sample(
-    draws=1000, tune=1000,
-    step=pm.Metropolis([x1,x2]),
-    random_seed=1234,
-    progressbar=False, cores=1
-  )
-```
-:::
-
-### Summary
-
-::: {.small}
-```{python}
-az.summary(mh_bvn)
-```
-:::
-
-### Traces
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(mh_bvn.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
-
-plt.subplot(212)
-plt.plot(mh_bvn.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
-
-plt.show()
-```
-
-### Trajectories
-
-```{python}
-#| echo: false
-plt.figure(layout="constrained")
-sns.kdeplot(
-  bv_trace.posterior.to_dataframe(), 
-  x="x1", y="x2", fill=True
-)
-
-mh_trajectories(mh_bvn, chains=[0])
-
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(mh_bvn.sel(chain=0), max_lag=50)
-plt.show()
-```
-:::
-
-# Sampler - Slice Sampling
+# Slice Sampling
 
 ## Algorithm
 
+::: {.medium}
 Given a current value $\theta_t$, each iteration proceeds as:
 
 1. Draw a "height" uniformly below the current density:
@@ -549,6 +456,7 @@ Given a current value $\theta_t$, each iteration proceeds as:
 
 3. Draw the next sample uniformly from the slice:
    $$\theta_{t+1} \sim \text{Uniform}(S)$$
+:::
 
 . . .
 
@@ -558,8 +466,18 @@ In practice, finding $S$ exactly is rarely feasible, so a **stepping-out / shrin
 Every draw is accepted (no explicit acceptance ratio), but the slice-finding steps do require evaluating $p(\theta \mid x)$ multiple times per iteration.
 :::
 
+## Animation
 
-## Banana w/ Slice
+::: {.center}
+![](Lec19-slicesampler-anim/slice_sampler.gif){width=75%}
+:::
+
+::: {.aside}
+Based on [Back to Basics with David MacKay #4](https://sidravi1.github.io/blog/2019/06/21/hmc-and-slice-sampler)
+:::
+
+## Slice Samples
+
 
 ::: {.panel-tabset}
 
@@ -568,20 +486,14 @@ Every draw is accepted (no explicit acceptance ratio), but the slice-finding ste
 ::: {.xsmall}
 ```{python}
 with banana:
-  slice_banana = pm.sample(
-    draws=1000, tune=1000,
+  sl = pm.sample(
+    draws=100, tune=1000,
     step=pm.Slice([x1, x2]),
-    random_seed=1234,
-    progressbar=False
+    random_seed=1234#, cores=1
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
-az.summary(slice_banana)
+az.summary(sl)
 ```
 :::
 
@@ -589,15 +501,16 @@ az.summary(slice_banana)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(slice_banana.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(sl)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(slice_banana.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(sl, max_lag=50, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -611,22 +524,14 @@ sns.kdeplot(
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(slice_banana, chains=[0])
+mh_trajectories(sl)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(slice_banana.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
 
 
-## BVM w/ Slice
+## More Slice Samples
 
 ::: {.panel-tabset}
 
@@ -634,21 +539,17 @@ plt.show()
 
 ::: {.xsmall}
 ```{python}
-with bv_normal:
-  slice_bvn = pm.sample(
+with banana:
+  sl_more = pm.sample(
     draws=1000, tune=1000,
     step=pm.Slice([x1, x2]),
-    random_seed=1234,
-    progressbar=False
+    random_seed=1234
+  ).sel(
+    draw=slice(None,None,10)
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
-az.summary(slice_bvn)
+az.summary(sl_more)
 ```
 :::
 
@@ -656,15 +557,16 @@ az.summary(slice_bvn)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(slice_bvn.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(sl_more)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(slice_bvn.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(sl_more, max_lag=50, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -674,26 +576,20 @@ plt.show()
 #| echo: false
 plt.figure(layout="constrained")
 sns.kdeplot(
-  bv_trace.posterior.to_dataframe(),
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(slice_bvn, chains=[0])
+mh_trajectories(sl_more)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(slice_bvn.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
 
 
-# Sampler - Hamiltonian Methods
+
+
+# Hamiltonian Samplers
 
 ## Background
 
@@ -730,24 +626,6 @@ There are a couple of important tuning parameters that are used by Hamiltonian m
 
 Generally most of these will be tuned automatically for you by your sampler of choice.
 
-```{python}
-#| echo: false
-#| include: false
-
-n = 100
-x1_mu = .75
-x2_mu = .75
-y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
-
-# Model
-with pm.Model() as banana:
-  x1 = pm.Normal("x1", mu=0, sigma=1)
-  x2 = pm.Normal("x2", mu=0, sigma=1)
-
-  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
-  
-  trace = pm.sample(draws=50000, chains=1, random_seed=1234)
-```
 
 ## HamiltonianMC
 
@@ -765,11 +643,6 @@ with banana:
     random_seed=1234
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(hmc)
 ```
@@ -779,15 +652,16 @@ az.summary(hmc)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(hmc.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(hmc)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(hmc.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(hmc, max_lag=50, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -798,20 +672,12 @@ plt.show()
 
 plt.figure(layout="constrained")
 sns.kdeplot(
-  trace.posterior.to_dataframe(), 
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(hmc, chains=[0], use_offset=False)
+mh_trajectories(hmc, use_offset=False)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(hmc.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
@@ -848,11 +714,6 @@ with banana:
     random_seed=1234
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(nuts)
 ```
@@ -862,15 +723,16 @@ az.summary(nuts)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(nuts.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(nuts)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(nuts.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(nuts, max_lag=50, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -881,20 +743,12 @@ plt.show()
 
 plt.figure(layout="constrained")
 sns.kdeplot(
-  trace.posterior.to_dataframe(), 
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(nuts, chains=[0], use_offset=False)
+mh_trajectories(nuts, use_offset=False)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(nuts.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
@@ -949,11 +803,6 @@ with banana:
     random_seed=1234
   )
 ```
-:::
-
-### Summary
-
-::: {.small}
 ```{python}
 az.summary(nuts2)
 ```
@@ -963,15 +812,16 @@ az.summary(nuts2)
 
 ```{python}
 #| echo: false
-plt.figure(layout="constrained")
-plt.subplot(211)
-plt.plot(nuts2.posterior["x1"].sel(chain=0).values, label="x1")
-plt.legend()
+mh_trace(nuts2)
+plt.show()
+```
 
-plt.subplot(212)
-plt.plot(nuts2.posterior["x2"].sel(chain=0).values, label="x2")
-plt.legend()
+### ACF
 
+```{python}
+#| echo: false
+ax = az.plot_autocorr(nuts2, max_lag=50, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 
@@ -982,20 +832,12 @@ plt.show()
 
 plt.figure(layout="constrained")
 sns.kdeplot(
-  trace.posterior.to_dataframe(), 
+  trace.posterior.to_dataframe(),
   x="x1", y="x2", fill=True
 )
 
-mh_trajectories(nuts2, chains=[0], use_offset=False)
+mh_trajectories(nuts2, use_offset=False)
 
-plt.show()
-```
-
-### ACF
-
-```{python}
-#| echo: false
-ax = az.plot_autocorr(nuts2.sel(chain=0), max_lag=50)
 plt.show()
 ```
 :::
@@ -1196,87 +1038,72 @@ plt.show()
 # Example 2 - Compound Samplers
 
 
-## Model with a discrete parameter
+## Gaussian Mixture model
+
+Below we create a basic mixture of Gaussians using the discrete variable `i`
 
 ::: {.xsmall}
 ```{python}
-import pytensor
+np.random.seed(1234)
+x1 = np.random.normal(-2.5, 1, size=1000)
+x2 = np.random.normal( 2.5, 1, size=1000)
+i = np.random.binomial(1, 0.3, size=1000)
+y = np.where(i, x1, x2)
 
-n = pytensor.shared(np.asarray([10, 20]))
-with pm.Model() as m:
-    p = pm.Beta("p", 1.0, 1.0)
-    i = pm.Bernoulli("i", 0.5)
-    k = pm.Binomial("k", p=p, n=n[i], observed=4)
-    
-    step = pm.CompoundStep([
-      pm.NUTS([p]),
-      pm.BinaryMetropolis([i])
-    ])
-
-    trace = pm.sample(
-      1000, step=step
-    )
+sns.displot({'x': y}, x="x", kind="kde")
 ```
 :::
 
-## Summary
+## pymc model with a discrete parameter
 
-::: {.small}
+::: {.xsmall}
+
+
 ```{python}
+init_mu = np.sort(np.random.normal(size=2))
+
+with pm.Model() as gmm:
+    μ = pm.Normal(
+        "μ", mu=0, sigma=5, shape=2
+        #transform=pm.distributions.transforms.ordered,
+        #initval=init_mu
+    )
+    σ = pm.HalfNormal("σ", sigma=3, shape=2)
+    
+    p = pm.Beta("p", 1, 1)
+    i = pm.Bernoulli("i", p, shape=len(y))
+    
+    obs = pm.Normal("y", mu=μ[i], sigma=σ[i], observed=y)
+
+    trace = pm.sample(random_seed=1234, draws=1000, chains=4)
+    pp = pm.sample_posterior_predictive(trace, random_seed=1234)
+
+az.summary(trace, var_names=["~i"])
+az.plot_trace(trace, var_names=["~i"])
+az.plot_ppc(pp)
+```
+:::
+
+
+
+
+## Marginalize Mixture Model
+
+```{python}
+init_mu = np.sort(np.random.normal(size=2))
+with pm.Model() as gmm2:
+    μ = pm.Normal(
+        "μ", mu=0, sigma=10, shape=2,
+        transform = pm.distributions.transforms.ordered,
+        initval = init_mu
+    )
+    σ = pm.HalfNormal("σ", sigma=10, shape=2)
+    weights = pm.Dirichlet("w", np.ones(2))
+
+    obs = pm.NormalMixture("y", w=weights, mu=μ, sigma=σ, observed=y)
+    trace = pm.sample(random_seed=1234, draws=1000)
+
 az.summary(trace)
 ```
-:::
-
-## Trace plots
-
-::: {.small}
-```{python}
-ax = az.plot_trace(trace)
-plt.show()
-```
-:::
 
 
-##
-
-::: {.xsmall}
-```{python}
-d = pd.DataFrame({
-  "p": trace.posterior["p"].values.flatten(),
-  "i": trace.posterior["i"].values.flatten()
-})
-```
-:::
-
-::: {.columns .xsmall}
-::: {.column}
-```{python}
-sns.displot(d, x="p", hue="i", kind="kde")
-```
-:::
-::: {.column}
-```{python}
-d.groupby("i").mean()
-```
-
-
-::: {.fragment}
-If we assume `i=0`:
-$$
-\begin{aligned} 
-p|x=4,i=0 \sim \text{Beta}(5,7) \\
-E(p|x=4,i=0) = \frac{5}{5+7} = 0.416
-\end{aligned}
-$$
-
-If we assume `i=1`:
-$$ 
-\begin{aligned} 
-p|x=4,i=1 \sim \text{Beta}(5,17) \\
-E(p|x=4,i=0) = \frac{5}{5+17} = 0.227
-\end{aligned}
-$$
-:::
-
-:::
-:::
