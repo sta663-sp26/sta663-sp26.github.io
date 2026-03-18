@@ -1,0 +1,1282 @@
+---
+title: "PyMC - Samplers"
+subtitle: "Lecture 25"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+  warning: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+```{python}
+#| include: false
+
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import patsy
+
+import pymc as pm
+import arviz as az
+
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=200,
+  precision = 5, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 150)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+
+```{python helpers}
+#| include: false
+def offset(l, shift=False):
+  res = [x for x in l for _ in range(2)]
+  if shift:
+    res = [res[0]] + res[:-1]
+  return res
+
+def mh_trajectories(trace, colors = ["magenta","green","yellow","blue"], use_offset=True, chains = None):
+  
+  n = trace.posterior.sizes.get("chain",1)
+  if chains is None:
+    chains = range(n)
+
+  for i in chains:
+    x = trace.posterior["x1"].sel(chain=i).values
+    y = trace.posterior["x2"].sel(chain=i).values
+    if use_offset:
+      x = offset( x )
+      y = offset( y, True)
+
+    plt.plot(
+      x, y,
+      "-o", c=colors[i], #linewidth=0.5, markersize=0.75,
+      label=f"Chain {i}", alpha=0.5
+    )
+  
+  plt.legend()
+
+```
+
+
+# Samplers - Metropolis-Hastings
+
+## Algorithm
+
+::: {.medium}
+For a parameter of interest start with an initial value $\theta_0$ then for the next sample ($t+1$),
+
+1. Generate a proposal value $\theta'$ from a proposal distribution $q(\theta'|\theta_t)$.
+
+2. Calculate the acceptance probability,
+   $$
+   \alpha = \text{min}\left(1, \frac{P(\theta'|x)}{P(\theta_t|x)} \frac{q(\theta_t|\theta')}{q(\theta'|\theta_t)}\right)
+   $$
+
+   where $P(\theta|x)$ is the target posterior distribution.
+
+3. Accept proposal $\theta'$ with probability $\alpha$, if accepted $\theta_{t+1} = \theta'$ else $\theta_{t+1} = \theta_t$.
+:::
+
+. . .
+
+::: {.medium}
+Some considerations:
+
+* Choice of the proposal distribution matters a lot
+
+* Results are for the limit as $t \to \infty$
+
+* Concerns are around computational efficiency
+:::
+
+
+## Banana Distribution
+
+::: {.xsmall}
+```{python}
+# Data
+n = 100
+x1_mu = .75
+x2_mu = .75
+y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
+
+# Model
+with pm.Model() as banana:
+  x1 = pm.Normal("x1", mu=0, sigma=1)
+  x2 = pm.Normal("x2", mu=0, sigma=1)
+
+  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
+```
+:::
+
+## Joint posterior of x1 & x2
+
+```{python}
+#| echo: false
+
+with banana:
+  trace = pm.sample(draws=50000, chains=1, random_seed=1234, progressbar=False)
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+plt.show()
+```
+
+## Metropolis-Hastings Sampler
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.small}
+```{python}
+#| code-line-numbers: "|4|3"
+with banana:
+  mh = pm.sample(
+    draws=100, tune=0,
+    step=pm.Metropolis([x1,x2]),
+    random_seed=1234,
+    progressbar=False
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(mh)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(mh.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(mh.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(mh, use_offset=False)
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mh.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+## MH with Tuning (burnin + adaptation)
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+with banana:
+  mht = pm.sample(
+    draws=100, tune=1000,
+    step=pm.Metropolis([x1,x2]),
+    random_seed=1234, 
+    progressbar=False
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(mht)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(mht.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(mht.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(mht, use_offset=False)
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mht.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+
+## Effects of tuning / burn-in
+
+There are two confounded effects from letting the sampler tune / burn-in:
+
+1. We have let the sampler run for 1000 iterations - this gives it a chance to find the area's of higher density and settle in. 
+
+   This also makes each chain less sensitive to their initial starting position.
+
+2. We have also tuned the size of the MH proposals to achieve a better acceptance rates - this lets the chains better explore the target distribution.
+   
+   pymc uses an adaptive algorithm to adjust the proposal size during the tuning phase to achieve an acceptance rate between 0.2 and 0.5.
+
+## More samples?
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+with banana:
+  mh_more = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.Metropolis([x1,x2]),
+    random_seed=1234,
+    progressbar=False
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(mh_more)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(mh_more.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(mh_more.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(mh_more, chains=[0])
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mh_more.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+## Even more samples?
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+with banana:
+  mh_more2 = pm.sample(
+    draws=10000, tune=1000,
+    step=pm.Metropolis([x1,x2]),
+    random_seed=1234,
+    progressbar=False
+  ).sel(
+    draw=slice(0,None,100)
+  )
+```
+:::
+
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(mh_more2)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(mh_more2.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(mh_more2.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(mh_more2, chains=[0])
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mh_more2.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+## Bivariate Normal Distribution
+
+::: {.xsmall}
+```{python}
+# Data
+n = 100
+y = pm.draw(pm.MvNormal.dist(mu=np.zeros(2), cov=np.eye(2,2), shape=(n,2)))
+
+# Model
+with pm.Model() as bv_normal:
+  x1 = pm.Normal("x1", mu=0, sigma=1)
+  x2 = pm.Normal("x2", mu=0, sigma=1)
+
+  y = pm.MvNormal("y", mu=[x1,x2], cov=np.eye(2,2), observed=y)
+```
+:::
+
+## Joint posterior
+
+```{python}
+#| echo: false
+with bv_normal:
+  bv_trace = pm.sample(draws=10000, chains=1, random_seed=1234, progressbar=False, cores=1)
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  bv_trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+plt.show()
+```
+
+
+## BVM w/ MH
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+with bv_normal:
+  mh_bvn = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.Metropolis([x1,x2]),
+    random_seed=1234,
+    progressbar=False, cores=1
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(mh_bvn)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(mh_bvn.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(mh_bvn.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+sns.kdeplot(
+  bv_trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(mh_bvn, chains=[0])
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(mh_bvn.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+# Sampler - Slice Sampling
+
+## Algorithm
+
+Given a current value $\theta_t$, each iteration proceeds as:
+
+1. Draw a "height" uniformly below the current density:
+   $$u \sim \text{Uniform}\!\left(0,\, p(\theta_t \mid x)\right)$$
+
+2. Define the "slice" — the level set at height $u$:
+   $$S = \{\theta : p(\theta \mid x) \geq u\}$$
+
+3. Draw the next sample uniformly from the slice:
+   $$\theta_{t+1} \sim \text{Uniform}(S)$$
+
+. . .
+
+::: {.medium}
+In practice, finding $S$ exactly is rarely feasible, so a **stepping-out / shrinkage** procedure is used: bracket $\theta_t$ with an interval, expand it until both ends are outside the slice, then shrink inward whenever a proposed draw is rejected.
+
+Every draw is accepted (no explicit acceptance ratio), but the slice-finding steps do require evaluating $p(\theta \mid x)$ multiple times per iteration.
+:::
+
+
+## Banana w/ Slice
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+with banana:
+  slice_banana = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.Slice([x1, x2]),
+    random_seed=1234,
+    progressbar=False
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(slice_banana)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(slice_banana.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(slice_banana.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(),
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(slice_banana, chains=[0])
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(slice_banana.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+## BVM w/ Slice
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+with bv_normal:
+  slice_bvn = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.Slice([x1, x2]),
+    random_seed=1234,
+    progressbar=False
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(slice_bvn)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(slice_bvn.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(slice_bvn.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+sns.kdeplot(
+  bv_trace.posterior.to_dataframe(),
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(slice_bvn, chains=[0])
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(slice_bvn.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+# Sampler - Hamiltonian Methods
+
+## Background
+
+Takes advantage of techniques developed in classical mechanics by imagining our parameters of interest as particles with a position and momentum,
+
+$$
+H(\theta, \rho) = -\underset{\text{potential}}{\log p(\theta)} - \underset{\text{kinetic}}{\log p(\rho|\theta)}
+$$
+
+Hamilton’s equations of motion state give a set of partial differential equations governing the motion of the "particle".
+
+A numerical integration method known as Leapfrog is then used to evolve the system some number of discrete steps forward in time. 
+
+Due to the approximate nature of the leapfrog integrator, a Metropolis acceptance step is typically used,
+$$
+\alpha = \min \left(1, \exp\left( H(\theta, \rho) - H(\theta',\rho') \right)
+\right)
+$$
+
+
+::: {.aside}
+See Stan's discussion [here](https://mc-stan.org/docs/reference-manual/mcmc.html#the-hamiltonian)
+:::
+
+## Algorithm parameters
+
+There are a couple of important tuning parameters that are used by Hamiltonian monte carlo methods:
+
+* $\epsilon$ is the size of the discrete time steps
+
+* $M$ is the mass matrix (or metric) that is used to determine the kinetic energy from the momentum ($\rho$)
+
+* $L$ is the number of leapfrog steps to take per iteration
+
+Generally most of these will be tuned automatically for you by your sampler of choice.
+
+```{python}
+#| echo: false
+#| include: false
+
+n = 100
+x1_mu = .75
+x2_mu = .75
+y = pm.draw(pm.Normal.dist(mu=x1_mu+x2_mu**2, sigma=1, shape=n))
+
+# Model
+with pm.Model() as banana:
+  x1 = pm.Normal("x1", mu=0, sigma=1)
+  x2 = pm.Normal("x2", mu=0, sigma=1)
+
+  y = pm.Normal("y", mu=x1+x2**2, sigma=1, observed=y)
+  
+  trace = pm.sample(draws=50000, chains=1, random_seed=1234)
+```
+
+## HamiltonianMC
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|4"
+with banana:
+  hmc = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.HamiltonianMC([x1,x2]),
+    random_seed=1234
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(hmc)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(hmc.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(hmc.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(hmc, chains=[0], use_offset=False)
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(hmc.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+## No-U-turn sampler (NUTS)
+
+::: {.medium}
+This is a variation of Hamiltonian monte carlo that automatically tunes the number of leapfrog steps to allow more effective exploration of the parameter space.
+
+Specifically, it uses a tree based algorithm that tracks trajectories forwards and backwards in time. The tree expands until a maximum depth is achieved or a "U-turn" is detected.
+
+![](imgs/nuts_path_extension.png){width=40% fig-align="center"}
+
+NUTS also does not use a metropolis step to select the final parameter value, instead the sample is chosen among the valid candidates along the trajectory.
+:::
+
+::: {.aside}
+Figure from Hoffman and Gelman, 2014
+:::
+
+## NUTS
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|4"
+with banana:
+  nuts = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.NUTS([x1,x2]),
+    random_seed=1234
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(nuts)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(nuts.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(nuts.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(nuts, chains=[0], use_offset=False)
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(nuts.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+## Some considerations
+
+* Hamiltonian MC methods are all very sensitive to the choice of their tuning parameters (NUTS less so, but adds additional parameters)
+
+* Hamiltonian MC methods require the gradient of the log density of the parameter of interest for the leapfrog integrator - limits this method to continuous parameters
+
+* HMC updates are generally more expensive computationally than MH updates, but they also tend to produce chains with lower autocorrelation. Best to think about performance in terms of effective samples per unit of time.
+
+
+## Divergent transitions
+
+Using Stan or PyMC with NUTS you will often see messages/ warnings about divergent transitions or divergences.
+
+This is based on the assumption of conservation of energy with regard to the Hamiltonian system - this tells us that $H(\theta, \rho)$ should remain constant for the "particle" along its trajectory. When $H(\theta, \rho)$ of the trajectory diverges from its initial value then a divergence is considered to have occurred and positions after that point cannot be considered as the next draw.
+
+The proximate cause of this is a break down of the first order approximations in the leapfrog algorithm.
+
+The ultimate cause is usually a highly curved posterior or a posterior where the rate of curvature is changing rapidly.
+
+## Solutions?
+
+Very much depend on the nature of the problem - typically we can potentially reparameterize the model and or adjust some of the tuning parameters to help the sampler deal with the problematic posterior.
+
+For the latter the following options can be passed to `pm.sample()` or `pm.NUTS()`:
+
+* `target_accept` - step size is adjusted to achieve the desired acceptance rate (larger values result in smaller steps which often work better for problematic posteriors)
+
+* `max_treedepth` - maximum depth of the trajectory tree
+
+* `step_scale` - the initial guess for the step size (scaled down by 
+based on the dimensionality of the parameter space)
+
+
+## NUTS (adjusted)
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.small}
+```{python}
+#| code-line-numbers: "|4"
+with banana:
+  nuts2 = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.NUTS([x1,x2], target_accept=0.9),
+    random_seed=1234
+  )
+```
+:::
+
+### Summary
+
+::: {.small}
+```{python}
+az.summary(nuts2)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+plt.figure(layout="constrained")
+plt.subplot(211)
+plt.plot(nuts2.posterior["x1"].sel(chain=0).values, label="x1")
+plt.legend()
+
+plt.subplot(212)
+plt.plot(nuts2.posterior["x2"].sel(chain=0).values, label="x2")
+plt.legend()
+
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(), 
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(nuts2, chains=[0], use_offset=False)
+
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(nuts2.sel(chain=0), max_lag=50)
+plt.show()
+```
+:::
+
+
+
+
+# Example 1 - Poisson Regression
+
+## Data
+
+```{python}
+#| include: false
+aids = pd.DataFrame({
+  'year': range(1981,1994),
+  'cases': [12, 14, 33, 50, 67, 74, 123, 141, 165, 204, 253, 246, 240]
+})
+```
+
+:::: {.columns .small}
+::: {.column width='25%'}
+```{python}
+aids
+```
+:::
+
+::: {.column width='75%'}
+```{python}
+#| echo: false
+plt.figure(figsize=(12,6))
+sns.scatterplot(x="year", y="cases", data=aids)
+plt.title("AIDS cases in Belgium")
+plt.show()
+```
+:::
+::::
+
+
+## Model
+
+::: {.small}
+```{python}
+y, X = patsy.dmatrices("cases ~ year", aids)
+
+X_lab = X.design_info.column_names
+y = np.asarray(y).flatten()
+X = np.asarray(X)
+
+with pm.Model(coords = {"coeffs": X_lab}) as model:
+    b = pm.Cauchy("b", alpha=0, beta=1, dims="coeffs")
+    η = X @ b
+    λ = pm.Deterministic("λ", np.exp(η))
+    
+    likelihood = pm.Poisson("y", mu=λ, observed=y)
+    
+    post = pm.sample(random_seed=1234)
+```
+:::
+
+## Summary
+
+::: {.small}
+```{python}
+#| warning: false
+az.summary(post)
+```
+:::
+
+## Sampler stats
+
+::: {.small}
+```{python}
+print(post.sample_stats)
+```
+:::
+
+## Tree depth
+
+::: {.small}
+```{python}
+post.sample_stats["tree_depth"].values
+```
+
+```{python}
+post.sample_stats["reached_max_treedepth"].values
+```
+:::
+
+## Adjusting the sampler
+
+::: {.small}
+```{python}
+with model:
+  post = pm.sample(
+    random_seed=1234,
+    step = pm.NUTS(max_treedepth=20)
+  )
+```
+:::
+
+
+## Summary
+
+::: {.small}
+```{python}
+az.summary(post)
+```
+:::
+
+
+## Trace plots
+
+::: {.small}
+```{python}
+ax = az.plot_trace(post)
+plt.show()
+```
+:::
+
+
+## Trace plots (again)
+
+::: {.small}
+```{python}
+ax = az.plot_trace(post.posterior["b"], compact=False)
+plt.show()
+```
+:::
+
+
+## Predictions (λ)
+
+::: {.xsmall}
+```{python}
+plt.figure(figsize=(12,6))
+sns.scatterplot(x="year", y="cases", data=aids)
+sns.lineplot(x="year", y=post.posterior["λ"].mean(dim=["chain", "draw"]), data=aids, color='red')
+plt.show()
+```
+:::
+
+
+## Revised model
+
+::: {.xsmall}
+```{python}
+y, X = patsy.dmatrices(
+  "cases ~ year_min + I(year_min**2)", 
+  aids.assign(year_min = lambda x: x.year-np.min(x.year))
+)
+
+X_lab = X.design_info.column_names
+y = np.asarray(y).flatten()
+X = np.asarray(X)
+
+with pm.Model(coords = {"coeffs": X_lab}) as model:
+    b = pm.Cauchy("b", alpha=0, beta=1, dims="coeffs")
+    η = X @ b
+    λ = pm.Deterministic("λ", np.exp(η))
+    
+    likelihood = pm.Poisson("y", mu=λ, observed=y)
+    
+    post = pm.sample(random_seed=1234)
+```
+:::
+
+## Summary
+
+::: {.xsmall}
+```{python}
+az.summary(post)
+```
+:::
+
+## Trace plots
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(post.posterior["b"], compact=False)
+plt.show()
+```
+:::
+
+
+## Predictions (λ)
+
+::: {.xsmall}
+```{python}
+plt.figure(figsize=(12,6))
+sns.scatterplot(x="year", y="cases", data=aids)
+sns.lineplot(x="year", y=post.posterior["λ"].mean(dim=["chain", "draw"]), data=aids, color='red')
+plt.show()
+```
+:::
+
+
+
+# Example 2 - Compound Samplers
+
+
+## Model with a discrete parameter
+
+::: {.xsmall}
+```{python}
+import pytensor
+
+n = pytensor.shared(np.asarray([10, 20]))
+with pm.Model() as m:
+    p = pm.Beta("p", 1.0, 1.0)
+    i = pm.Bernoulli("i", 0.5)
+    k = pm.Binomial("k", p=p, n=n[i], observed=4)
+    
+    step = pm.CompoundStep([
+      pm.NUTS([p]),
+      pm.BinaryMetropolis([i])
+    ])
+
+    trace = pm.sample(
+      1000, step=step
+    )
+```
+:::
+
+## Summary
+
+::: {.small}
+```{python}
+az.summary(trace)
+```
+:::
+
+## Trace plots
+
+::: {.small}
+```{python}
+ax = az.plot_trace(trace)
+plt.show()
+```
+:::
+
+
+##
+
+::: {.xsmall}
+```{python}
+d = pd.DataFrame({
+  "p": trace.posterior["p"].values.flatten(),
+  "i": trace.posterior["i"].values.flatten()
+})
+```
+:::
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+sns.displot(d, x="p", hue="i", kind="kde")
+```
+:::
+::: {.column}
+```{python}
+d.groupby("i").mean()
+```
+
+
+::: {.fragment}
+If we assume `i=0`:
+$$
+\begin{aligned} 
+p|x=4,i=0 \sim \text{Beta}(5,7) \\
+E(p|x=4,i=0) = \frac{5}{5+7} = 0.416
+\end{aligned}
+$$
+
+If we assume `i=1`:
+$$ 
+\begin{aligned} 
+p|x=4,i=1 \sim \text{Beta}(5,17) \\
+E(p|x=4,i=0) = \frac{5}{5+17} = 0.227
+\end{aligned}
+$$
+:::
+
+:::
+:::
