@@ -23,7 +23,6 @@ execute:
 
 import numpy as np
 import matplotlib as mpl
-from PIL.Image import init
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -44,7 +43,6 @@ plt.rcParams['figure.dpi'] = 200
 np.set_printoptions(
   edgeitems=30, linewidth=200,
   precision = 5, suppress=True
-  #formatter=dict(float=lambda x: "%.5g" % x)
 )
 
 pd.set_option("display.width", 150)
@@ -104,14 +102,33 @@ def mh_trace(trace, colors = ["magenta","green","orange","blue"], chains = None)
 ```
 
 
+## Gibbs Sampler
+
+The Gibbs sampler is an MCMC algorithm for drawing samples from a multivariate
+distribution by breaking it into a sequence of simpler 1D (or lower-dimensional) sampling problems.
+
+Rather than sampling all parameters simultaneously, we cycle through
+each parameter one at a time (or in blocks), drawing from their distribution *conditional on the
+current values of all other parameters*.
+
+Algorithm:
+
+1. Start with an initial guess for all parameters
+2. Pick a parameter and sample a new value for it, holding all others fixed
+3. Repeat for every other parameter (one full cycle = one iteration)
+4. Repeat iterations until the chain converges
+
+
 ## Effective Sample Size (ESS)
 
 ::: {.medium}
-Because consecutive MCMC draws are correlated, $N$ draws are worth fewer than $N$ independent samples. The ESS quantifies this:
+Because consecutive MCMC draws are correlated, $N$ draws are worth fewer than $N$ independent samples. 
+
+ESS quantifies this:
 
 $$\text{ESS} = \frac{N}{1 + 2\sum_{t=1}^{\infty} \rho_t}$$
 
-where $\rho_t$ is the autocorrelation at lag $t$. The denominator $\tau = 1 + 2\sum_{t=1}^{\infty} \rho_t$ is the **integrated autocorrelation time** — the effective number of draws needed to produce one independent sample.
+where $\rho_t$ is the autocorrelation at lag $t$. The denominator ($\tau$) is the integrated autocorrelation time — the effective number of draws needed to produce one independent sample.
 
 - If draws are independent ($\rho_t = 0$ for all $t > 0$) then $\text{ESS} = N$
 - High autocorrelation $\Rightarrow$ large $\tau$ $\Rightarrow$ small ESS
@@ -122,6 +139,7 @@ In practice we estimate $\rho_t$ from the MCMC samples and truncate the sum at s
 :::
 
 
+# Example 1 <br/> Banana Distribution
 
 ## Banana Distribution
 
@@ -165,7 +183,7 @@ plt.show()
 
 # Metropolis-Hastings
 
-## Algorithm
+## MH Algorithm
 
 ::: {.medium}
 For a parameter of interest start with an initial value $\theta_0$ then for the next sample ($t+1$),
@@ -320,13 +338,13 @@ plt.show()
 
 There are two confounded effects from letting the sampler tune / burn-in:
 
-1. We have let the sampler run for 1000 iterations - this gives it a chance to find the area's of higher density and settle in. 
+1. We have let the sampler run for 1000 iterations - this gives it a chance to find the areas of higher density and settle in.
 
    This also makes each chain less sensitive to their initial starting position.
 
-2. We have also tuned the size of the MH proposals to achieve a better acceptance rates - this lets the chains better explore the target distribution.
+2. We have also tuned the size of the MH proposals to achieve a better acceptance rate(s) - this lets the chains better explore the target distribution.
    
-   pymc uses an adaptive algorithm to adjust the proposal size during the tuning phase to achieve an acceptance rate between 0.2 and 0.5.
+   PyMC uses an adaptive algorithm to adjust the proposal size during the tuning phase to achieve an acceptance rate between 0.2 and 0.5.
 
 ## More samples?
 
@@ -418,7 +436,7 @@ plt.show()
 
 ```{python}
 #| echo: false
-ax = az.plot_autocorr(mh_more2, max_lag=50, figsize=(10,6))
+ax = az.plot_autocorr(mh_more2, max_lag=25, figsize=(10,6))
 plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
@@ -443,28 +461,33 @@ plt.show()
 
 # Slice Sampling
 
-## Algorithm
+## Slice Algorithm
 
-::: {.medium}
+
 Given a current value $\theta_t$, each iteration proceeds as:
 
-1. Draw a "height" uniformly below the current density:
-   $$u \sim \text{Uniform}\!\left(0,\, p(\theta_t \mid x)\right)$$
+::: {.columns .medium}
+::: {.column width=60%}
+1. Draw a "height" uniformly below the current density
 
-2. Define the "slice" — the level set at height $u$:
-   $$S = \{\theta : p(\theta \mid x) \geq u\}$$
+2. Define the "slice" — the level set at height $u$
+3. Draw the next sample uniformly from the slice
+:::
+::: {.column width=40%}
+- $u \sim \text{Uniform}\!\left(0,\, p(\theta_t \mid x)\right)$
 
-3. Draw the next sample uniformly from the slice:
-   $$\theta_{t+1} \sim \text{Uniform}(S)$$
+- $S = \{\theta : p(\theta \mid x) \geq u\}$
+
+- $\theta_{t+1} \sim \text{Uniform}(S)$
+:::
+:::
+
 :::
 
 . . .
 
-::: {.medium}
 In practice, finding $S$ exactly is rarely feasible, so a **stepping-out / shrinkage** procedure is used: bracket $\theta_t$ with an interval, expand it until both ends are outside the slice, then shrink inward whenever a proposed draw is rejected.
 
-Every draw is accepted (no explicit acceptance ratio), but the slice-finding steps do require evaluating $p(\theta \mid x)$ multiple times per iteration.
-:::
 
 ## Animation
 
@@ -489,7 +512,7 @@ with banana:
   sl = pm.sample(
     draws=100, tune=1000,
     step=pm.Slice([x1, x2]),
-    random_seed=1234#, cores=1
+    random_seed=1234
   )
 ```
 ```{python}
@@ -509,7 +532,7 @@ plt.show()
 
 ```{python}
 #| echo: false
-ax = az.plot_autocorr(sl, max_lag=50, figsize=(10,6))
+ax = az.plot_autocorr(sl, max_lag=25, figsize=(10,6))
 plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
@@ -565,7 +588,7 @@ plt.show()
 
 ```{python}
 #| echo: false
-ax = az.plot_autocorr(sl_more, max_lag=50, figsize=(10,6))
+ax = az.plot_autocorr(sl_more, max_lag=25, figsize=(10,6))
 plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
@@ -593,38 +616,95 @@ plt.show()
 
 ## Background
 
-Takes advantage of techniques developed in classical mechanics by imagining our parameters of interest as particles with a position and momentum,
+::: {.medium}
+Hamiltonian Monte Carlo (HMC) conceptualizes the model parameters as a particle moving through the posterior landscape. These particles have a position ($\theta$) and an auxiliary momentum ($\rho$), and their joint dynamics are governed by the **Hamiltonian**:
 
 $$
-H(\theta, \rho) = -\underset{\text{potential}}{\log p(\theta)} - \underset{\text{kinetic}}{\log p(\rho|\theta)}
+H(\theta, \rho) = V(\theta) + T(\rho \mid \theta)
 $$
 
-Hamilton’s equations of motion state give a set of partial differential equations governing the motion of the "particle".
-
-A numerical integration method known as Leapfrog is then used to evolve the system some number of discrete steps forward in time. 
-
-Due to the approximate nature of the leapfrog integrator, a Metropolis acceptance step is typically used,
 $$
-\alpha = \min \left(1, \exp\left( H(\theta, \rho) - H(\theta',\rho') \right)
-\right)
+\underbrace{V(\theta)}_{\text{potential energy}} = -\log p(\theta \mid x),
+$$
+$$
+\underbrace{T(\rho \mid \theta)}_{\text{kinetic energy}} = -\log p(\rho \mid \theta)
 $$
 
+In most applications of HMC, the auxiliary density is a multivariate normal that does not depend on the parameters, $\rho \sim \mathcal{N}(0, M)$.
+
+
+:::
 
 ::: {.aside}
-See Stan's discussion [here](https://mc-stan.org/docs/reference-manual/mcmc.html#the-hamiltonian)
+See Stan’s discussion [here](https://mc-stan.org/docs/reference-manual/mcmc.html#the-hamiltonian)
+:::
+
+## Hamiltonian dynamics
+
+::: {.medium}
+Given this setup Hamilton’s equations of motion give a set of PDEs governing the particle’s trajectory. 
+
+$$\frac{d\theta}{dt} = \frac{\partial H}{\partial \rho} = \frac{\partial }{\partial \rho} -\log p(\rho \mid \theta)$$
+
+$$\frac{d\rho}{dt} = -\frac{\partial H}{\partial \theta} = \nabla_\theta \log p(\theta \mid x)$$
+
+The first equation implies that position changes in the direction of the momentum. 
+
+The second implies momentum is accelerated by the gradient of the log-posterior — high-density regions attract the particle.
+
+Along any exact trajectory $H(\theta, \rho)$ is conserved, meaning the particle moves without changing its total energy. 
+:::
+
+## Leapfrog Integrator
+
+::: {.medium}
+The dynamics are solved numerically using the leapfrog integrator.
+
+Starting from $(\theta_t, \rho_t)$, each leapfrog step of size $\epsilon$ proceeds as:
+
+$$
+\begin{aligned}
+\rho_{t+1/2} &= \rho_t + \frac{\epsilon}{2}\nabla \log p(\theta_t \mid x) \\
+\theta_{t+1}  &= \theta_t + \epsilon\, M^{-1} \rho_{t+1/2} \\
+\rho_{t+1}   &= \rho_{t+1/2} + \frac{\epsilon}{2}\nabla \log p(\theta_{t+1} \mid x)
+\end{aligned}
+$$
+
+This is repeated $L$ times to produce a proposed $(\theta’, \rho’)$. A Metropolis acceptance step is then used to correct for any numerical error by accepting the proposed move with probability
+$$\alpha = \min\!\left(1,\, \exp\bigl(H(\theta, \rho) - H(\theta’, \rho’)\bigr)\right)$$
+
+If the integrator were exact, $H$ would be conserved and $\alpha = 1$ always — the MH step only corrects for numerical error, so acceptance rates are typically very high.
+:::
+
+## HMC Algorithm
+
+::: {.medium}
+For the current parameter value $\theta_t$:
+
+1. Sample a momentum $\rho \sim \mathcal{N}(0, M)$
+
+2. Run $L$ leapfrog steps of size $\epsilon$ to obtain a proposal $(\theta’, \rho’)$
+
+3. Accept $\theta’$ with probability
+$$ \alpha = \min\!\left(1,\, \exp\bigl(H(\theta_t, \rho) - H(\theta’, \rho’)\bigr)\right) $$
+
+The new momentum draw at step 1 randomizes the direction of travel each iteration, ensuring the chain is ergodic.
 :::
 
 ## Algorithm parameters
 
-There are a couple of important tuning parameters that are used by Hamiltonian monte carlo methods:
+::: {.medium}
+* **$\epsilon$ (step size)** — controls the size of each leapfrog step. 
+  Too large $\Rightarrow$ large numerical error, low acceptance rate; too small $\Rightarrow$ fine-grained but slow exploration.
 
-* $\epsilon$ is the size of the discrete time steps
+* **$M$ (mass matrix)** — acts as a preconditioning matrix. 
+  A diagonal $M$ rescales parameters with different variances; a full $M$ also accounts for correlations.
 
-* $M$ is the mass matrix (or metric) that is used to determine the kinetic energy from the momentum ($\rho$)
+* **$L$ (number of leapfrog steps)** — controls how far the particle travels each iteration. 
+  Too few $\Rightarrow$ short trajectories; too many $\Rightarrow$ the trajectory can curve back on itself (a "U-turn"), wasting computation without improving exploration.
 
-* $L$ is the number of leapfrog steps to take per iteration
-
-Generally most of these will be tuned automatically for you by your sampler of choice.
+All three are tuned automatically during warmup, but $L$ is particularly difficult to tune.
+:::
 
 
 ## HamiltonianMC
@@ -638,7 +718,7 @@ Generally most of these will be tuned automatically for you by your sampler of c
 #| code-line-numbers: "|4"
 with banana:
   hmc = pm.sample(
-    draws=1000, tune=1000,
+    draws=100, tune=1000,
     step=pm.HamiltonianMC([x1,x2]),
     random_seed=1234
   )
@@ -660,7 +740,7 @@ plt.show()
 
 ```{python}
 #| echo: false
-ax = az.plot_autocorr(hmc, max_lag=50, figsize=(10,6))
+ax = az.plot_autocorr(hmc, max_lag=25, figsize=(10,6))
 plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
@@ -682,14 +762,70 @@ plt.show()
 ```
 :::
 
+## More HamiltonianMC
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+with banana:
+  hmc_more = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.HamiltonianMC([x1,x2]),
+    random_seed=1234
+  ).sel(
+    draw=slice(None,None,10)
+  )
+```
+```{python}
+az.summary(hmc_more)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+mh_trace(hmc_more)
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(hmc_more, max_lag=25, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(),
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(hmc_more, use_offset=False)
+
+plt.show()
+```
+:::
+
 ## No-U-turn sampler (NUTS)
 
 ::: {.medium}
-This is a variation of Hamiltonian monte carlo that automatically tunes the number of leapfrog steps to allow more effective exploration of the parameter space.
+This is a variation of Hamiltonian Monte Carlo that automatically tunes the number of leapfrog steps to allow more effective exploration of the parameter space.
 
 Specifically, it uses a tree based algorithm that tracks trajectories forwards and backwards in time. The tree expands until a maximum depth is achieved or a "U-turn" is detected.
 
-![](imgs/nuts_path_extension.png){width=40% fig-align="center"}
+![](imgs/nuts_path_extension.png){width=55% fig-align="center"}
 
 NUTS also does not use a metropolis step to select the final parameter value, instead the sample is chosen among the valid candidates along the trajectory.
 :::
@@ -697,6 +833,7 @@ NUTS also does not use a metropolis step to select the final parameter value, in
 ::: {.aside}
 Figure from Hoffman and Gelman, 2014
 :::
+
 
 ## NUTS
 
@@ -709,7 +846,7 @@ Figure from Hoffman and Gelman, 2014
 #| code-line-numbers: "|4"
 with banana:
   nuts = pm.sample(
-    draws=1000, tune=1000,
+    draws=100, tune=1000,
     step=pm.NUTS([x1,x2]),
     random_seed=1234
   )
@@ -731,7 +868,7 @@ plt.show()
 
 ```{python}
 #| echo: false
-ax = az.plot_autocorr(nuts, max_lag=50, figsize=(10,6))
+ax = az.plot_autocorr(nuts, max_lag=25, figsize=(10,6))
 plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
@@ -754,37 +891,94 @@ plt.show()
 :::
 
 
+## More NUTS
+
+::: {.panel-tabset}
+
+### Model
+
+::: {.xsmall}
+```{python}
+with banana:
+  nuts_more = pm.sample(
+    draws=1000, tune=1000,
+    step=pm.NUTS([x1,x2]),
+    random_seed=1234
+  ).sel(
+    draw=slice(None,None,10)
+  )
+```
+```{python}
+az.summary(nuts_more)
+```
+:::
+
+### Traces
+
+```{python}
+#| echo: false
+mh_trace(nuts_more)
+plt.show()
+```
+
+### ACF
+
+```{python}
+#| echo: false
+ax = az.plot_autocorr(nuts_more, max_lag=25, figsize=(10,6))
+plt.gcf().set_layout_engine("constrained")
+plt.show()
+```
+
+### Trajectories
+
+```{python}
+#| echo: false
+
+plt.figure(layout="constrained")
+sns.kdeplot(
+  trace.posterior.to_dataframe(),
+  x="x1", y="x2", fill=True
+)
+
+mh_trajectories(nuts_more, use_offset=False)
+
+plt.show()
+```
+:::
+
 ## Some considerations
 
 * Hamiltonian MC methods are all very sensitive to the choice of their tuning parameters (NUTS less so, but adds additional parameters)
 
-* Hamiltonian MC methods require the gradient of the log density of the parameter of interest for the leapfrog integrator - limits this method to continuous parameters
+* Hamiltonian MC methods require the gradient of the log density of the parameter(s) of interest for the leapfrog integrator - *this limits this method to continuous parameters*
 
-* HMC updates are generally more expensive computationally than MH updates, but they also tend to produce chains with lower autocorrelation. Best to think about performance in terms of effective samples per unit of time.
+* HMC updates are generally more expensive computationally than MH updates, but they also tend to produce chains with lower autocorrelation. Think about performance in terms of *effective samples per unit of time*.
 
 
 ## Divergent transitions
 
-Using Stan or PyMC with NUTS you will often see messages/ warnings about divergent transitions or divergences.
+Using Stan or PyMC with NUTS you will often see messages / warnings about divergent transitions or divergences.
 
-This is based on the assumption of conservation of energy with regard to the Hamiltonian system - this tells us that $H(\theta, \rho)$ should remain constant for the "particle" along its trajectory. When $H(\theta, \rho)$ of the trajectory diverges from its initial value then a divergence is considered to have occurred and positions after that point cannot be considered as the next draw.
+This is based on the assumption of conservation of energy with regard to the Hamiltonian system - $H(\theta, \rho)$ should remain constant for the "particle" along its trajectory. 
 
-The proximate cause of this is a break down of the first order approximations in the leapfrog algorithm.
+When the $H(\theta, \rho)$ resulting from the leapfrog integrator differs from the initial value then a divergence is considered to have occurred.
 
-The ultimate cause is usually a highly curved posterior or a posterior where the rate of curvature is changing rapidly.
+* The proximate cause of this is a breakdown of the first-order approximations in the leapfrog algorithm.
+
+* The ultimate cause is usually a highly curved posterior or a posterior where the rate of curvature is changing rapidly.
 
 ## Solutions?
 
-Very much depend on the nature of the problem - typically we can potentially reparameterize the model and or adjust some of the tuning parameters to help the sampler deal with the problematic posterior.
+Very much depend on the nature of the problem - typically we can reparameterize the model and/or adjust some of the tuning parameters to help the sampler deal with the problematic posterior.
 
 For the latter the following options can be passed to `pm.sample()` or `pm.NUTS()`:
 
-* `target_accept` - step size is adjusted to achieve the desired acceptance rate (larger values result in smaller steps which often work better for problematic posteriors)
+* `target_accept` - step size is adjusted to achieve the desired acceptance rate (larger values result in smaller steps which often work better for problematic posteriors). Default value is 0.8, increase for smaller steps and fewer divergences, decrease for larger steps and more exploration.
 
-* `max_treedepth` - maximum depth of the trajectory tree
+* `max_treedepth` - maximum depth of the trajectory tree. Default value is 10, increase for deeper exploration, decrease for faster sampling.
 
-* `step_scale` - the initial guess for the step size (scaled down by 
-based on the dimensionality of the parameter space)
+* `step_scale` - the initial guess for the step size before warmup adaptation. Default value is 0.25 which is further scaled based on dimensionality.
 
 
 ## NUTS (adjusted)
@@ -793,14 +987,16 @@ based on the dimensionality of the parameter space)
 
 ### Model
 
-::: {.small}
+::: {.xsmall}
 ```{python}
-#| code-line-numbers: "|4"
 with banana:
   nuts2 = pm.sample(
     draws=1000, tune=1000,
-    step=pm.NUTS([x1,x2], target_accept=0.9),
+    step=pm.NUTS([x1,x2], 
+    target_accept=0.9),
     random_seed=1234
+  ).sel(
+    draw=slice(None,None,10)
   )
 ```
 ```{python}
@@ -820,7 +1016,7 @@ plt.show()
 
 ```{python}
 #| echo: false
-ax = az.plot_autocorr(nuts2, max_lag=50, figsize=(10,6))
+ax = az.plot_autocorr(nuts2, max_lag=25, figsize=(10,6))
 plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
@@ -843,11 +1039,33 @@ plt.show()
 :::
 
 
+samp
+
+## Sampler Comparison
+
+<br/>
+
+::: {.medium}
+
+| Sampler             | Gradient needed | Handles discrete | Autocorrelation         | Notes                                                  |
+|:--------------------|:---------------:|:----------------:|:-----------------------:|:-------------------------------------------------------|
+| Metropolis-Hastings | No              | Yes              | High                    | Simple; performance depends heavily on proposal tuning |
+| Slice               | No              | No               | Low–medium              | Auto-adapts; more density evaluations per draw         |
+| HMC                 | Yes             | No               | Low                     | Efficient on correlated posteriors; $L$ hard to tune   |
+| NUTS                | Yes             | No               | Low                     | Auto-tunes $L$; PyMC/Stan default                      |
+
+:::
+
+. . .
+
+<br/>
+
+In general, prefer NUTS for continuous models — it is the most efficient in effective samples per unit time. Fall back to MH or a compound sampler only when discrete parameters are present.
 
 
-# Example 1 - Poisson Regression
+# Example 2 <br/> Poisson Regression
 
-## Data
+## AIDS cases in Belgium from 1981 to 1993
 
 ```{python}
 #| include: false
@@ -916,7 +1134,7 @@ print(post.sample_stats)
 
 ## Tree depth
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 post.sample_stats["tree_depth"].values
 ```
@@ -963,6 +1181,7 @@ plt.show()
 ::: {.small}
 ```{python}
 ax = az.plot_trace(post.posterior["b"], compact=False)
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 :::
@@ -974,7 +1193,9 @@ plt.show()
 ```{python}
 plt.figure(figsize=(12,6))
 sns.scatterplot(x="year", y="cases", data=aids)
-sns.lineplot(x="year", y=post.posterior["λ"].mean(dim=["chain", "draw"]), data=aids, color='red')
+sns.lineplot(
+  x="year", y=post.posterior["λ"].mean(dim=["chain", "draw"]), data=aids, color='red'
+)
 plt.show()
 ```
 :::
@@ -1017,6 +1238,7 @@ az.summary(post)
 ::: {.xsmall}
 ```{python}
 ax = az.plot_trace(post.posterior["b"], compact=False)
+plt.gcf().set_layout_engine("constrained")
 plt.show()
 ```
 :::
@@ -1035,12 +1257,12 @@ plt.show()
 
 
 
-# Example 2 - Compound Samplers
+# Example 3 <br/> Compound Samplers
 
 
 ## Gaussian Mixture model
 
-Below we create a basic mixture of Gaussians using the discrete variable `i`
+Below is a basic mixture of two Gaussians using the discrete variable `i`
 
 ::: {.xsmall}
 ```{python}
@@ -1049,25 +1271,22 @@ x1 = np.random.normal(-2.5, 1, size=1000)
 x2 = np.random.normal( 2.5, 1, size=1000)
 i = np.random.binomial(1, 0.3, size=1000)
 y = np.where(i, x1, x2)
+```
 
-sns.displot({'x': y}, x="x", kind="kde")
+```{python}
+#| out-width: "50%"
+#| echo: false
+p = sns.displot({'x': y}, x="x", kind="kde", aspect=1.5)
+plt.show()
 ```
 :::
 
 ## pymc model with a discrete parameter
 
 ::: {.xsmall}
-
-
 ```{python}
-init_mu = np.sort(np.random.normal(size=2))
-
 with pm.Model() as gmm:
-    μ = pm.Normal(
-        "μ", mu=0, sigma=5, shape=2
-        #transform=pm.distributions.transforms.ordered,
-        #initval=init_mu
-    )
+    μ = pm.Normal("μ", mu=0, sigma=5, shape=2)
     σ = pm.HalfNormal("σ", sigma=3, shape=2)
     
     p = pm.Beta("p", 1, 1)
@@ -1076,19 +1295,75 @@ with pm.Model() as gmm:
     obs = pm.Normal("y", mu=μ[i], sigma=σ[i], observed=y)
 
     trace = pm.sample(random_seed=1234, draws=1000, chains=4)
-    pp = pm.sample_posterior_predictive(trace, random_seed=1234)
-
-az.summary(trace, var_names=["~i"])
-az.plot_trace(trace, var_names=["~i"])
-az.plot_ppc(pp)
 ```
 :::
 
 
+## 
+
+::: {.xsmall}
+```{python}
+az.summary(trace, var_names=["~i"])
+```
+:::
+
+## 
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(trace, var_names=["~i"])
+plt.gcf().set_layout_engine("constrained")
+plt.show()
+```
+:::
+
+::: {.aside}
+Note the label switching (hopefully)
+:::
 
 
-## Marginalize Mixture Model
+## 
 
+::: {.xsmall}
+```{python}
+with gmm:
+    pp = pm.sample_posterior_predictive(trace, random_seed=1234)
+az.plot_ppc(pp)
+```
+:::
+
+## How did that work?
+
+Previously we mentioned that HMC methods require the gradient of the log density of the parameter of interest for the leapfrog integrator, which limits HMC samplers to continuous parameters. $i$ is very much not a continuous parameter, so how did PyMC sample it?
+
+. . .
+
+While it does not show in the slides if you run the above code you will see the following message printed to the console:
+
+::: {.small}
+```python
+## Multiprocess sampling (4 chains in 4 jobs)
+## CompoundStep
+## >NUTS: [μ, σ, p]
+## >BinaryGibbsMetropolis: [i]
+```
+:::
+
+PyMC is able to use a **compound sampler** that combines NUTS for the continuous parameters and a MH sampler for the discrete parameter.
+
+You can do this explicitly by passing a list of step methods to `pm.sample()`.
+
+::: {.aside}
+See the [Compound Steps in Sampling](https://www.pymc.io/projects/examples/en/latest/samplers/sampling_compound_step.html) example for more details.
+:::
+
+
+
+## Just because you can ...
+
+... doesn't mean you should use a discrete sampler. Here we reparameterize using `pm.NormalMixture`, to marginalize out the discrete variable, keeping all parameters continuous and letting NUTS handle everything.
+
+::: {.xsmall}
 ```{python}
 init_mu = np.sort(np.random.normal(size=2))
 with pm.Model() as gmm2:
@@ -1102,8 +1377,20 @@ with pm.Model() as gmm2:
 
     obs = pm.NormalMixture("y", w=weights, mu=μ, sigma=σ, observed=y)
     trace = pm.sample(random_seed=1234, draws=1000)
+```
+:::
 
+##
+
+::: {.xsmall}
+```{python}
 az.summary(trace)
 ```
+:::
 
-
+```{python}
+#| echo: false
+ax = az.plot_trace(trace)
+plt.gcf().set_layout_engine("constrained")
+plt.show()
+```

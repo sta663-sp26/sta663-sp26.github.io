@@ -1,0 +1,746 @@
+---
+title: "MCMC - Performance & Stan"
+subtitle: "Lecture 26"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+```{python}
+#| include: false
+
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import patsy
+
+import pymc as pm
+import arviz as az
+
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=200,
+  precision = 5, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 150)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+
+
+# Example - Gaussian Process
+
+## Data
+
+::: {.small}
+```{python}
+d = pd.read_csv("data/gp2.csv")
+d
+```
+:::
+
+##
+
+::: {.small}
+```{python}
+fig = plt.figure(figsize=(12, 5))
+ax = sns.scatterplot(x="x", y="y", data=d)
+plt.show()
+```
+:::
+
+
+
+## GP model
+
+::: {.small}
+```{python}
+X = d.x.to_numpy().reshape(-1,1)
+y = d.y.to_numpy()
+
+with pm.Model() as model:
+  l = pm.Gamma("l", alpha=2, beta=1)
+  s = pm.HalfCauchy("s", beta=5)
+  nug = pm.HalfCauchy("nug", beta=5)
+
+  cov = s**2 * pm.gp.cov.ExpQuad(input_dim=1, ls=l)
+  gp = pm.gp.Marginal(cov_func=cov)
+
+  y_ = gp.marginal_likelihood(
+    "y", X=X, y=y, sigma=nug
+  )
+```
+:::
+
+## Model visualization
+
+```{python}
+pm.model_to_graphviz(model)
+```
+
+
+## MAP estimates
+
+::: {.xsmall}
+```{python}
+with model:
+  gp_map = pm.find_MAP()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+gp_map
+```
+:::
+
+
+## Full Posterior Sampling
+
+::: {.xsmall}
+```{python}
+with model:
+  post_nuts = pm.sample()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+az.summary(post_nuts)
+```
+:::
+
+
+## Trace plots
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(post_nuts)
+plt.show()
+```
+:::
+
+
+## Conditional Predictions (MAP)
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|1|5-7|6"
+X_new = np.linspace(0, 1.2, 121).reshape(-1, 1)
+
+with model:
+  y_pred = gp.conditional("y_pred", X_new)
+  pred_map = pm.sample_posterior_predictive(
+    [gp_map], var_names=["y_pred"], progressbar = False
+  )
+```
+
+:::
+
+. . .
+
+```{python}
+#| echo: false
+d_pred = pd.DataFrame({
+  "y": pred_map.posterior_predictive["y_pred"].values.reshape(-1),
+  "x": X_new.reshape(-1)
+})
+
+fig = plt.figure(figsize=(12, 5))
+ax = sns.scatterplot(x="x", y="y", data=d)
+ax = sns.lineplot(x="x", y="y", data=d_pred, color='red')
+plt.show()
+```
+
+
+## Conditional Predictions (thinned)
+
+
+::: {.small}
+```{python}
+#| code-line-numbers: "|3"
+with model:
+  pred_post = pm.sample_posterior_predictive(
+    post_nuts.sel(draw=slice(None,None,10)), var_names=["y_pred"]
+  )
+```
+:::
+
+. . .
+
+```{python}
+#| echo: false
+fig = plt.figure(figsize=(12, 5))
+ax = sns.scatterplot(x="x", y="y", data=d)
+for y in pred_post.posterior_predictive["y_pred"][0]:
+  ax = plt.plot(X_new.reshape(-1), y, color='grey', alpha=0.1)
+ax = plt.plot(
+  X_new.reshape(-1), 
+  pred_post.posterior_predictive["y_pred"].mean(dim=["chain", "draw"]),
+  color='red', label="post mean"
+)
+l = plt.legend()
+plt.show()
+```
+
+
+## Conditional Predictions w/ nugget
+
+
+::: {.small}
+```{python}
+#| code-line-numbers: "|2,4"
+with model:
+  y_star = gp.conditional("y_star", X_new, pred_noise=True)
+  predn_post = pm.sample_posterior_predictive(
+    post_nuts.sel(draw=slice(None,None,10)), var_names=["y_star"]
+  )
+```
+:::
+
+. . .
+
+```{python}
+#| echo: false
+
+fig = plt.figure(figsize=(12, 5))
+ax = sns.scatterplot(x="x", y="y", data=d)
+for y in predn_post.posterior_predictive["y_star"][0]:
+  ax = plt.plot(X_new.reshape(-1), y, color='grey', alpha=0.1)
+ax = plt.plot(
+  X_new.reshape(-1), 
+  predn_post.posterior_predictive["y_star"].mean(dim=["chain", "draw"]),
+  color='red', label="post mean"
+)
+l = plt.legend()
+plt.show()
+```
+
+
+
+## Alternative NUTS samplers 
+
+Beyond the ability of PyMC to use different sampling steps - it can also use different sampler algorithm implementations to run your model.
+
+These can be changed via the `nuts_sampler` argument which currently supports:
+
+* `pymc` - standard NUTS sampler using pymc's C backend
+
+* `blackjax` - uses the blackjax library which is a collection of samplers written for JAX
+
+* `numpyro` - probabilistic programming library for pyro built using JAX
+
+* `nutpie` - provides a wrapper to the `nuts-rs` Rust library (slight variation on NUTS implementation)
+
+
+
+## Performance
+
+```{python}
+#| include: false
+
+X = d.x.to_numpy().reshape(-1,1)
+y = d.y.to_numpy()
+
+with pm.Model() as model:
+  l = pm.Gamma("l", alpha=2, beta=1)
+  s = pm.HalfCauchy("s", beta=5)
+  nug = pm.HalfCauchy("nug", beta=5)
+
+  cov = s**2 * pm.gp.cov.ExpQuad(input_dim=1, ls=l)
+  gp = pm.gp.Marginal(cov_func=cov)
+
+  y_ = gp.marginal_likelihood(
+    "y", X=X, y=y, sigma=nug
+  )
+```
+
+::: {.small}
+```{python}
+%%timeit -r 3
+with model:
+  post_nuts = pm.sample(nuts_sampler="pymc", chains=4, progressbar=False)
+```
+
+```{python}
+%%timeit -r 3
+with model:
+    post_jax = pm.sample(nuts_sampler="blackjax", chains=4, progressbar=False)
+```
+
+```{python}
+%%timeit -r 3
+with model:
+    post_numpyro = pm.sample(nuts_sampler="numpyro", chains=4, progressbar=False)
+```
+
+```{python}
+%%timeit -r 3
+with model:
+    post_nutpie = pm.sample(nuts_sampler="nutpie", chains=4, progressbar=False)
+```
+:::
+
+
+
+```{python}
+#| echo: false
+with model:
+    post_nuts = pm.sample(nuts_sampler="pymc", chains=4, progressbar=False)
+
+with model:
+    post_jax = pm.sample(nuts_sampler="blackjax", chains=4, progressbar=False)
+
+with model:
+    post_numpyro = pm.sample(nuts_sampler="numpyro", chains=4, progressbar=False)
+
+with model:
+    post_nutpie = pm.sample(nuts_sampler="nutpie", chains=4, progressbar=False)
+```
+
+## Nutpie and compilation
+
+::: {.small}
+```{python}
+import nutpie
+compiled = nutpie.compile_pymc_model(model)
+```
+
+```{python}
+%%timeit -r 3
+post_nutpie = nutpie.sample(compiled,chains=4, progress_bar=False)
+```
+:::
+
+## JAX 
+
+::: {.xsmall}
+```{python}
+az.summary(post_jax)
+```
+:::
+
+::: {.columns}
+::: {.column width=16.6%}
+:::
+::: {.column width=66.6%}
+```{python}
+#| echo: false
+ax = az.plot_trace(post_jax, figsize=(8,4))
+plt.show()
+```
+:::
+:::
+
+## Numpyro NUTS sampler
+
+::: {.xsmall}
+```{python}
+az.summary(post_numpyro)
+```
+:::
+
+::: {.columns}
+::: {.column width=16.6%}
+:::
+::: {.column width=66.6%}
+```{python}
+#| echo: false
+ax = az.plot_trace(post_numpyro, figsize=(8,4))
+plt.show()
+```
+:::
+:::
+
+## nutpie sampler
+
+::: {.xsmall}
+```{python}
+az.summary(post_nutpie.posterior[["l","s","nug"]])
+```
+:::
+
+::: {.columns}
+::: {.column width=16.6%}
+:::
+::: {.column width=66.6%}
+```{python}
+#| echo: false
+ax = az.plot_trace(post_nutpie.posterior[["l","s","nug"]])
+plt.show()
+```
+:::
+:::
+
+# Stan
+
+## Stan in Python & R
+
+At the moment both Python & R offer two variants of Stan:
+
+* `pystan` & `RStan` - native language interface to the underlying Stan C++ libraries
+
+  * Former does not play nicely with Jupyter (or quarto or positron) - see [here](https://pystan.readthedocs.io/en/latest/faq.html#how-can-i-use-pystan-with-jupyter-notebook-or-jupyterlab) for a fix
+
+* `CmdStanPy` & `CmdStanR` - are wrappers around the `CmdStan` command line interface
+  
+  * Interface is through files (e.g. `./model.stan`)
+
+Any of the above tools will require a modern C++ toolchain (C++17 support required).
+
+
+## Stan process
+
+![](imgs/stan.png){fig-align="center" width=75%}
+
+::: {.aside}
+From Charles Margossian's [Fundamentals of Stan](https://github.com/charlesm93/stanTutorial/tree/main/StanCon2023)
+:::
+
+## Stan file basics
+
+Stan code is divided up into specific blocks depending on usage - all of the following blocks are optional but the ordering has to match what is given below.  
+
+::: {.xsmall}
+```stan
+functions {
+  // user-defined functions
+}
+data {
+  // declares the required data for the model
+}
+transformed data {
+   // allows the definition of constants and transformations of the data
+}
+parameters {
+   // declares the model’s parameters
+}
+transformed parameters {
+   // variables defined in terms of data and parameters
+}
+model {
+   // defines the log probability function
+}
+generated quantities {
+   // derived quantities based on parameters, data, and random number generation
+}
+```
+:::
+
+## A basic example
+
+::: {.xsmall}
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/bernoulli.stan`
+:::
+```stan
+{{< include Lec26/bernoulli.stan >}}
+```
+
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/bernoulli.json`
+:::
+```json
+{{< include Lec26/bernoulli.json >}}
+```
+:::
+
+## Build & fit the model
+
+::: {.xsmall}
+```{python}
+from cmdstanpy import CmdStanModel
+model = CmdStanModel(stan_file='Lec26/bernoulli.stan')
+```
+
+```{python}
+fit = model.sample(data='Lec26/bernoulli.json', show_progress=False)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+
+```{python}
+type(fit)
+```
+
+```{python}
+fit
+```
+:::
+
+## Posterior samples
+
+::: {.small}
+```{python}
+fit.stan_variables()
+```
+
+```{python}
+np.mean( fit.stan_variables()["theta"] )
+```
+:::
+
+
+
+## Summary & trace plots
+
+::: {.small}
+```{python}
+fit.summary()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(fit, compact=False)
+plt.show()
+```
+:::
+
+## Diagnostics
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+fit.divergences
+```
+:::
+::: {.column}
+```{python}
+fit.max_treedepths
+```
+:::
+:::
+
+::: {.xsmall}
+
+```{python}
+fit.method_variables().keys()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+print(fit.diagnose())
+```
+:::
+
+# Gaussian process Example
+
+## GP model
+
+::: {.xsmall}
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/gp.stan`
+:::
+```stan
+{{< include Lec26/gp.stan >}}
+```
+:::
+
+
+## Fit
+
+::: {.xsmall}
+```{python}
+d = pd.read_csv("data/gp2.csv").to_dict('list')
+d["N"] = len(d["x"])
+```
+```{python}
+#| warning: true
+gp = CmdStanModel(stan_file='Lec26/gp.stan')
+gp_fit = gp.sample(data=d, show_progress=False)
+```
+:::
+
+
+## Summary
+
+::: {.small}
+```{python}
+gp_fit.summary()
+```
+:::
+
+
+
+
+
+
+## Trace plots
+
+::: {.xsmall}
+```{python}
+ax = az.plot_trace(gp_fit, compact=False)
+plt.show()
+```
+:::
+
+## Diagnostics
+
+::: {.xsmall}
+```{python}
+gp_fit.divergences
+```
+```{python}
+gp_fit.max_treedepths
+```
+
+```{python}
+gp_fit.method_variables().keys()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+print(gp_fit.diagnose())
+```
+:::
+
+
+## nutpie & stan
+
+The `nutpie` package can also be used to compile and run stan models, it uses a package called `bridgestan` to interface with stan.
+
+::: {.small}
+```{python}
+import nutpie
+m = nutpie.compile_stan_model(filename="Lec26/gp.stan")
+m = m.with_data(x=d["x"],y=d["y"],N=len(d["x"]))
+gp_fit_nutpie = nutpie.sample(m, chains=4)
+```
+:::
+
+## 
+
+::: {.xsmall}
+```{python}
+az.summary(gp_fit_nutpie)
+```
+:::
+
+::: {.columns}
+::: {.column width=12.5%}
+:::
+::: {.column width=75%}
+```{python}
+#| echo: false
+ax = az.plot_trace(gp_fit_nutpie, compact=False)
+plt.show()
+```
+:::
+:::
+
+
+
+## Performance
+
+::: {.small}
+``` {python}
+%%timeit -r 3
+gp_fit = gp.sample(data=d, show_progress=False)
+```
+:::
+
+::: {.small}
+``` {python}
+%%timeit -r 3
+gp_fit_nutpie = nutpie.sample(m, chains=4, progress_bar=False)
+```
+:::
+
+## Posterior predictive model
+
+::: {.xxsmall}
+::: {.code-file .sourceCode .cell-code}
+&nbsp; &nbsp; {{< fa file >}} &nbsp; `Lec26/gp2.stan`
+:::
+```stan
+{{< include Lec26/gp2.stan >}}
+```
+:::
+
+## Posterior predictive fit
+
+::: {.xsmall}
+```{python}
+Np = 121
+d2 = pd.read_csv("data/gp2.csv").to_dict('list')
+d2["N"] = len(d2["x"])
+d2["xp"] = np.linspace(0, 1.2, Np)
+d2["Np"] = Np
+```
+```{python}
+#| warning: true
+gp2 = CmdStanModel(stan_file='Lec26/gp2.stan')
+gp2_fit = gp2.sample(data=d2, show_progress=False)
+```
+:::
+
+## Summary
+
+::: {.small}
+```{python}
+gp2_fit.summary()
+```
+:::
+
+## Draws
+
+::: {.xsmall}
+```{python}
+gp2_fit.stan_variable("f").shape
+```
+
+```{python}
+np.mean(gp2_fit.stan_variable("f"), axis=0)
+```
+:::
+
+## Plot
+
+```{python}
+#| echo: false
+fig = plt.figure(figsize=(12, 5))
+ax = sns.scatterplot(x="x", y="y", data=d2)
+for y in gp2_fit.stan_variable("f")[::40]:
+  ax = plt.plot(d2["xp"], y, color='grey', alpha=0.1)
+ax = plt.plot(
+  d2["xp"], 
+  np.mean(gp2_fit.stan_variable("f"), axis=0),
+  color='red', label="post mean"
+)
+l = plt.legend()
+plt.show()
+```
