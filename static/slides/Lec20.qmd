@@ -278,11 +278,11 @@ Beyond the ability of PyMC to use different sampling steps - it can also use dif
 
 These can be changed via the `nuts_sampler` argument which currently supports:
 
-* `pymc` - standard NUTS sampler using pymc's C backend
+* `pymc` - standard NUTS sampler using PyMC's PyTensor backend
 
 * `blackjax` - uses the blackjax library which is a collection of samplers written for JAX
 
-* `numpyro` - probabilistic programming library for pyro built using JAX
+* `numpyro` - probabilistic programming library inspired by Pyro, built using JAX
 
 * `nutpie` - provides a wrapper to the `nuts-rs` Rust library (slight variation on NUTS implementation)
 
@@ -296,7 +296,7 @@ Many of these packages have extras that also need to be designated if you want f
 
   * `uv add "jax[cuda]"` to add CUDA support to JAX
 
-  * `uv add "nutpie[all]`" to add both pymc and stan support for nutpie
+  * `uv add "nutpie[all]"` to add both pymc and stan support for nutpie
 
 ## Sampler backend comparison
 
@@ -320,7 +320,7 @@ The four backends differ in their underlying implementation and parallelism mode
 - Written in Rust for low-overhead, cache-friendly execution — no Python/C interpreter overhead per leapfrog step
 - Uses a **mass-matrix adaptation** scheme that estimates the full dense mass matrix (vs. PyMC's diagonal default), which can improve sampling efficiency on correlated posteriors
 - Supports both PyMC models and Stan models
-- Support pre-compiling the model which separates the compilation cost from sampling
+- Supports pre-compiling the model which separates the compilation cost from sampling
 
 ## Performance
 
@@ -433,7 +433,7 @@ At the moment both Python & R offer two variants of Stan:
 
 * `pystan` & `RStan` - native language interface to the underlying Stan C++ libraries
 
-  * Former does not play nicely with Jupyter (or quarto or positron) - see [here](https://pystan.readthedocs.io/en/latest/faq.html#how-can-i-use-pystan-with-jupyter-notebook-or-jupyterlab) for a fix
+  * The former does not play nicely with Jupyter (or quarto or positron) - see [here](https://pystan.readthedocs.io/en/latest/faq.html#how-can-i-use-pystan-with-jupyter-notebook-or-jupyterlab) for a fix
 
 * `CmdStanPy` & `CmdStanR` - are wrappers around the `CmdStan` command line interface
   
@@ -561,7 +561,7 @@ gp_fit_nutpie = nutpie.sample(m, chains=4)
 ```
 :::
 
-## 
+. . .
 
 ::: {.xsmall}
 ```{python}
@@ -569,17 +569,13 @@ az.summary(gp_fit_nutpie)
 ```
 :::
 
-::: {.columns}
-::: {.column width=12.5%}
-:::
-::: {.column width=75%}
+## Trace plots
+
 ```{python}
 #| echo: false
 ax = az.plot_trace(gp_fit_nutpie, compact=False)
 plt.show()
 ```
-:::
-:::
 
 
 
@@ -690,7 +686,7 @@ plt.show()
 - Benchmark datasets created by filtering from different `start_year` values (1970, 1980, 1990, 2000, 2010, 2020), giving datasets of increasing size
 
 ::: {.aside}
-Model and data from Martin Ingram's ["MCMC for big datasets -- faster sampling with JAX and the GPU"](https://martiningram.github.io/mcmc-comparison/); results based on [martiningram/mcmc_runtime_comparison](https://github.com/martiningram/mcmc_runtime_comparison) and are available in [rundel/mcmc_runtime_comparison](https://github.com/rundel/mcmc_runtime_comparisons).
+Model and data from Martin Ingram's ["MCMC for big datasets -- faster sampling with JAX and the GPU"](https://martiningram.github.io/mcmc-comparison/); results based on [martiningram/mcmc_runtime_comparison](https://github.com/martiningram/mcmc_runtime_comparison) and are available in [rundel/mcmc_runtime_comparison](https://github.com/rundel/mcmc_runtime_comparison).
 :::
 
 ## Testing Setup
@@ -704,7 +700,7 @@ All benchmarks run on a departmental server with no CPU or GPU constraints:
 - JAX-based samplers (`numpyro`, `blackjax`) benchmarked in both `cpu_parallel` and `gpu_parallel` modes
 - `nutpie` benchmarked with both PyMC and Stan compiled models 
 - Timing measured as wall-clock seconds per sampling run (including compile time)
-- All GPU results are using 64-bit precision 
+- All CPU and GPU results are using 64-bit precision
 :::
 
 ## The Models
