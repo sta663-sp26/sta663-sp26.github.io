@@ -248,13 +248,15 @@ schedule:
 - week: 11
   day: 2
   lecture: "MCMC - Performance & Stan"
-  slides:
+  slides: Lec20
   screencast:
   readings:
   - text: CmdStanPy
     link: https://mc-stan.org/cmdstanpy/users-guide.html
   - text: Fundamentals of Stan
     link: https://github.com/charlesm93/stanTutorial/tree/main/StanCon2023
+  - text: A rosetta stone for PyMC and Stan
+    link: https://colab.research.google.com/gist/ricardoV94/c421ddacb3ba7a19ac46efa253ea466c/rosetta_stone_pymc_stan.ipynb
   notes:
 
 - week: 11
