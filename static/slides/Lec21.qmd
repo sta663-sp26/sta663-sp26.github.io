@@ -1214,6 +1214,7 @@ plot_2d_traj((-2,2), (-2,2), f, traj=opt)
 
 # Conjugate gradients
 
+
 ## Conjugate gradients
 
 is a general approach for solving a system of linear equations with the form $\boldsymbol{A} x=\boldsymbol{b}$ where $\boldsymbol{A}$ is an $n \times n$ symmetric positive definite matrix and $\boldsymbol{b}$ is $n \times 1$ with $x$ the unknown vector of interest.
@@ -1265,6 +1266,23 @@ x^* = x_0+\sum_{i=1}^n \alpha_i \, \boldsymbol{p}_i
 $$
 
 where the $\alpha_i$'s are our step sizes.
+
+## The big picture
+
+The core problem with gradient descent on ill-conditioned functions is wasteful repetition - each step ignores the information gathered by all previous steps, so the algorithm tends to zigzag.
+
+. . .
+
+Conjugate gradients fixes this by choosing search directions that are non-interfering: once you have minimized along a direction $\boldsymbol{p}_k$, the next step $\boldsymbol{p}_{k+1}$ is chosen so that it does not undo that progress.
+
+. . .
+
+This is achieved by making directions *conjugate* with respect to the curvature ($\boldsymbol{A}$) rather than just orthogonal - think of it as orthogonality that has been warped to match the shape of the objective.
+
+. . .
+
+The payoff: for an $n$-dimensional **quadratic**, CG finds the exact minimum in at most $n$ steps, regardless of conditioning - something GD could take thousands of steps to achieve.
+
 
 ## Algorithm Sketch
 
