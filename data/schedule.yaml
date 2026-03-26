@@ -262,7 +262,7 @@ schedule:
 - week: 11
   day: 4
   lecture: "Optimization"
-  slides:
+  slides: Lec21
   screencast:
   readings:
   - text: scipy optimization lecture
