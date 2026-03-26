@@ -1,0 +1,925 @@
+---
+title: "Optimization - optax"
+subtitle: "Lecture 17"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    self-contained: true
+execute: 
+  echo: true
+---
+
+```{python}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import warnings
+
+import jax
+import jax.numpy as jnp
+jax.config.update("jax_enable_x64", True)
+
+import optax
+
+import timeit
+
+import sklearn
+sklearn.set_config(display="text")
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+
+plt.rcParams['figure.dpi'] = 200
+plt.rcParams['figure.constrained_layout.use'] = True
+
+np.set_printoptions(
+  edgeitems=30, linewidth=75,
+  precision = 4, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 100)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 4)
+
+from scipy import optimize
+```
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+
+## SGD Libraries
+
+Most often you will be using the optimizer methods that come with your library of choice, all of the following have their own implementations:
+
+* Tensorflow / [Keras](https://keras.io/api/optimizers/)
+
+* [Torch](https://pytorch.org/docs/stable/optim.html)
+
+. . .
+
+Interestingly, JAX does not have builtin support for optimization beyond `jax.scipy.optimize.minimize()` which only supports the `BFGS` method.
+
+Google previously released [jaxopt](https://github.com/google/jaxopt/) to provide SGD and other optimization methods but this project is now deprecated with the code being merged into DeepMind's [Optax](https://github.com/google-deepmind/optax).
+
+
+
+## Optax
+
+::: {.small}
+> Optax is a gradient processing and optimization library for JAX.
+> 
+> Optax is designed to facilitate research by providing building blocks that can be easily recombined in custom ways.
+> 
+> Our goals are to
+> 
+> * Provide simple, well-tested, efficient implementations of core components.
+> 
+> * Improve research productivity by enabling to easily combine low-level ingredients into custom optimizers (or other gradient processing components).
+> 
+> * Accelerate adoption of new ideas by making it easy for anyone to contribute.
+>
+> We favor focusing on small composable building blocks that can be effectively combined into custom solutions. Others may build upon these basic components in more complicated abstractions. Whenever reasonable, implementations prioritize readability and structuring code to match standard equations, over code reuse.x
+:::
+
+
+## Same regression example
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3|7,8"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=10000, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
+
+X = jnp.c_[jnp.ones(len(y)), X]
+n, k = X.shape
+
+def lr_loss(beta, X, y):
+  return jnp.sum((y - X @ beta)**2)
+```
+:::
+
+```{python}
+#| echo: false
+lm = LinearRegression(fit_intercept=False).fit(X,y)
+
+lm_loss = lr_loss(lm.coef_, X, y)
+```
+
+
+## Optax process
+
+::: {.xsmall}
+* Construct a `GradientTransformation` object, set optimizer settings
+
+  ::: {.xsmall}
+  ```{python}
+  optimizer = optax.sgd(learning_rate=0.0001); optimizer
+  ```
+  :::
+
+* Initialize the optimizer with the initial parameter values
+
+  ::: {.xsmall}
+  ```{python}
+  beta = jnp.zeros(k)
+  opt_state = optimizer.init(beta); opt_state
+  ```
+  :::
+
+* Perform iterations
+
+  * Calculate the current gradient and update for the optimizer
+
+    ::: {.xsmall}
+    ```{python}
+    f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
+    updates, opt_state = optimizer.update(grad, opt_state); updates, opt_state
+    ```
+    :::
+
+  * Apply the update to the parameter
+
+    ::: {.xsmall}
+    ```{python}
+    beta = optax.apply_updates(beta, updates); beta
+    ```
+    :::
+
+:::
+
+
+## Basic Example - GD
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|1|3,4|8,9|10"
+optimizer = optax.sgd(learning_rate=0.00001)
+
+beta = jnp.zeros(k)
+opt_state = optimizer.init(beta)
+
+gd_loss = []
+for iter in range(50):
+  f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
+  updates, opt_state = optimizer.update(grad, opt_state)
+  beta = optax.apply_updates(beta, updates)
+  gd_loss.append(f)
+
+beta
+```
+:::
+
+### Results
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+plt.plot(x, gd_loss, label = "GD")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+## Basic Optax Example - Adam
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+optimizer = optax.adam(learning_rate=1, b1=0.9, b2=0.999, eps=1e-8)
+
+beta = jnp.zeros(k)
+opt_state = optimizer.init(beta)
+
+adam_loss = []
+for iter in range(50):
+  f, grad = jax.value_and_grad(lr_loss)(beta, X, y)
+  updates, opt_state = optimizer.update(grad, opt_state)
+  beta = optax.apply_updates(beta, updates)
+  adam_loss.append(f)
+
+beta
+```
+:::
+
+### Results
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+plt.plot(x, gd_loss, label = "GD")
+plt.plot(x, adam_loss, label = "Adam")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+:::
+
+# A bit more on learning rate <br/> and batch size
+
+## Optax and mini batches
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|1|5,6|8-10,13|15-17|3,14,19-22"
+def optax_optimize(params, X, y, loss_fn, optimizer, steps=50, batch_size=1, seed=1234):
+  n, k = X.shape
+  res = {"loss": [], "epoch": np.linspace(0, steps, int(steps*(n/batch_size) + 1))}
+
+  opt_state = optimizer.init(params)
+  grad_fn = jax.grad(loss_fn)
+
+  rng = np.random.default_rng(seed)
+  batches = np.array(range(n))
+  rng.shuffle(batches)
+
+  for iter in range(steps):
+    for batch in batches.reshape(-1, batch_size):
+      res["loss"].append(loss_fn(params, X, y).item())
+      grad = grad_fn(params, X[batch,:], y[batch])
+      updates, opt_state = optimizer.update(grad, opt_state)
+      params = optax.apply_updates(params, updates)
+      
+  res["params"] = params
+  res["loss"].append(loss_fn(params, X, y).item())
+
+  return(res)
+```
+:::
+
+## Fitting - SGD - Fixed LR (small)
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 100, 1000, 10000]
+lrs = [0.00001] * 4 
+
+sgd = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.sgd(learning_rate=lr), 
+    steps=30, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Results
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (mb={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+:::
+
+## Fitting - SGD - Adjusted LR
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 100, 1000, 10000]
+lrs = [0.005, 0.001, 0.0001, 0.00001]
+
+sgd = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.sgd(learning_rate=lr), 
+    steps=30, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Full
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size in batch_sizes:
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+l = plt.xlim(0,3)
+plt.legend()
+plt.show()
+```
+:::
+
+
+
+## Fitting - SGD - Fixed LR, Small batch size
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+lrs = [0.001] * 4 
+
+sgd = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.sgd(learning_rate=lr), 
+    steps=2, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Full
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+x = jnp.array(range(len(gd_loss)))
+plt.figure()
+for batch_size in batch_sizes:
+  plt.plot(sgd[batch_size]["epoch"], sgd[batch_size]["loss"], label = f"SGD (bs={batch_size})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+l = plt.xlim(0,0.3)
+plt.legend()
+plt.show()
+```
+:::
+
+
+## Runtime per epoch
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 50, 100, 10000]
+lrs = [0.001] * 4 
+
+sgd_runtime = {
+  batch_size: timeit.Timer( lambda:
+    optax_optimize(
+      params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+      optimizer=optax.sgd(learning_rate=lr), 
+      steps=1, batch_size=batch_size, seed=1234
+    )
+  ).repeat(5,1)
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+### Runtimes
+
+```{python}
+#| echo: false
+res = pd.DataFrame(sgd_runtime).melt(
+  value_name="time", var_name="batch_size"
+).merge(
+  pd.DataFrame({"batch_size": [10,50,100,10000], "scaler": [0.3,0.3,0.3,25]})
+).assign(
+  batch_size = lambda x: x.batch_size.astype(str),
+  full_time = lambda x: x.time * x.scaler
+)
+
+g = sns.catplot(
+  res, x="batch_size", y="time", aspect=1.5
+).set(
+  title="Runtime per epoch", ylabel="time (sec)"
+)
+```
+
+### Scaled
+
+```{python}
+#| echo: false
+g = sns.catplot(
+  res, x="batch_size", y="full_time", aspect=1.5
+).set(
+  title="Runtime to convergence", ylabel="time (sec)"
+)
+```
+:::
+
+## Some lessons / comments
+
+* Batch size determines both training time and computing resources
+
+* Generally there will be an inverse relationship between learning rate and batch size
+
+* Most optimizer hyperparameters are sensitive to batch size
+
+* For really large models batches are a necessity and sizing is often determined by resource / memory constraints
+
+
+# Adam 
+
+## Adam - Fixed LR
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+lrs = [1]*4
+
+adam = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.adam(learning_rate=lr, b1=0.9, b2=0.999, eps=1e-8),
+    steps=2, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+
+### Results
+
+```{python}
+#| echo: false
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+
+## Adam - Smaller Fixed LR
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+lrs = [0.1]*4
+
+adam = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.adam(learning_rate=lr, b1=0.9, b2=0.999, eps=1e-8),
+    steps=10, batch_size=batch_size, seed=1234
+  )
+  for batch_size, lr in zip(batch_sizes, lrs)
+}
+```
+:::
+
+
+### Results
+
+```{python}
+#| echo: false
+plt.figure()
+for batch_size, lr in zip(batch_sizes, lrs):
+  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size}, {lr=})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+## Learning rate schedules
+
+As mentioned last time, most gradient based methods are not guaranteed to converge unless their learning rates decay as a function of step number.
+
+. . .
+
+<br/>
+
+Optax supports a [large number](https://optax.readthedocs.io/en/latest/api/optimizer_schedules.html) of pre-built learning rate schedules which can be passed into any of its optimizers instead of a fixed floating point value.
+
+::: {.xsmall}
+```{python}
+schedule = optax.linear_schedule(
+    init_value=1., end_value=0., transition_steps=5
+)
+
+[schedule(step).item() for step in range(6)]
+```
+:::
+
+
+## Adam w/ Exp Decay
+
+::: {.panel-tabset}
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+
+adam = {
+  batch_size: optax_optimize(
+    params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+    optimizer=optax.adam(
+      learning_rate=optax.schedules.exponential_decay(
+        init_value=1,
+        transition_steps=100, 
+        decay_rate=0.9
+      ),
+      b1=0.9, b2=0.999, eps=1e-8
+    ),
+    steps=2, batch_size=batch_size, seed=1234
+  )
+  for batch_size in batch_sizes
+}
+```
+:::
+
+
+### Results
+
+```{python}
+#| echo: false
+plt.figure()
+for batch_size in batch_sizes:
+  plt.plot(adam[batch_size]["epoch"], adam[batch_size]["loss"], label = f"Adam (bs={batch_size})")
+plt.yscale("log")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+
+## Runtime per epoch
+
+::: {.panel-tabset} 
+
+### Implementation
+
+::: {.xsmall}
+```{python}
+batch_sizes = [10, 25, 50, 100]
+
+adam_runtime = {
+  batch_size: timeit.Timer( lambda:
+    optax_optimize(
+      params=jnp.zeros(k), X=X, y=y, loss_fn=lr_loss, 
+      optimizer=optax.adam(
+        learning_rate=optax.schedules.exponential_decay(
+          init_value=1,
+          transition_steps=100, 
+          decay_rate=0.9
+        ),
+        b1=0.9, b2=0.999, eps=1e-8
+      ),
+      steps=1, batch_size=batch_size, seed=1234
+    )
+  ).repeat(5,1)
+  for batch_size in batch_sizes
+}
+```
+:::
+
+### Runtimes
+
+```{python}
+#| echo: false
+res = pd.DataFrame(adam_runtime).melt(
+  value_name="time", var_name="batch_size"
+).merge(
+  pd.DataFrame({"batch_size": [10, 25, 50, 100], "scaler": [0.18,0.3,0.63,1.4]})
+).assign(
+  batch_size = lambda x: x.batch_size.astype(str),
+  full_time = lambda x: x.time * x.scaler
+)
+
+g = sns.catplot(
+  res, x="batch_size", y="time", aspect=1.5
+).set(
+  title="Runtime per epoch", ylabel="time (sec)"
+)
+```
+
+### Scaled
+
+```{python}
+#| echo: false
+g = sns.catplot(
+  res, x="batch_size", y="full_time", aspect=1.5
+).set(
+  title="Runtime to convergence", ylabel="time (sec)"
+)
+```
+:::
+
+
+## Some advice ... {.smaller}
+
+The following is from Google Research's [Tuning Playbook](https://github.com/google-research/tuning_playbook?tab=readme-ov-file#choosing-the-optimizer):
+
+> * No optimizer is the "best" across all types of machine learning problems and model architectures. Even just comparing the performance of optimizers is a difficult task. 🤖
+>
+> * We recommend sticking with well-established, popular optimizers, especially when starting a new project.
+>   * Ideally, choose the most popular optimizer used for the same type of problem.
+>
+> * Be prepared to give attention to *all* hyperparameters of the chosen optimizer.
+>   * Optimizers with more hyperparameters may require more tuning effort to find the best configuration.
+>   * This is particularly relevant in the beginning stages of a project when we are trying to find the best values of various other hyperparameters (e.g. architecture hyperparameters) while treating optimizer hyperparameters as nuisance parameters.
+>   * It may be preferable to start with a simpler optimizer (e.g. SGD with fixed momentum or Adam with fixed $\epsilon$, $\beta_1$, and $\beta_2$) in the initial stages of the project and switch to a more general optimizer later.
+>
+> * Well-established optimizers that we like include (but are not limited to):
+>   * SGD with momentum (we like the Nesterov variant)
+>   * Adam and NAdam, which are more general than SGD with momentum. Note that Adam has 4 tunable hyperparameters and they can all matter!
+
+# Optimization in R
+
+## Basic optimization
+
+The equivalent of `scipy`'s `optimize.minimize()` for unconstrained continuous optimization problems in R is `stats::optim()` - there is nearly a 1-to-1 correspondence between the two functions and the available optimizers.
+
+::: {.small}
+```r
+optim(par, fn, gr = NULL, …,
+      method = c("Nelder-Mead", "BFGS", "CG", "L-BFGS-B", "SANN",
+                 "Brent"),
+      lower = -Inf, upper = Inf,
+      control = list(), hessian = FALSE)
+```
+:::
+
+. . .
+
+The only missing method from `scipy` is `Newton-CG` and there is the addition of the `SANN` method which is a variant of simulated annealing and does not require gradient information. However, it is slow and very sensitive to its control parameters and is not considered a general-purpose method.
+
+. . .
+
+All other tuning knobs are hidden in `control` - see the documentation for details. Most important options include: `maxit`, `abstol`, and `reltol`.
+
+
+## Return values
+
+`optim()` returns a list of results, most of which are expected: `par` the minimizer, `value` objective function at `par`, `counts` the number of function and gradient evaluations.
+
+"Success" of the optimization is reported by `convergence` which is a little bit weird (think unix exit codes):
+
+* `0` - indicates successful convergence based on the criteria specified by `control`
+
+* `1` - indicates failure due to reaching the `maxit` limit
+
+* Any other number indicates a special case depending on the method, check `message`
+
+
+## Usage
+
+::: {.xsmall}
+```{r}
+## Rosenbrock Banana function
+f = function(x) {
+  100 * (x[2] - x[1] * x[1]) ^ 2 + (1 - x[1]) ^ 2
+}
+grad = function(x) {
+  c(-400 * x[1] * (x[2] - x[1] * x[1]) - 2 * (1 - x[1]),
+    200 * (x[2] - x[1] * x[1]))
+}
+x0 = c(-1.2, 1)
+```
+:::
+
+::: {.columns .xsmall}
+::: {.column}
+```{r}
+optim(x0, f, grad, method = "BFGS")
+```
+:::
+::: {.column}
+```{r}
+optim(x0, f, grad, method = "CG")
+```
+:::
+:::
+
+## SGD related methods
+
+For any of these algorithms you will generally be depending on the underlying modeling library to make them available to you, for example:
+
+* Keras [optimizers](https://tensorflow.rstudio.com/reference/keras/#optimizers) implemented
+
+* Torch [optimizers](https://torch.mlverse.org/docs/reference/#optimizers)
+
+Details are library dependent.
+
+
+## `optimx`
+
+> optimx is an R package that extends and enhances the optim() function of base R, in particular by unifying the call to many solvers.
+
+Makes a variety of solvers from different packages available with a unified calling framework.
+
+Packages include: `pracma`, `minqa`, `dfoptim`, `lbfgs`, `lbfgsb3c`, `marqLevAlg`, `nloptr`, `dfoptim`, `BB`, `subplex`, and `ucminf`
+
+
+## `nloptr`
+
+Wrapper around the [NLopt](https://nlopt.readthedocs.io/en/latest/) library (which also has a Python interface).
+
+* Provides a large number of global and local solvers (including everything available in optim)
+
+* Provides more robust support for constrained optimization problems
+
+
+## Usage
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{r}
+## Rosenbrock Banana function
+f = function(x) {
+  100 * (x[2] - x[1] * x[1]) ^ 2 + (1 - x[1]) ^ 2
+}
+
+grad = function(x) {
+  c(-400 * x[1] * (x[2] - x[1] * x[1]) - 2 * (1 - x[1]),
+    200 * (x[2] - x[1] * x[1]))
+}
+
+x0 = c(-1.2, 1)
+```
+:::
+
+::: {.column width='50%'}
+```{r}
+nloptr::nloptr(
+  x0 = x0,
+  eval_f = f, eval_grad_f = grad,
+  opts = list(
+    "algorithm" = "NLOPT_LD_LBFGS", 
+    "xtol_rel" = 1.0e-8
+  )
+)
+```
+:::
+::::
+
+
+
+
+
+
+## Constrained Example
+:::: {.columns}
+::: {.column width='50%'}
+![](imgs/NLopt-example-constraints.webp){width="100%" fig-align=center}
+:::
+
+::: {.column width='50%'}
+$$
+\begin{aligned}
+&\min_{x \in R^n} \sqrt{x_2} \\
+\text{s.t.} \quad  & x_2 \geq 0 \\
+&(a_1 x_1 + b_1)^3 - x_2 \leq 0 \\
+&(a_2 x_1 + b_2)^3 - x_2 \leq 0
+\end{aligned}
+$$
+
+where $a_1 = 2$, $b_1 = 0$, $a_2 = -1$, and $b_2 = 1$.
+
+:::
+::::
+
+
+
+
+::: {.aside}
+From [NLopt Tutorial](https://nlopt.readthedocs.io/en/latest/NLopt_Tutorial/) & [NLoptR vignette](https://astamm.github.io/nloptr/articles/nloptr.html#minimization-with-inequality-constraints)
+:::
+
+## Implementation
+
+::: {.xsmall}
+```{r}
+#| output-location: column
+# Objective function & gradient
+f = function(x, a, b) {
+  sqrt(x[2])
+}
+grad_f = function(x, a, b)  {
+  c(0, 0.5 / sqrt(x[2]))
+}
+
+# Constraint function
+g = function(x, a, b) {
+  (a * x[1] + b) ^ 3 - x[2]
+}
+
+# Jacobian of constraint
+jac_g = function(x, a, b) {
+  rbind(
+    c(3 * a[1] * (a[1] * x[1] + b[1]) ^ 2, -1.0),
+    c(3 * a[2] * (a[2] * x[1] + b[2]) ^ 2, -1.0)
+  )
+}
+
+a = c(2, -1)
+b = c(0, 1)
+
+nloptr::nloptr(
+  x0 = c(1.234, 5.678),
+  eval_f = f, eval_grad_f = grad_f,
+  lb = c(-Inf, 0), ub = c(Inf, Inf),
+  eval_g_ineq = g, eval_jac_g_ineq = jac_g,
+  opts = list("algorithm" = "NLOPT_LD_MMA",
+              "xtol_rel" = 1.0e-8),
+  a = a, b = b)
+```
+:::

@@ -1,6 +1,6 @@
 ---
-title: "FastAPI"
-subtitle: "Lecture 23"
+title: "Optimization - SGD"
+subtitle: "Lecture 16"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:
@@ -13,416 +13,945 @@ execute:
   echo: true
 ---
 
+```{python}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import warnings
+
+import jax
+import jax.numpy as jnp
+
+jax.config.update("jax_enable_x64", True)
+
+import sklearn
+sklearn.set_config(display="text")
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+
+plt.rcParams['figure.dpi'] = 200
+
+np.set_printoptions(
+  edgeitems=30, linewidth=75,
+  precision = 4, suppress=True
+  #formatter=dict(float=lambda x: "%.5g" % x)
+)
+
+pd.set_option("display.width", 100)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 4)
+
+from scipy import optimize
+```
+
 ```{r setup, message=FALSE, warning=FALSE, include=FALSE}
 {{< include _setup.R >}}
 ```
 
-```{css}
-#| include: false
-.reveal pre code {
-  text-wrap-mode: nowrap !important;
-  max-height: 520px !important;
-}
-```
+# Stochastic Gradient Descent
 
-```{css}
-#| include: false
-pre.shell > code > span > a::before {
-  content: ">" !important;
-  color: #aaaaaa;
-}
-```
+## A regression example
 
-## FastAPI - Basic Example
-
-::: {.small}
-::: {.code-file .sourceCode .cell-code}
-&nbsp;&nbsp; `r fontawesome::fa("file")` &nbsp; `ex1/app.y`
-:::
+::: {.xsmall}
 ```{python}
-#| file: Lec23/ex1/app.py
-#| eval: false
+#| code-line-numbers: "|3"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=200, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
 ```
 :::
 
-## Defining endpoints
-
-Similar to plumber, FastAPI transforms basic Python functions into API endpoints which are made available by a python based webserver (uvicorn).
-
-This transformation is performed used [decorators](https://peps.python.org/pep-0318/) that are used to specify the endpoints via a url path and http method.
-
-For example,
-
-```python
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+::: {.columns .xxsmall}
+::: {.column width=15%}
+```{python}
+y
 ```
+:::
+::: {.column width=70%}
+```{python}
+X
+```
+:::
+::: {.column width=15%}
+```{python}
+coef
+```
+:::
+:::
 
-Creates an endpoint at `/` that responds to http GET requests with the json `{"message": "Hello World"}`.
+## Minimalistic GD for LR
 
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|11"
+def grad_desc_lm(X, y, beta, step, max_step=50):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  n, k = X.shape
 
-## Running a FastAPI app
-
-There are a couple of options for running your app,
-
-* Running from Python using uvicorn (a http server based on uv):
-
-  ::: {.xsmall}
-  ```python
-  uvicorn.run(app, host="0.0.0.0", port=8181)
-  ```
-  ```
-  INFO:     Started server process [84680]
-  INFO:     Waiting for application startup.
-  INFO:     Application startup complete.
-  INFO:     Uvicorn running on http://0.0.0.0:8181 (Press CTRL+C to quit)
-  ```
-  :::
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta: 2*X.T @ (X@beta - y)
   
-* Running from the command line using uvicorn
-
-  ::: {.xsmall}
-  ```shell
-  uvicorn ex1.app:app --host 0.0.0.0 --port 8080
-  ```
-  ```
-  INFO:     Started server process [99168]
-  INFO:     Waiting for application startup.
-  INFO:     Application startup complete.
-  INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
-  ```
-  :::
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
   
+  for i in range(max_step):
+    beta = beta - grad(beta) * step
+    res["x"].append(beta)
+    res["loss"].append(f(beta).item())
+    res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+```
+:::
+
+
+## Linear regression
+
+::: {.xsmall}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
+```
+:::
+
+. . .
+
+<br/>
+
+::: {.xsmall}
+```{python}
+gd_lm = grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=20
+)
+gd_lm["x"][-1]
+```
+:::
+
+
 ##
 
-* Running from the shell using fastapi
-  
-  ::: {.xxsmall}
-  ```shell
-  fastapi run ex1/app.py
-  ```
-  ```
-   FastAPI   Starting production server 🚀
- 
-             Searching for package file structure from directories with __init__.py files
-             Importing from /Users/rundel/Desktop/Sta663-Sp25/website/static/slides/Lec23/ex1
- 
-    module   🐍 app.py
- 
-      code   Importing the FastAPI app object from the module with the following code:
- 
-             from app import app
- 
-       app   Using import string: app:app
- 
-    server   Server started at http://0.0.0.0:8000
-    server   Documentation at http://0.0.0.0:8000/docs
- 
-             Logs:
- 
-      INFO   Started server process [99526]
-      INFO   Waiting for application startup.
-      INFO   Application startup complete.
-      INFO   Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-  ```
-  :::
-  
-::: {.aside}
-Either `run` or `dev` commands can used for production vs development mode. The primary difference is the latter has auto-reload enabled which restarts the server when the underlying code changes. `dev` also binds `127.0.0.1` by default while `run` binds `0.0.0.0`.
-:::
+```{python}
+#| echo: false
+plt.plot("iter", "loss", data=gd_lm, label = "GD")
+plt.yscale("log")
+plt.xlabel("iter")
+plt.ylabel("loss")
+plt.legend()
+plt.show()
+```
 
-## API Docs
+## A quick analysis
 
-::: {.panel-tabset}
+Lets take a quick look at the linear regression loss function and gradient descent and think a bit about its cost(s), we can define the loss function and its gradient as follows:
 
-### `/docs`
+$$
+\begin{aligned}
+f(\underset{k\times 1}{\boldsymbol{\beta}}) &=  (\underset{n \times 1}{y} - \underset{n\times k}{\boldsymbol{X}} \, \underset{k \times 1}{\boldsymbol{\beta}})^T (\underset{n \times 1}{y} - \underset{n\times k}{\boldsymbol{X}} \, \underset{k \times 1}{\boldsymbol{\beta}}) \\
+\\
+\nabla f(\underset{k\times 1}{\boldsymbol{\beta}}) &= \underset{k\times n}{2 \boldsymbol{X}^T}(\underset{n \times k}{\boldsymbol{X}}\,\underset{k\times 1}{\boldsymbol{\beta}} - \underset{n \times 1}{\boldsymbol{y}})\\
+%&= 
+%\left[ 
+%  \begin{matrix}
+%    2 \boldsymbol{X}_{\cdot 1}^T(\boldsymbol{X}_{\cdot 1}\boldsymbol{\beta}_1 - \boldsymbol{y}) \\
+%    2 \boldsymbol{X}_{\cdot 2}^T(\boldsymbol{X}_{\cdot 2}\boldsymbol{\beta}_2 - \boldsymbol{y}) \\
+%    \vdots \\
+%    2 \boldsymbol{X}_{\cdot k}^T(\boldsymbol{X}_{\cdot k}\boldsymbol{\beta}_k - \boldsymbol{y})
+%  \end{matrix} 
+%\right]
+\end{aligned}
+$$
 
-![](imgs/fastapi_docs.png){width=66% fig-align=center}
-
-### `/redoc`
-
-![](imgs/fastapi_redoc.png){width=66% fig-align=center}
-
-### `/openapi.json`
-
-![](imgs/fastapi_openapi.png){width=75% fig-align=center}
-
-:::
-
-## `async`?
-
-You may have noticed that all of the function definitions make use of `async def f(...)` - this allows FastAPI to execute these functions asynchronously.
-
-If you don't know what this is generally you don't need to worry about it, but some general advice is:
-
-* If you are using a third party library that tells to you make calls using the `await` keyword then you definitely need `async`.
-
-* If your function, or a library your function uses, communicates with something (e.g. a database, an API, the file system, etc.) and *does not* support `await` then don't use `async`.
-
-* If neither of the above apply, generally you should default to using `async`.
-
+What are the costs of calculating the loss function and gradient respectively in terms of $n$ and $k$? 
 
 ::: {.aside}
-If you want to know more you can read more about it in FastAPI's [Concurrency and async / await](https://fastapi.tiangolo.com/async/) docs
+*Hint* - $\underset{m \times n}{\boldsymbol{A}} \cdot \underset{n \times k}{\boldsymbol{B}}$ has complexity $O(mnk)$.
+:::
+
+. . .
+
+::: {.columns}
+::: {.column width=20%}
+:::
+::: {.column width=60%}
+* Calculating the loss costs ${O}(nk)$ 
+
+* Calculating the gradient costs ${O}(n^2k)$
+:::
+::: {.column width=20%}
+:::
 :::
 
 
-## Query parameters
 
-Like plumber, endpoint functions' arguments are interpreted as query parameters, all arguments without defaults are assumed to be required.
+## Stochastic Gradient Descent
+
+This is a variant of gradient descent where rather than using all $n$ data points we randomly sample one at a time and use that single point to make our gradient step.
+
+* Sampling of observations can be done with or without replacement 
+
+* Will take more steps to converge but each step is now cheaper to compute
+
+* SGD has slower asymptotic convergence than GD, but is often faster in practice in terms of runtime
+
+* Generally requires the learning rate to shrink as a function of iteration to guarantee convergence
+
+
+## SGD - Linear Regression
 
 ::: {.xsmall}
-```python
-import requests
-url = "http://0.0.0.0:8000"
+```{python}
+#| code-line-numbers: "|11-15|4,17,18|"
+def sto_grad_desc_lm(X, y, beta, step, max_step=50, seed=1234, replace=True):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:] * (X[i,:]@beta - y[i])
+  n, k = X.shape
+
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+
+    for j in js:
+      beta = beta - grad(beta, j) * step
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
+```
+:::
+
+
+## Fitting
+
+::: {.xsmall}
+```{python}
+np.r_[lm.intercept_, lm.coef_]
 ```
 
-```python
-requests.get(url+"/add?x=1&y=1").json()
+```{python}
+sgd_lm_rep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=20, replace=True
+)
+sgd_lm_rep["x"][-1]
 ```
+```{python}
+sgd_lm_worep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=20, replace=False
+)
+sgd_lm_worep["x"][-1]
 ```
-{'result': 2}
+:::
+
+
+## Learning by iteration
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot("iter", "loss", data=sgd_lm_rep, label="SGD - replacement")
+plt.plot("iter", "loss", data=sgd_lm_worep, label="SGD - w/o replacement")
+plt.yscale("log")
+plt.legend()
+plt.xlabel("iter")
+plt.ylabel("Loss")
+plt.show()
 ```
 
-```python
-requests.get(url+"/add?x=-7&y=12").json()
+## Learning by Epochs
+
+Generally, rather than thinking in iterations we use epochs instead - an epoch is one complete pass through the data.
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
 ```
-```
-{'result': 5}
+
+
+## A bigger example
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=10000, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
 ```
 :::
 
 . . .
 
 ::: {.xsmall}
-```python
-requests.get(url+"/add?x=-7").json()
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
 ```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+gd_lm = grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1),
+  step = 0.00005, max_step=3
+)
+gd_lm["x"][-1]
 ```
-{'result': -7}
+```{python}
+sgd_lm_rep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=3, replace=True
+)
+sgd_lm_rep["x"][-1]
+```
+```{python}
+sgd_lm_worep = sto_grad_desc_lm(
+  X, y, np.zeros(X.shape[1]+1), 
+  step = 0.001, max_step=3, replace=False
+)
+sgd_lm_worep["x"][-1]
+```
+:::
+
+
+## Results
+
+::: {.panel-tabset} 
+
+### Full
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+lim = plt.xlim(0,0.3)
+plt.legend()
+plt.show()
+```
+
+:::
+
+
+## Mini batch gradient descent
+
+This is a further variant of stochastic gradient descent where a mini batch of $m$ data points is selected for each gradient update,
+
+* The idea is to find a balance between the cost of increasing the data size vs the speed-up of vectorized calculations.
+
+* More updates per epoch than GD, but less than SGD
+
+* Mini batch composition can be constructed by sampling data points with or without replacement
+
+## MBGD - Linear Regression
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|4|11-15|17|18,4"
+def mb_grad_desc_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, replace=True):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+
+    for j in js.reshape(-1, batch_size):
+      beta = beta - grad(beta, j) * step
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
+```
+:::
+
+## Fitting
+
+::: {.xxsmall}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
+```
+```{python}
+sizes = [10,50,100]
+mbgd = { size: mb_grad_desc_lm(
+           X, y, np.zeros(X.shape[1]+1), batch_size=size,
+           step = 0.001, max_step=3, replace=False
+         )
+         for size in sizes }
+```
+
+```{python}
+#| echo: false
+for size in sizes:
+  print(f"Batch size: {size}")
+  print(mbgd[size]["x"][-1])
+  print("")
+
+```
+
+:::
+
+
+## Results
+
+::: {.panel-tabset} 
+
+### Full
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+for size in sizes:
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(mbgd[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=f"MBGD ({size})"
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+### Zoom
+
+```{python}
+#| echo: false
+plt.figure()
+plt.plot("iter", "loss", data=gd_lm, label="GD")
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_rep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - replacement"
+)
+plt.plot(
+  "iter", "loss", 
+  data=pd.DataFrame(sgd_lm_worep).assign(iter = lambda x: x.iter / X.shape[0]), 
+  label="SGD - w/o replacement"
+)
+for size in sizes:
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(mbgd[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=f"MBGD ({size})"
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+lim = plt.xlim(0,0.125)
+plt.legend()
+plt.show()
+```
+:::
+
+
+## A bit of theory
+
+We've talked a bit about the computational side of things, but why do these approaches work at all?
+
+. . .
+
+In statistics and machine learning many of our problems have a form that looks like,
+
+$$
+\underset{\theta}{\text{arg min}} \; \ell(\boldsymbol{X}, \theta)  = \underset{\theta}{\text{arg min}} \; \frac{1}{n} \sum_{i=1}^n \ell(\boldsymbol{X}_i, \theta)
+$$
+
+which means that the gradient of the loss function is given by
+
+$$
+\nabla \ell(\boldsymbol{X}, \theta) = \frac{1}{n} \sum_{i=1}^n \nabla \ell(\boldsymbol{X}_i, \theta)
+$$
+
+. . .
+
+$$
+\nabla \ell(\boldsymbol{X}, \theta) \approx \frac{1}{|B|} \sum_{i \in B}^n \nabla \ell(\boldsymbol{X}_i, \theta)
+$$
+
+## SGD estimator
+
+Because we are sampling $B$ randomly, then our SGD and mini batch GD approximations are unbiased estimated of the full gradient,
+
+$$
+E\left[ \frac{1}{|B|} \sum_{i \in B}^n \nabla \ell(\boldsymbol{X}_i, \theta) \right] = \frac{1}{n} \sum_{i=1}^n \nabla \ell(\boldsymbol{X}_i, \theta) = \nabla \ell(\boldsymbol{X}, \theta)
+$$
+
+Each update can be viewed as a noisy gradient descent step (gradient + zero mean noise).
+
+* The difference between mini batch and stochastic gradient descent is that by increasing the computation cost per step we are reducing the noise variance for that step
+
+
+## Limitations
+
+As mentioned previously we need to be a bit careful with learning rates and convergence for both of these methods. So far, our approach has been naive and runs for a fixed number of epochs. 
+
+If we want to use a convergence criterion we need to keep the following in mind:
+
+* Let $\theta^*$ be a global / local minimizer of our loss function $\ell(\boldsymbol{X},\theta)$, then by definition $\nabla \ell(\boldsymbol{X},\theta^*) = 0$
+
+* The issue is that our gradient approximation,
+  $$
+  \frac{1}{|B|} \sum_{i \in B}^n \nabla \ell(\boldsymbol{X}_i, \theta) \ne 0
+  $$
+  as $B$ is a subset of the data, therefore our algorithm will keep taking steps / never converge.
+
+
+## Solution
+
+The practical solution to this is to implement a learning rate schedule which generally shrink the learning rate / step size over time to ensure convergence.
+
+The choice of the exact learning schedule is problem specific, and is usually about finding the balance of how quickly to shrink the step size.
+
+Some common examples:
+
+* Piecewise constant - $\eta_t = \eta_i \text{ if } t_i \leq t \leq t_{i+1}$
+
+* Exponential decay - $\eta_t = \eta_0 e^{-\lambda t}$
+
+* Polynomial decay - $\eta_t = \eta_0 (\beta t+1)^{-\alpha}$
+
+There are many more approaches including more exotic techniques that allow the learning rate to increase and decrease to help the optimizer better explore the objective function and in some cases escape local optima.
+
+
+# Adaptive updates & Momentum 
+
+## AdaGrad
+
+This approach was proposed in by Duchi, Hazan, & Singer in 2011 and is based on the idea of scaling the learning rates for the current step by the sum of the square gradients of previous steps - this has the effect of shrinking the step size of dimensions with large previous gradients.
+
+$$
+\begin{aligned}
+\boldsymbol{\theta}_{t+1} &= \boldsymbol{\theta}_t - \eta_t \frac{1}{\sqrt{\boldsymbol{s}_t + \epsilon}} \odot \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t)\\
+\boldsymbol{s}_t &= \sum_{i=1}^t \left(\nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_i)\right)^2
+\end{aligned}
+$$
+
+here $\epsilon$ is a small constant (i.e. $10^{-7}$) to avoid division by zero.
+
+
+## Implementation
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|10|20-23"
+def adagrad_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, replace=True, eps=1e-8):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+
+  S = np.zeros(k)
+
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+
+    for j in js.reshape(-1, batch_size):
+      G = grad(beta, j)
+      S += G**2
+      
+      beta = beta - step * (1/np.sqrt(S + eps)) * G
+      
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
+
+```
+:::
+
+
+## A medium example
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|3"
+from sklearn.datasets import make_regression
+X, y, coef = make_regression(
+  n_samples=1000, n_features=20, n_informative=4, 
+  bias=3, noise=1, random_state=1234, coef=True
+)
 ```
 :::
 
 . . .
 
 ::: {.xsmall}
-```python
-r = requests.get(url+"/add?y=-7")
-r.status_code
-```
-```
-422
-```
-
-```python
-r.json()
-```
-```
-{'detail': [{'type': 'missing', 'loc': ['query', 'x'], 'msg': 'Field required', 'input': None}]}
+```{python}
+lm = LinearRegression().fit(X,y)
+np.r_[lm.intercept_, lm.coef_]
 ```
 :::
 
+## Fitting
 
-## Type hinting
+::: {.xxsmall}
+```{python}
+sizes = [1, 25, 50, 1000]
+lrs = [10] * 4
+algos = ["AdaGrad - SGD", "AdaGrad - MBGD (25)", "AdaGrad - MBGD (50)", "AdaGrad - GD"]
 
-If type hinting is used when defining your function then FastAPI will attempt to validate the users inputs based on those type.
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-
-```python
-r = requests.get(url+"/add?x=abc&y=1")
-r.status_code
-```
-```
-422
-```
-
-```python
-r.json()
-```
-```
-{'detail': [{'type': 'int_parsing', 'loc': ['query', 'x'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': 'abc'}]}
+adagrad = { size: adagrad_lm(
+                    X, y, np.zeros(X.shape[1]+1), batch_size=size,
+                    step = lr, max_step=7, replace=True, eps=1e-8
+                  )
+            for size, lr in zip(sizes,lrs) }
 ```
 
-```python
-r = requests.get(url+"/add?x=1.0&y=2.0")
-r.status_code
-```
-```
-200
-```
+```{python}
+#| echo: false
+for size, algo in zip(sizes, algos):
+  print(algo)
+  print(adagrad[size]["x"][-1])
+  print("")
 
-```python
-r.json()
-```
-```
-{'result': 3}
-```
-
-:::
-
-::: {.column width='50%' .fragment}
-
-```python
-r = requests.get(url+"/add?x=1.5&y=2.")
-r.status_code
-```
-```
-422
-```
-
-```python
-r.json()
-```
-```
-{'detail': [{'type': 'int_parsing', 'loc': ['query', 'x'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': '1.5'}, {'type': 'int_parsing', 'loc': ['query', 'y'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': '2.'}]}
-```
-:::
-::::
-
-::: {.aside}
-More advanced data validation is possible through the use of `typing` and `pydanctic` - see [here](https://fastapi.tiangolo.com/tutorial/query-params-str-validations/), [here](https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/), and [here](https://fastapi.tiangolo.com/tutorial/query-param-models/) for details.
-:::
-
-
-## Path parameters
-
-Again like plumber, arguments can be passed to the API using the request path - these are indicated using `{}` in the path definition and then having a matching argument name in the function definition.
-
-:::: {.columns .xsmall}
-::: {.column width='50%'}
-
-```python
-r = requests.get(url+
-  "/user/1234/?name=Colin")
-r.status_code
-```
-```
-200
-```
-
-```python
-r.json()
-```
-```
-{'user_id': 1234, 'name': 'Colin'}
-```
-
-```python
-r = requests.get(url+"/user/3141/")
-r.status_code
-```
-```
-200
-```
-
-```python
-r.json()
-```
-```
-{'user_id': 3141}
 ```
 :::
 
-::: {.column width='50%'}
-```python
-r = requests.get(url+"/user/Colin/")
-r.status_code
+## Results
+
+```{python}
+#| echo: false
+plt.figure()
+for size, algo in zip(sizes, algos):
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(adagrad[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=algo
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
 ```
-```
-422
-```
-
-```python
-r.json()
-```
-```
-{'detail': [{'type': 'int_parsing', 'loc': ['path', 'user_id'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': 'Colin'}]}
-```
-:::
-::::
 
 
-::: {.aside}
-The use of `name: str | None = None` allows for the name query parameter to be optional with this end point
-:::
+## RMSProp
+
+With AdaGrad the denominator involving $\boldsymbol{s}_t$ gets larger as $t$ increases, but in some cases it gets too large too fast to effectively explore the loss function. An alternative is to use a moving average of the past squared gradients instead.
+
+RMSProp replaces AdaGrad's $\boldsymbol{s}_t$ with the following,
+
+$$
+\boldsymbol{s}_t = \beta \, \boldsymbol{s}_{t-1} + (1-\beta) \, (\nabla \ell(\boldsymbol{X},\boldsymbol{\theta}_t))^2 \\
+\boldsymbol{s}_0 = \boldsymbol{0}
+$$
+
+in practice a value of $\beta \approx 0.9$ is often used.
 
 
-## Request body
-
-When making a `PUT`, `POST`, or `PATCH` requests we are usually sending data to the API via the body of our request.
-
-FastAPI makes use of `pydantic` models to define the expected body content. I would like to avoid getting into the weeds of `pydantic` and `typing` as much as possible, so we will go with the most basic use case.
-
-The following `pydantic` model specifies an expected body that contains a `name` and `price` entries that are a string and float respectively and optionally a `description` string and `tax` float.
+## Implementation
 
 ::: {.xsmall}
-```python
-from pydantic import BaseModel
+```{python}
+#| code-line-numbers: "|21"
+def rmsprop_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, replace=True, eps=1e-8, b=0.9):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+  
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+  
+  S = np.zeros(k)
+  
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+    
+    for j in js.reshape(-1, batch_size):
+      G = grad(beta, j)
+      S = b*S + (1-b) * G**2
+      
+      beta = beta - step * (1/np.sqrt(S + eps)) * G
+      
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(res["iter"][-1]+1)
+    
+  return res
 
-class Item(BaseModel):
-    name: str
-    description: str | None = None
-    price: float
-    tax: float | None = None
 ```
 :::
 
-## Usage
+## Fitting
 
-The preceding data model can be used as an argument for our endpoint function, and FastAPI will take of processign everything for us.
+::: {.xxsmall}
+```{python}
+sizes = [1, 25, 50, 1000]
+lrs = [0.01, 0.1, 0.25, 1]
+algos = ["RMSProp - SGD", "RMSProp - MBGD (25)", "RMSProp - MBGD (50)", "RMSProp - GD"]
+
+rmsprop = { size: rmsprop_lm(
+                    X, y, np.zeros(X.shape[1]+1), batch_size=size,
+                    step = lr, max_step=25, replace=True
+                  )
+            for size, lr in zip(sizes,lrs) }
+```
+
+```{python}
+#| echo: false
+for size, algo in zip(sizes, algos):
+  print(algo)
+  print(rmsprop[size]["x"][-1])
+  print("")
+
+```
+:::
+
+## Results
+
+```{python}
+#| echo: false
+plt.figure()
+for size, algo in zip(sizes, algos):
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(rmsprop[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=algo
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
+
+## Momentum
+
+Rather then just using the gradient information at our current location it may be benefitial to use information from our previous steps as well. A general setup for this type approach looks like,
+
+$$
+\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \, \boldsymbol{m}_t \\
+\boldsymbol{m}_t = \beta \, \boldsymbol{m}_{t-1} + (1-\beta) \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t)
+$$
+
+where $\eta$ is our step size and $\beta$ determines the weighting of the current gradient and the previous gradients.
+
+If you have taken a course on time series, this has a flavor that looks a lot like moving average models,
+
+$$
+\boldsymbol{m}_t = (1-\beta) \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t) + \beta(1-\beta) \, \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_{t-1}) + \beta^2(1-\beta) \, \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_{t-2}) + \cdots
+$$
+
+## Adam
+
+The "adaptive moment estimation" algorithm is a combination of momentum with RMSProp,
+
+$$
+\begin{aligned}
+\theta_{t+1} &= \theta_t - \eta_t \frac{\boldsymbol{m_t}}{\sqrt{\boldsymbol{s}_t + \epsilon}} \\
+\boldsymbol{m}_t &= \beta_1 \, \boldsymbol{m}_{t-1} + (1-\beta_1) \, \nabla \ell(\boldsymbol{X}, \theta_t) \\
+\boldsymbol{s}_t &= \beta_2 \, \boldsymbol{s}_{t-1} + (1-\beta_2) \, (\nabla \ell(\boldsymbol{X},\boldsymbol{\theta}_t))^2 \\
+\end{aligned}
+$$
+
+Note that RMSProp is a special case of Adam when $\beta_1 = 0$.
+
+Adam is widely used in practice is and is commonly available within tools like Torch for fitting NN models. 
+
+In typical use $\beta_1=0.9$, $\beta_2=0.999$, $\epsilon=10^{-6}$, and $\eta_t=0.001$ are used. As the learning rate is not guaranteed to decrease over time, the algorithm is not guaranteed to converge.
+
+## Bias corrections
+
+One small alteration that was suggested by the original others and is commonly used is to correct for the bias towards small values in the initial estimates of $\boldsymbol{m}_t$ and $\boldsymbol{s}_t$. In which case they are replaced with,
+
+$$
+\begin{aligned}
+{\hat{\boldsymbol{m}}}_t &= \boldsymbol{m}_t / (1-{\beta_1}^t) \\
+{\hat{\boldsymbol{s}}}_t &=\boldsymbol{s}_t / (1-{\beta_2}^t) \\
+\end{aligned}
+$$
+
+## Implementation
 
 ::: {.xsmall}
-```python
-items = {}
+```{python}
+#| code-line-numbers: "|10-12|22-25|27,28|30"
+def adam_lm(X, y, beta, step=0.001, batch_size = 10, max_step=50, seed=1234, replace=True, eps=1e-6, b1=0.9, b2=0.999):
+  X = jnp.c_[jnp.ones(X.shape[0]), X]
+  f = lambda beta: jnp.sum((y - X @ beta)**2)
+  grad = lambda beta, i: 2*X[i,:].T @ (X[i,:]@beta - y[i])
+  n, k = X.shape
+  
+  res = {"x": [beta], "loss": [f(beta).item()], "iter": [0]}
+  rng = np.random.default_rng(seed)
+  
+  S = np.zeros(k)
+  M = np.zeros(k)
+  t = 0
+  
+  for i in range(max_step):
+    if replace:
+      js = rng.integers(0,n,n)
+    else:
+      js = np.array(range(n))
+      rng.shuffle(js)
+    
+    for j in js.reshape(-1, batch_size):
+      t += 1
+      G = grad(beta, j)
+      S = b2*S + (1-b2) * G**2
+      M = b1*M + (1-b1) * G
+      
+      M_hat = M / (1-b1**t)
+      S_hat = S / (1-b2**t)
+      
+      beta = beta - step * (M_hat / np.sqrt(S_hat + eps))
+      
+      res["x"].append(beta)
+      res["loss"].append(f(beta).item())
+      res["iter"].append(t)
+    
+  return res
 
-@app.post("/items/")
-async def add_item(item: Item):
-    items.append(item)
-    return items
 ```
 :::
 
-## What's happening?
+## Fitting
 
-From FastAPI's [Request body docs](https://fastapi.tiangolo.com/tutorial/body/#results):
+::: {.xxsmall}
+```{python}
+sizes = [1, 25, 50, 1000]
+lrs = [0.01, 0.5, 0.75, 1]
+algos = ["Adam - SGD", "Adam - MBGD (25)", "Adam - MBGD (50)", "Adam - GD"]
 
-::: {.small}
-> With just that Python type declaration, FastAPI will:
->
-> * Read the body of the request as JSON.
->
-> * Convert the corresponding types (if needed).
->
-> * Validate the data.
->   * If the data is invalid, it will return a nice and clear error, indicating exactly where and what was the incorrect data.
->
-> * Give you the received data in the parameter item.
->   * As you declared it in the function to be of type Item, you will also have all the editor support (completion, etc) for all of the attributes and their types.
->
-> * Generate [JSON Schema](https://json-schema.org/) definitions for your model, you can also use them anywhere else you like if it makes sense for your project.
->
-> * Those schemas will be part of the generated OpenAPI schema, and used by the automatic documentation UIs.
+adam = { size: adam_lm(
+                 X, y, np.zeros(X.shape[1]+1), batch_size=size,
+                 step=lr, max_step=25, replace=True
+               )
+         for size, lr in zip(sizes,lrs) }
+```
+
+```{python}
+#| echo: false
+for size, algo in zip(sizes, algos):
+  print(algo)
+  print(adam[size]["x"][-1])
+  print("")
+
+```
 :::
 
+## Results
 
-## Body vs path & query parameters
-
-Endpoints can use any mixture of body, path, and query parameters. 
-
-FastAPI uses the following rules to determine what each argument is:
-
-> The function parameters will be recognized as follows:
->
-> * If the parameter is also declared in the path, it will be used as a path parameter.
->
-> * If the parameter is of a singular type (like int, float, str, bool, etc) it will be interpreted as a query parameter.
->
-> * If the parameter is declared to be of the type of a Pydantic model, it will be interpreted as a request body.
-
-
-# Example 2 - A model API
-
-# Example 3 - Putting it all together (HW5)
+```{python}
+#| echo: false
+plt.figure()
+for size, algo in zip(sizes, algos):
+  plt.plot(
+    "iter", "loss", 
+    data=pd.DataFrame(adam[size]).assign(iter = lambda x: x.iter / (X.shape[0]/size)), 
+    label=algo
+  )
+plt.yscale("log")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.legend()
+plt.show()
+```
