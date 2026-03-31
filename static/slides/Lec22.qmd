@@ -266,21 +266,23 @@ $$
 
 ## Method - Newton-CG & BFGS
 
-These are both variants of Newton's method but do not require the Hessian (optionally can be used by the former).
+These are both variants of Newton's method but do not require the Hessian (optionally can be used by Newton-CG).
 
 * Newton-Conjugate Gradient (Newton-CG) algorithm uses a conjugate gradient algorithm to (approximately) invert the local Hessian
 
 * The Broyden-Fletcher-Goldfarb-Shanno (BFGS) algorithm iteratively approximates the inverse Hessian
 
-    * Gradient is also not required and can be approximated using finite differences
+  * Gradient is also not required and can be approximated using finite differences
 
-
+* Newton-CG also comes in a trust-region variant (`"trust-ncg"`) 
+  
+  * Uses a trust-region approach to determine the step size rather than backtracking line search
 
 ## Method - L-BFGS-B
 
 Limited-memory BFGS (L-BFGS-B) is a variant of BFGS designed for problems with large numbers of parameters.
 
-* Rather than storing and updating a full $n \times n$ approximation to the inverse Hessian, L-BFGS stores only the last $m$ updates (typically $m \approx 5$--$20$) and uses these to represent the inverse Hessian
+* Rather than storing and updating a full $n \times n$ approximation to the inverse Hessian, L-BFGS stores only the last $m$ updates (typically $m \approx 5$--$20$) and uses these for the approximation
 
 * This reduces memory usage from $O(n^2)$ to $O(mn)$, making it practical for high-dimensional problems
 
@@ -301,25 +303,7 @@ This JS implementation comes from [greg-rychlewski/nelder-mead](https://github.c
 :::
 
 
-## Method - Trust-Region Newton-CG
 
-::: {.medium}
-Trust-region methods take a fundamentally different approach from line search methods — instead of choosing a direction and then a step size, they define a region around the current point where the quadratic model of the objective function is trusted to be accurate.
-
-* At each iteration, the method minimizes the quadratic model $f(x_k) + \nabla f(x_k)^T p + \frac{1}{2} p^T \nabla^2 f(x_k) \, p$ subject to $\|p\| \leq \Delta_k$ (the trust-region radius)
-
-* The trust-region radius $\Delta_k$ is adapted based on how well the quadratic model predicted the actual function change
-
-* The inner minimization is solved approximately using the conjugate gradient method (hence "NCG")
-
-* Requires the gradient, and benefits significantly from the Hessian (approximated if not provided)
-
-* Generally more robust than line search Newton methods, particularly near saddle points
-:::
-
-::: {.aside}
-SciPy also provides `"trust-exact"` (exact trust-region solution, requires Hessian), `"trust-krylov"` (uses Krylov subspace methods for large-scale problems), and `"trust-constr"` (supports equality and inequality constraints).
-:::
 
 
 ## Method Summary
@@ -335,9 +319,9 @@ SciPy also provides `"trust-exact"` (exact trust-region solution, requires Hessi
 |  ---             | Conjugate Gradient (naive)                                     |    ✓     |    ✓     |
 | `"CG"`           | Nonlinear Conjugate Gradient (Polak and Ribiere variation)     |    ✓     |    ✗     |
 | `"Newton-CG"`    | Truncated Newton method (Newton w/ CG step direction)          |    ✓     | Optional |
+| `"trust-ncg"`    | Trust-region Newton-CG method                                  |    ✓     | Optional |
 | `"BFGS"`         | Broyden, Fletcher, Goldfarb, and Shanno (Quasi-newton method)  | Optional |    ✗     |
 | `"L-BFGS-B"`     | Limited-memory BFGS (Quasi-newton method)                      | Optional |    ✗     |
-| `"trust-ncg"`    | Trust-region Newton-CG method                                  |    ✓     | Optional |
 | `"Nelder-Mead"`  | Nelder-Mead simplex reflection method                          |    ✗     |    ✗     |
 
 :::
@@ -374,14 +358,12 @@ Key differences from SciPy's `optimize.minimize()`:
 
 * R includes `"SANN"` (simulated annealing) - a stochastic global optimizer not available in SciPy's `minimize()`
 
-* R includes `"Brent"` for efficient 1-dimensional optimization (SciPy uses `optimize.minimize_scalar()` for this)
-
 * The `optimx` packages provide access to additional methods beyond those in `optim()` - many additonal packages available on CRAN
 
 
 ## Methods collection
 
-::: {.small}
+::: {.xsmall}
 ```{python}
 def define_methods(x, f, grad, hess, tol=1e-8):
   return {
@@ -404,6 +386,7 @@ def define_methods(x, f, grad, hess, tol=1e-8):
 
 ::: {.xsmall}
 ```{python}
+#| code-line-numbers: "|1,2"
 x = (1.6, 1.1)
 f, grad, hess = mk_quad(0.7)
 methods = define_methods(x, f, grad, hess)
@@ -422,6 +405,10 @@ plt.show()
 ```
 
 ## Timings across cost functions
+
+::: {.panel-tabset}
+
+### Implementation
 
 ::: {.xsmall}
 ```{python}
@@ -450,7 +437,7 @@ time_cost_df = pd.concat([
 :::
 
 
-##
+### Results
 
 ```{python}
 #| echo: false
@@ -460,10 +447,16 @@ g.ax.set_ylabel("")
 plt.show()
 ```
 
+:::
+
 
 ## Random starting locations
 
-:::: {.tiny}
+::: {.panel-tabset}
+
+### Implementation
+
+:::: {.xsmall}
 ```{python}
 pts = np.random.default_rng(seed=1234).uniform(-2,2, (20,2))
 df = pd.concat([
@@ -477,6 +470,8 @@ df = pd.concat([
 ```
 ::::
 
+### Results
+
 ```{python}
 #| echo: false
 g = sns.catplot(data=df, y="variable", x="value", hue="cost_func", alpha=0.5, aspect=2)
@@ -484,6 +479,7 @@ g.ax.set_xlabel("Time (3 iter)")
 g.ax.set_ylabel("")
 plt.show()
 ``` 
+:::
 
 
 ## Profiling - BFGS (cProfile) {.scrollable}
@@ -1376,6 +1372,8 @@ g = sns.catplot(
 * The curse of dimensionality is real 
 
   * Be careful with `tol` - it means different things for different methods
+
+  * Be aware of the scale of your function and gradients
   
 * In general, **BFGS** or **L-BFGS** should be a first choice for most problems (either well- or ill-conditioned)
 
@@ -1423,6 +1421,8 @@ optimize.minimize(mle_norm, x0=[0,1], method="bfgs")
 
 ## Adding constraints
 
+A crude way of introducing constraints is to return `np.inf` (or another large value) for any parameter values that violate the constraint - here we require the standard deviation to be positive.
+
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
 ```{python}
@@ -1448,6 +1448,41 @@ optimize.minimize(mle_norm2, x0=[0,1], method="bfgs")
 ::: {.xsmall}
 ```{python}
 {'µ': x.mean(), 'σ': x.std()}
+```
+:::
+
+
+## Reparameterization
+
+An alternative approach is to transform the parameter so it is unconstrained - here we optimize over `log(σ)` instead of `σ`, using `exp()` to map back to the positive reals.
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+def mle_norm3(θ):
+  return -np.sum(
+    norm.logpdf(
+      x, loc=θ[0], scale=np.exp(θ[1])
+    )
+  )
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python}
+res = optimize.minimize(
+  mle_norm3, x0=[0, np.log(1)], method="bfgs"
+)
+res
+```
+:::
+::::
+
+. . .
+
+::: {.xsmall}
+```{python}
+{'µ': res.x[0], 'σ': np.exp(res.x[1])}
 ```
 :::
 
