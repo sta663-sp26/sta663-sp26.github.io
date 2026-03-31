@@ -266,7 +266,7 @@ $$
 
 ## Method - Newton-CG & BFGS
 
-These are both variants of Newton's method but do not require the Hessian (optionally can be used by Newton-CG).
+These are both variants of Newton's method but do not require the Hessian (though it can optionally be provided to Newton-CG).
 
 * Newton-Conjugate Gradient (Newton-CG) algorithm uses a conjugate gradient algorithm to (approximately) invert the local Hessian
 
@@ -333,7 +333,7 @@ SciPy's `minimize()` also supports other methods including `"Powell"` (gradient-
 
 ## R's `optim()`
 
-R's `optim()` function (from the `stats` package) provides a similar set of general-purpose optimization methods,
+R's `optim()` function (from the `stats` package) provides a similar set of general-purpose optimization methods:
 
 ::: {.small}
 
@@ -358,7 +358,7 @@ Key differences from SciPy's `optimize.minimize()`:
 
 * R includes `"SANN"` (simulated annealing) - a stochastic global optimizer not available in SciPy's `minimize()`
 
-* The `optimx` packages provide access to additional methods beyond those in `optim()` - many additonal packages available on CRAN
+* The `optimx` packages provide access to additional methods beyond those in `optim()` - many additional packages available on CRAN
 
 
 ## Methods collection
@@ -880,7 +880,7 @@ When $x = 0$ and $\mu = 0$: the gradient $\nabla f(x) = -f(x)\,\Sigma^{-1}(x - \
 
 ## Hessian checking
 
-Note since the gradient of the gradient is the hessian we can use this function to check our implementation of the hessian as well, just use `grad()` as `func` and `hess()` as `grad`.
+Note that since the gradient of the gradient is the Hessian, we can use this function to check our implementation of the Hessian as well — just use `grad()` as `func` and `hess()` as `grad`.
 
 :::: {.columns .xsmall}
 ::: {.column width='50%'}
@@ -1212,7 +1212,7 @@ optimize.minimize(
 
 ## Limits of floating point precision
 
-Every type of floating point value has finite precision due to the limitations of how it is represented. This value is typically referred to as the machine epsilon value, this is the smallest possible spacing between 1.0 and the next representable floating-point number.
+Every type of floating point value has finite precision due to the limitations of how it is represented. This value is typically referred to as the machine epsilon — the smallest possible spacing between 1.0 and the next representable floating-point number.
 
 :::: {.columns .small}
 ::: {.column width='50%'}

@@ -11,7 +11,7 @@ def grad(x):
     np.exp(x[0]-1) + 2 * (x[0]-x[1]),
     -np.exp(-x[1]+1) - 2 * (x[0]-x[1])
   ]
-
+ 
 def hess(x):
   return [
     [ np.exp(x[0]-1) + 2, -2                  ],

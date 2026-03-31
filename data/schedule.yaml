@@ -274,7 +274,7 @@ schedule:
 - week: 12
   day: 2
   lecture: "optimization (cont.)"
-  slides:
+  slides: Lec22
   screencast:
   readings:
   notes:
