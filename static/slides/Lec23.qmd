@@ -22,6 +22,8 @@ import pandas as pd
 import seaborn as sns
 import warnings
 import time
+from pprint import pprint
+
 
 import jax
 import jax.numpy as jnp
@@ -375,9 +377,9 @@ def sto_grad_desc_lm(X, y, beta, step, max_step=50, seed=1234, replace=True):
 :::
 
 
-## Fitting
+## Fitting {.scrollable}
 
-::: {.mxsmall}
+::: {.xxsmall}
 ```{python}
 np.r_[lm.intercept_, lm.coef_]
 ```
@@ -480,7 +482,7 @@ np.r_[lm.intercept_, lm.coef_]
 ```
 :::
 
-## Fitting
+## Fitting {.scrollable}
 
 ::: {.xxsmall}
 ```{python}
@@ -634,7 +636,7 @@ def mb_grad_desc_lm(X, y, beta, step, batch_size = 10, max_step=50, seed=1234, r
 ```
 :::
 
-## Fitting
+## Fitting {.scrollable}
 
 ::: {.xxsmall}
 ```{python}
@@ -947,7 +949,10 @@ With AdaGrad the denominator involving $\boldsymbol{s}_t$ gets larger as $t$ inc
 RMSProp replaces AdaGrad's $\boldsymbol{s}_t$ with the following,
 
 $$
-\boldsymbol{s}_t = \beta \, \boldsymbol{s}_{t-1} + (1-\beta) \, (\nabla \ell(\boldsymbol{X},\boldsymbol{\theta}_t))^2 \\
+\boldsymbol{s}_t = \beta \, \boldsymbol{s}_{t-1} + (1-\beta) \, (\nabla \ell(\boldsymbol{X},\boldsymbol{\theta}_t))^2
+$$
+
+$$
 \boldsymbol{s}_0 = \boldsymbol{0}
 $$
 
@@ -1039,18 +1044,25 @@ plt.show()
 
 Rather than just using the gradient information at our current location it may be beneficial to use information from our previous steps as well. A general setup for this type approach looks like,
 
+::: {.small}
 $$
-\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \, \boldsymbol{m}_t \\
+\boldsymbol{\theta}_{t+1} = \boldsymbol{\theta}_t - \eta \, \boldsymbol{m}_t
+$$
+
+$$
 \boldsymbol{m}_t = \beta \, \boldsymbol{m}_{t-1} + (1-\beta) \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t)
 $$
+:::
 
 where $\eta$ is our step size and $\beta$ determines the weighting of the current gradient and the previous gradients.
 
 If you have taken a course on time series, this has a flavor that looks a lot like moving average models,
 
+::: {.small}
 $$
 \boldsymbol{m}_t = (1-\beta) \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_t) + \beta(1-\beta) \, \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_{t-1}) + \beta^2(1-\beta) \, \, \nabla \ell(\boldsymbol{X}, \boldsymbol{\theta}_{t-2}) + \cdots
 $$
+:::
 
 ## Adam
 
