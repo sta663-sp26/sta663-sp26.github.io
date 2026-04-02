@@ -282,7 +282,7 @@ schedule:
 - week: 12
   day: 4
   lecture: "optimization - SGD"
-  slides:
+  slides: Lec23
   screencast:
   readings:
   - text: Probabilistic Machine Learning - Chp 8
