@@ -291,26 +291,26 @@ schedule:
 
 - week: 13
   day: 2
-  lecture: "optimization - optax"
-  slides:
+  lecture: "optax & torch"
+  slides: Lec24
   screencast:
   readings:
   - text: Deep Learning Tuning Playbook
     link: https://github.com/google-research/tuning_playbook
   - text: Descending through a Crowded Valley
     link: https://proceedings.mlr.press/v139/schmidt21a
-  notes:
-
-- week: 13
-  day: 4
-  lecture: "torch - Intro"
-  slides:
-  screencast:
-  readings:
   - text: Intro to PyTorch Tensors
     link: https://pytorch.org/tutorials/beginner/introyt/tensors_deeper_tutorial.html
   - text: Fundamentals of AutoGrad
     link: https://pytorch.org/tutorials/beginner/introyt/autogradyt_tutorial.html
+  notes:
+
+- week: 13
+  day: 4
+  lecture: "torch - gpu"
+  slides:
+  screencast:
+  readings:
   notes:
 
 - week: 14
@@ -327,7 +327,7 @@ schedule:
 
 - week: 14
   day: 4
-  lecture: "torch - gpu"
+  lecture: "torch - transformers"
   slides:
   screencast:
   readings:

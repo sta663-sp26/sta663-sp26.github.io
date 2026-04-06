@@ -16,6 +16,7 @@ dependencies = [
     "numpy>=2.4.1",
     "numpyro>=0.20.0",
     "nutpie[all,stan]>=0.16.8",
+    "optax>=0.2.8",
     "pandas>=3.0.0",
     "patsy>=1.0.2",
     "polars>=1.38.1",
@@ -25,5 +26,6 @@ dependencies = [
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
     "statsmodels>=0.14.6",
+    "torch>=2.11.0",
     "vetiver>=0.2.6",
 ]
