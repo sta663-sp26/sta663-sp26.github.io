@@ -307,15 +307,7 @@ schedule:
 
 - week: 13
   day: 4
-  lecture: "torch - gpu"
-  slides:
-  screencast:
-  readings:
-  notes:
-
-- week: 14
-  day: 2
-  lecture: "torch - nn"
+  lecture: "torch - gpu & nn"
   slides:
   screencast:
   readings:
@@ -323,10 +315,11 @@ schedule:
     link: https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_feedforward_neuralnetwork/
   - text: Convolutional Neural Network with PyTorch
     link: https://www.deeplearningwizard.com/deep_learning/practical_pytorch/pytorch_convolutional_neuralnetwork/
+
   notes:
 
 - week: 14
-  day: 4
+  day: 2
   lecture: "torch - transformers"
   slides:
   screencast:
