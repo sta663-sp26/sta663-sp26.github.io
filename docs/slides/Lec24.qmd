@@ -159,7 +159,7 @@ lm_loss = lr_loss(lm.coef_, X, y).item()
 
 * Perform iterations
 
-  * Calculate the current gradient and update for optimizer
+  * Calculate the current gradient and update the optimizer
 
     ::: {.xsmall}
     ```{python}
@@ -171,7 +171,7 @@ lm_loss = lr_loss(lm.coef_, X, y).item()
     ```
     :::
 
-  * Apply the update to the parameter
+  * Apply the update to the parameter(s)
 
     ::: {.xsmall}
     ```{python}
@@ -205,8 +205,10 @@ for iter in range(30):
   beta = optax.apply_updates(beta, updates)
   gd_loss.append(f)
 ```
+:::
 
 
+::: {.xsmall .fragment}
 ```{python}
 #| label: gd-rmse
 beta
@@ -238,7 +240,7 @@ plt.show()
 
 ## Optax and mini batches
 
-While called `sgd()`, the method is really just gradient descent - if you want to do mini-batch, you need to implement the batching yourself.
+While we called `sgd()`, the method is really just gradient descent - if we want to do mini-batch, we need to implement the batching ourselves.
 
 ::: {.xxsmall}
 ```{python}
@@ -567,7 +569,7 @@ plt.show()
 
 ## Learning rate schedules
 
-As mentioned last time, most gradient-based methods are not guaranteed to converge unless their learning rates decay as a function of step number.
+As mentioned last time, most gradient descent-based methods are not guaranteed to converge unless their learning rates decay as a function of step number.
 
 Some of the methods make this issue worse (e.g. Adam)
 
@@ -575,7 +577,7 @@ Some of the methods make this issue worse (e.g. Adam)
 
 <br/>
 
-Optax supports a [large number](https://optax.readthedocs.io/en/latest/api/optimizer_schedules.html) of pre-built learning rate schedules which can be passed into any of its optimizers instead of a fixed floating point value.
+Optax supports a [large number](https://optax.readthedocs.io/en/latest/api/optimizer_schedules.html) of pre-built learning rate schedules which can be passed into any of its optimizers instead of a fixed value.
 
 ::: {.xsmall}
 ```{python}
@@ -737,10 +739,15 @@ The following is from Google Research's [Tuning Playbook](https://github.com/goo
 
 ## PyTorch
 
-> PyTorch is a Python package that provides two high-level features:
+::: {.small}
+> PyTorch is an open-source deep learning library, originally developed by Meta Platforms and currently developed with support from the Linux Foundation. The successor to Torch, PyTorch provides a high-level API that builds upon optimised, low-level implementations of deep learning algorithms and architectures, such as the Transformer, or SGD. Notably, this API simplifies model training and inference to a few lines of code. PyTorch allows for automatic parallelization of training and, internally, implements CUDA bindings that speed training further by leveraging GPU resources.
 >
-> * Tensor computation (like NumPy) with strong GPU acceleration
-> * Deep neural networks built on a tape-based autograd system
+> PyTorch utilises the tensor as a fundamental data type, similarly to NumPy. Training is facilitated by a reversed automatic differentiation system, Autograd, that constructs a directed acyclic graph of the operations (and their arguments) executed by a model during its forward pass. With a loss, backpropagation is then undertaken.[4]
+:::
+
+::: {.aside}
+From Wikipedia - [PyTorch](https://en.wikipedia.org/wiki/PyTorch)
+:::
 
 . . .
 
@@ -896,40 +903,21 @@ From stackoverflow [post](https://stackoverflow.com/questions/57237352/what-does
 :::
 
 
-## Exercise 1
-
-Given the following tensors, 
-
-```{python}
-#| label: exercise-tensors
-a = torch.ones(4,3,2)
-b = torch.rand(3)
-c = torch.rand(5,3)
-```
-
-what reshaping is needed to make it possible so that `a * b`, `a * c`, and `b * c` can be calculated via broadcasting?
-
-```{r}
-#| echo: false
-countdown::countdown(3)
-```
-
-
 # Autograd
 
 ## Autograd vs JAX
 
+::: {.medium}
 PyTorch's autograd takes a fundamentally different approach from JAX:
 
-* JAX - functional: `jax.grad(f)` returns a *new function* that computes the gradient. No state is mutated.
+* JAX (functional) - `jax.grad(f)` returns a *new function* that computes the gradient. No state is mutated.
 
-* PyTorch - stateful: tensors record operations into a computational graph, then `.backward()` populates `.grad` attributes on leaf tensors.
+* PyTorch (stateful) - tensors record operations into a computational graph, then `.backward()` populates `.grad` attributes on leaf tensors.
+:::
 
-This means PyTorch gradients accumulate by default — you must manually zero them between steps (via `grad = None` or `optimizer.zero_grad()`), a common source of bugs.
+. . .
 
-##
-
-:::: {.columns}
+:::: {.columns .medium}
 ::: {.column width='50%'}
 
 JAX
@@ -972,9 +960,12 @@ Gradient tracking can be enabled using the `requires_grad` argument at initializ
 
 ::: {.small}
 ```{python}
-#| label: torch-requires-grad
-x = torch.linspace(0, 2, steps=21, requires_grad=True)
+x = torch.linspace(2, 1, steps=11, requires_grad=True)
 x
+```
+```{python}
+y = torch.linspace(1, 2, steps=11, requires_grad=True)
+y
 ```
 :::
 
@@ -982,9 +973,8 @@ x
 
 ::: {.small}
 ```{python}
-#| label: torch-expression
-y = 3*x + 2
-y
+z = torch.log(x*y)
+z
 ```
 :::
 
@@ -996,10 +986,9 @@ Basics of the computation graph can be explored via the `next_functions` attribu
 ::: {.small}
 ```{python}
 #| label: torch-comp-graph
-y.grad_fn
-y.grad_fn.next_functions
-y.grad_fn.next_functions[0][0].next_functions
-y.grad_fn.next_functions[0][0].next_functions[0][0].next_functions
+z.grad_fn
+z.grad_fn.next_functions
+z.grad_fn.next_functions[0][0].next_functions
 ```
 :::
 
@@ -1011,7 +1000,7 @@ In order to calculate the gradients we use the `backward()` method on the *outpu
 ::: {.small}
 ```{python}
 #| label: torch-backward
-out = y.sum()
+out = z.sum()
 out.backward()
 out
 ```
@@ -1034,6 +1023,33 @@ y.grad
 x.grad
 ```
 :::
+
+
+. . .
+
+::: {.small}
+```{python}
+#| error: true
+z.grad
+```
+:::
+
+
+
+
+## Forwards and Backwards passes
+
+Consider the torch tensor expression, $z = \log(x \, * \, y)$
+
+
+
+
+![](imgs/torch_forward_backward.png){fig-align="center" width="50%"}
+
+
+::: {.aside}
+From [Overview of PyTorch Autograd Engine](https://pytorch.org/blog/overview-of-pytorch-autograd-engine/)
+::: 
 
 
 ## A bit more complex
@@ -1074,7 +1090,7 @@ In context you can interpret `x.grad` and `m.grad` as the gradient of `y` with r
 
 ## High-level autograd API
 
-allows for the automatic calculation and evaluation of the jacobian and hessian for a function defined using tensors.
+Provides for a JAX like functional calculation and evaluation of the jacobian and hessian using torch tensors.
 
 ::: {.small}
 ```{python}
@@ -1110,7 +1126,7 @@ torch.autograd.functional.hessian(f, inputs)
 :::
 
 
-# Demo 1 - Linear Regression<br/>w/ PyTorch
+# Linear Regression<br/>w/ PyTorch
 
 ```{python}
 #| label: regression-setup-again
@@ -1189,7 +1205,7 @@ with torch.no_grad():
 :::
 
 ::: {.aside}
-`torch.no_grad()` disables gradient tracking within the context — necessary here because in-place updates to `bt` would otherwise be recorded in the computation graph, causing errors.
+`torch.no_grad()` disables gradient tracking within the context — necessary here because in-place updates to `bt` would otherwise be recorded in the computational graph, causing errors.
 :::
 
 . . .
@@ -1213,12 +1229,12 @@ loss.item()
 bt = torch.zeros(k, dtype=torch.float64, requires_grad=True)
 
 learning_rate = 1e-5
-for i in range(101):
+for i in range(31):
 
   yt_pred = Xt @ bt
 
   loss = (yt_pred - yt).pow(2).sum()
-  if i % 10 == 0:
+  if i % 5 == 0:
     print(f"Step: {i},\tloss: {loss.item():.4f}")
 
   loss.backward()
@@ -1251,7 +1267,6 @@ bt.detach().numpy()
 ::: {.small}
 ```{python}
 #| label: torch-loss-compare
-#| echo: false
 pprint(
   { "lm_loss": lm_loss,
   "torch_loss": (Xt @ bt - yt).pow(2).sum().item() }
@@ -1263,7 +1278,7 @@ pprint(
 Note - `bt.detach()` is needed here to obtain a tensor detached from the computation graph (e.g. for converting to NumPy).
 :::
 
-# Demo 2 - Using a torch model
+# Using a torch model
 
 ## A simple model
 
@@ -1299,13 +1314,15 @@ def training_loop(model, X, y, optimizer, n=100):
 
 ## Fitting
 
+To fit the model we need to initialize the model object, create an optimizer object (which we attach to our model's parameters), and then we call the training loop.
+
 ::: {.xsmall}
 ```{python}
 #| label: torch-model-fit
 m = Model(beta = torch.zeros(k, dtype=torch.float64))
 opt = torch.optim.SGD(m.parameters(), lr=1e-5)
 
-losses = training_loop(m, Xt, yt, opt, n=100)
+losses = training_loop(m, Xt, yt, opt, n=30)
 ```
 :::
 
@@ -1354,7 +1371,7 @@ class Model(torch.nn.Module):
     def forward(self, X):
         return X @ self.beta
 
-    def fit(self, X, y, opt, n=100):
+    def fit(self, X, y, opt, n=30):
       losses = []
       for i in range(n):
           loss = (self.forward(X) - y).pow(2).sum()
@@ -1375,10 +1392,10 @@ class Model(torch.nn.Module):
 #| echo: false
 plt.figure(figsize=(8,6), layout="constrained")
 
-for lr in [1e-4, 1e-5, 1e-6, 1e-7]:
+for lr in [1e-5, 5e-5, 1e-6]:
   m = Model(k)
   opt = torch.optim.SGD(m.parameters(), lr=lr)
-  losses = m.fit(Xt, yt, opt, n=100)
+  losses = m.fit(Xt, yt, opt, n=30)
 
   plt.plot(losses, label=f"{lr=}")
 
