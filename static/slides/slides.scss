@@ -145,6 +145,10 @@ kbd {
   max-height: 400px !important;
 }
 
+.reveal .limit400 .cell-output code {
+  max-height: 400px !important;
+}
+
 .panel-tabset li {
   font-size: 0.66em;
 }
