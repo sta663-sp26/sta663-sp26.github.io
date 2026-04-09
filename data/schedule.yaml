@@ -307,8 +307,8 @@ schedule:
 
 - week: 13
   day: 4
-  lecture: "torch - gpu & nn"
-  slides:
+  lecture: "torch - nn"
+  slides: Lec25
   screencast:
   readings:
   - text: Feedforward Neural Network with PyTorch
@@ -320,7 +320,7 @@ schedule:
 
 - week: 14
   day: 2
-  lecture: "torch - transformers"
+  lecture: "torch - gpu & transformers"
   slides:
   screencast:
   readings:
