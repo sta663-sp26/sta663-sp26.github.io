@@ -1,6 +1,6 @@
 ---
 title: "pytorch - GPU"
-subtitle: "Lecture 20"
+subtitle: "Lecture 26"
 author: "Dr. Colin Rundel"
 footer: "Sta 663 - Spring 2026"
 format:
