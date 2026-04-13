@@ -1,0 +1,288 @@
+---
+title: "pytorch - GPU"
+subtitle: "Lecture 26"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+execute: 
+  echo: true
+---
+
+```{python}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import torch
+
+import os
+
+plt.rcParams['figure.dpi'] = 200
+
+torch.set_printoptions(
+  edgeitems=30, linewidth=46,
+  precision = 4
+)
+
+np.set_printoptions(
+  edgeitems=30, linewidth=48,
+  precision = 5, suppress=True
+)
+
+pd.set_option("display.width", 130)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+
+# Some "state-of-the-art"<br/>models
+
+## Hugging Face
+
+This is an online community and platform for sharing machine learning models (architectures and weights), data, and related artifacts. They also maintain a number of packages and related training materials that help with building, training, and deploying ML models.
+
+Some notable resources,
+
+* [`transformers`](https://huggingface.co/docs/transformers/index) - APIs and tools to easily download and train state-of-the-art (pretrained) transformer based models 
+
+* [`diffusers`](https://huggingface.co/docs/diffusers/index) - provides pretrained vision and audio diffusion models, and serves as a modular toolbox for inference and training
+
+* [`timm`](https://huggingface.co/docs/timm/index) - a library containing SOTA computer vision models, layers, utilities, optimizers, schedulers, data-loaders, augmentations, and training/evaluation scripts
+
+
+## Downloading Stable Diffusion 2.1
+
+::: {.xsmall}
+```{python}
+#| eval: false
+from huggingface_hub import snapshot_download, login
+
+login()  # prompts for your HF token, or pass token= directly below
+
+snapshot_download(
+    repo_id="sd2-community/stable-diffusion-2-1",
+    local_dir="/data/stable-diffusion-2-1",
+    ignore_patterns=["*.ckpt", "*.safetensors.index.json"],
+    token="..."
+)
+```
+:::
+
+::: {.aside}
+`sd2-community/stable-diffusion-2-1` is a gated repo — you must accept the model license on [huggingface.co](https://huggingface.co/sd2-community/stable-diffusion-2-1) and be logged in. This only needs to be run once to cache the weights locally.
+:::
+
+
+## Stable Diffusion
+
+::: {.xsmall}
+```{python}
+#| warning: false
+#| message: false
+#| results: hide
+import torch
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+
+model_id = "/data/stable-diffusion-2-1"
+
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+pipe = pipe.to("cuda")
+```
+:::
+
+
+. . .
+
+::: {.xsmall}
+
+```{python sd1}
+#| results: hide
+prompt = "a picture of thomas bayes with a cat on his lap"
+```
+
+```{python sd1-1}
+#| results: hide
+#| cache: true
+prompt = "a picture of thomas bayes with a cat on his lap"
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompt, generator=generator, num_inference_steps=20, num_images_per_prompt=6)
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python sd1-2}
+#| cache: true
+fit.images
+```
+:::
+
+##
+
+```{python sd1-plot}
+#| echo: false
+#| cache: true
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+
+::: {.aside}
+[Thomas Bayes GIS](https://www.google.com/search?q=thomas+bayes&source=lnms&tbm=isch&sa=X&biw=1280&bih=590&dpr=2)
+:::
+
+
+## Customizing prompts
+
+::: {.xsmall}
+```{python sd2-0}
+#| results: hide
+prompt = "a picture of thomas bayes with a cat on his lap"
+prompts = [
+  prompt + t for t in 
+  ["in the style of a japanese wood block print",
+   "as a hipster with facial hair and glasses",
+   "as a simpsons character, cartoon, yellow",
+   "in the style of a vincent van gogh painting",
+   "in the style of a picasso painting",
+   "with flowery wall paper"
+  ]
+]
+```
+
+```{python sd2}
+#| results: hide
+#| cache: true
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompts, generator=generator, num_inference_steps=20, num_images_per_prompt=1)
+```
+:::
+
+## 
+
+```{python sd2-plot}
+#| echo: false
+#| cache: true
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+
+
+
+## Increasing inference steps
+
+::: {.xsmall}
+```{python sd2-more}
+#| results: hide
+#| cache: true
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompts, generator=generator, num_inference_steps=50, num_images_per_prompt=1)
+```
+:::
+
+```{python sd2-more-plot}
+#| echo: false
+#| cache: true
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+
+
+## A more current model
+
+::: {.small}
+This model is larger than the available GPU memory - so we adjust the weight types to make it fit.
+:::
+
+```{python}
+#| eval: false
+#| include: false
+login()  # prompts for your HF token, or pass token= directly below
+
+snapshot_download(
+    repo_id="stabilityai/stable-diffusion-3.5-medium",
+    local_dir="/data/stable-diffusion-3-5-medium",
+    token = "..."
+)
+```
+
+
+::: {.xsmall}
+```{python}
+from diffusers import BitsAndBytesConfig, SD3Transformer2DModel
+from diffusers import StableDiffusion3Pipeline
+import torch
+
+model_id = "/data/stable-diffusion-3-5-medium"
+
+nf4_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16
+)
+model_nf4 = SD3Transformer2DModel.from_pretrained(
+    model_id,
+    subfolder="transformer",
+    quantization_config=nf4_config,
+    torch_dtype=torch.bfloat16
+)
+
+pipe = StableDiffusion3Pipeline.from_pretrained(
+    model_id, 
+    transformer=model_nf4,
+    torch_dtype=torch.bfloat16
+)
+pipe.enable_model_cpu_offload()
+```
+:::
+
+## Images
+
+::: {.xsmall}
+```{python sd35}
+#| results: hide
+#| cache: true
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompts, generator=generator, num_inference_steps=30, num_images_per_prompt=1)
+```
+:::
+
+```{python sd35-plot}
+#| echo: false
+#| cache: true
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```

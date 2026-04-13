@@ -7,7 +7,9 @@
       "Bash(Rscript -e \" library\\(knitr\\) # Look at internal hook-related functions cat\\(deparse\\(knitr:::output_chunk\\), sep=''\\\\n''\\) \")",
       "Bash(Rscript -e \" library\\(knitr\\) cat\\(deparse\\(knitr:::sew.knit_asis\\), sep=''\\\\n''\\) cat\\(''\\\\n---\\\\n''\\) cat\\(deparse\\(knitr:::sew\\), sep=''\\\\n''\\) \")",
       "Bash(Rscript -e \" library\\(knitr\\) # Look at how error hook output is collected/processed cat\\(deparse\\(knitr:::process_chunk\\), sep=''\\\\n''\\) \")",
-      "Bash(Rscript -e \" library\\(knitr\\) # Look at wrap function which processes hook output cat\\(deparse\\(knitr:::wrap\\), sep=''\\\\n''\\) \")"
+      "Bash(Rscript -e \" library\\(knitr\\) # Look at wrap function which processes hook output cat\\(deparse\\(knitr:::wrap\\), sep=''\\\\n''\\) \")",
+      "Bash(curl -s https://raw.githubusercontent.com/karpathy/minGPT/master/mingpt/model.py)",
+      "Bash(curl -s https://raw.githubusercontent.com/karpathy/minGPT/master/projects/chargpt/chargpt.py)"
     ]
   }
 }

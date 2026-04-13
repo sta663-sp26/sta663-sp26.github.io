@@ -8,7 +8,6 @@ format:
     theme: slides.scss
     transition: fade
     slide-number: true
-    self-contained: true
 execute: 
   echo: true
 ---
@@ -149,13 +148,17 @@ torch.cuda.get_device_properties(1)
 
 Usage of the GPU is governed by the location of the Tensors - to use the GPU we allocate them on the GPU device.
 
-:::: {.columns .xsmall}
-::: {.column width='50%'}
+::: {.xsmall}
 ```{python tensor_devices}
 cpu = torch.device('cpu')
 cuda0 = torch.device('cuda:0')
 cuda1 = torch.device('cuda:1')
+```
+:::
 
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
 x = torch.linspace(0,1,5, device=cuda0); x
 y = torch.randn(5,2, device=cuda0); y
 z = torch.rand(2,3, device=cpu); z
@@ -177,7 +180,7 @@ y @ z.to(cuda0)
 
 NN layers (parameters) also need to be assigned to the GPU to be used with GPU tensors,
 
-::: {.xsmall}
+::: {.xxsmall}
 ```{python nn1}
 #| error: true
 nn = torch.nn.Linear(5,5)
@@ -374,7 +377,11 @@ print(start.elapsed_time(end) / 1000)
 ::::
 
 
-## Profiling CPU - 1 forward step
+## Profiling
+
+::: {.panel-tabset}
+
+### CPU - 1 forward step
 
 ::: {.tiny}
 ```{python}
@@ -389,7 +396,7 @@ print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10)
 ```
 :::
 
-## Profiling GPU - 1 forward step
+### GPU - 1 forward step
 
 ::: {.tiny}
 ```{python}
@@ -404,8 +411,7 @@ print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10
 ```
 :::
 
-
-## Profiling CPU - fit
+### CPU - fit
 
 ::: {.tiny}
 ```{python}
@@ -420,7 +426,7 @@ print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10)
 ```
 :::
 
-## Profiling GPU - fit
+### GPU - fit
 
 ::: {.tiny}
 ```{python}
@@ -435,6 +441,8 @@ print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10
 ```
 :::
 
+:::
+
 
 
 # CIFAR10
@@ -445,20 +453,55 @@ print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10
 [homepage](https://www.cs.toronto.edu/~kriz/cifar.html)
 :::
 
+## Image Classification Benchmarks
+
+:::: {.columns .small}
+::: {.column width='33%'}
+**CIFAR-10**
+
+* 60,000 color images (32×32)
+* 10 classes (airplane, car, bird, cat, deer, dog, frog, horse, ship, truck)
+* 50k train / 10k test
+* ~170 MB
+:::
+
+::: {.column width='33%'}
+**CIFAR-100**
+
+* 60,000 color images (32×32)
+* 100 classes grouped into 20 superclasses
+* 50k train / 10k test
+* ~170 MB
+:::
+
+::: {.column width='33%'}
+**ImageNet (ILSVRC)**
+
+* ~1.2 million color images (variable, typically 224×224)
+* 1,000 classes
+* ~1.2M train / 50k val / 100k test
+* ~150 GB
+:::
+::::
+
+<br/>
+
+::: {.small}
+All three are standard benchmarks for evaluating CNN architectures — CIFAR-10/100 are common for rapid prototyping due to their small image size, while ImageNet is the large-scale challenge used to evaluate models (AlexNet, VGG, ResNet, etc.).
+:::
+
 ## Loading the data
 
 ::: {.xsmall}
 ```{python}
 #| results: hide
 import torchvision
-
 training_data = torchvision.datasets.CIFAR10(
     root="/data",
     train=True,
     download=True,
     transform=torchvision.transforms.ToTensor()
 )
-
 test_data = torchvision.datasets.CIFAR10(
     root="/data",
     train=False,
@@ -470,7 +513,7 @@ test_data = torchvision.datasets.CIFAR10(
 
 Downloads data to "/data/cifar-10-batches-py" which is ~178M on disk.
 
-## CIFAR10 data
+## CIFAR10 data {.scrollable}
 
 ::: {.xsmall}
 ```{python}
@@ -660,7 +703,11 @@ Based on [PyTorch cifar10 tutorial](https://pytorch.org/tutorials/beginner/blitz
 :::
 
 
-## CNN Performance - CPU (1 step)
+## CNN Performance
+
+::: {.panel-tabset}
+
+### CPU - 1 step
 
 ::: {.tiny}
 ```{python}
@@ -679,15 +726,14 @@ print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10)
 ```
 :::
 
-
-## CNN Performance - GPU (1 step)
+### GPU - 1 step
 
 ::: {.tiny}
 ```{python}
 m_cuda = cifar_conv_model(device="cuda")
 Xc, yc = X.to(device="cuda"), y.to(device="cuda")
 tmp = m_cuda(Xc)
-    
+
 with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
     tmp = m_cuda(Xc)
 ```
@@ -697,10 +743,7 @@ print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10
 ```
 :::
 
-
-
-
-## CNN Performance - CPU (1 epoch)
+### CPU - 1 epoch
 
 ::: {.tiny}
 ```{python}
@@ -715,7 +758,7 @@ print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10)
 ```
 :::
 
-## CNN Performance - GPU (1 epoch)
+### GPU - 1 epoch
 
 ::: {.tiny}
 ```{python}
@@ -728,6 +771,8 @@ with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
 ```{python, wrap=FALSE}
 print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
 ```
+:::
+
 :::
 
 
@@ -920,7 +965,11 @@ VGG16("cpu").model
 :::
 
 
-## VGG16 performance - CPU
+## VGG16 performance
+
+::: {.panel-tabset}
+
+### CPU
 
 ::: {.xsmall}
 ```{python}
@@ -937,8 +986,7 @@ print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10)
 ```
 :::
 
-
-## VGG16 performance - GPU
+### GPU
 
 ::: {.xsmall}
 ```{python}
@@ -956,36 +1004,6 @@ print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10
 :::
 
 
-## VGG16 performance - Apple M1 GPU (mps)
-
-::: {.xsmall}
-```{python}
-#| eval: false
-m_mps = VGG16(device="mps")
-Xm, ym = X.to(device="mps"), y.to(device="mps")
-
-with torch.autograd.profiler.profile(with_stack=True) as prof_mps:
-    tmp = m_mps(Xm)
-```
-
-```{python}
-#| eval: false
-print(prof_mps.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
-```
-
-```
---------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
-                            Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg    # of Calls  
---------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
-         aten::native_batch_norm        35.71%       3.045ms        35.71%       3.045ms     234.231us            13  
-          aten::_mps_convolution        19.67%       1.677ms        19.88%       1.695ms     130.385us            13  
-    aten::_batch_norm_impl_index        11.92%       1.016ms        36.02%       3.071ms     236.231us            13  
-                     aten::relu_        11.29%     963.000us        11.29%     963.000us      74.077us            13  
-                      aten::add_        10.40%     887.000us        10.44%     890.000us      68.462us            13  
---------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  
-Self CPU time total: 8.526ms
-```
-:::
 
 
 ## Fitting w/ `lr = 0.01`
@@ -1123,6 +1141,10 @@ print(report(model=m, loader=test_loader, device="cuda"))
 ```
 :::
 
+
+```{r}
+knitr::knit_exit()
+```
 
 # Some "state-of-the-art"<br/>models
 
