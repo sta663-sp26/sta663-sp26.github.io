@@ -595,7 +595,7 @@ y.shape
 ::: {.small}
 In this case we got our data (`training_data` and `test_data`) directly from torchvision which gave us a `dataset` object to use with our `DataLoader`. If we do not have a `Dataset` object then we need to create a custom class for our data telling torch how to load it. 
 
-You class must define the methods: `__init__()`, `__len__()`, and `__get_item__()`.
+Your class must define the methods: `__init__()`, `__len__()`, and `__getitem__()`.
 :::
 
 ::: {.xsmall}
@@ -690,7 +690,7 @@ class cifar_conv_model(torch.nn.Module):
     
                 # print statistics
                 running_loss += loss.item()
-                if i % n_report == (n_report-1):    # print every 100 mini-batches
+                if i % n_report == (n_report-1):    # print every n_report mini-batches
                     print(f'[Epoch {self.epoch + 1}, Minibatch {i + 1:4d}] loss: {running_loss / n_report:.3f}')
                     running_loss = 0.0
             
@@ -1376,5 +1376,5 @@ In a quiet corner of a small, cozy house lived Thomas Bayes, a man known for his
 :::
 
 ::: {.aside}
-Qwen is an opensource LLM built by Alibaba
+Qwen is an open-source LLM built by Alibaba
 :::

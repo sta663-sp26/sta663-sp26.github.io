@@ -48,7 +48,7 @@ The following slides are a very brief and simplified look at a "modern" GPT mode
 
 The code comes from Andrej Karpathy's [minGPT](https://github.com/karpathy/minGPT). 
 
-> A PyTorch re-implementation of GPT, both training and inference. minGPT tries to be small, clean, interpretable and educational, as most of the currently available GPT model implementations can a bit sprawling.
+> A PyTorch re-implementation of GPT, both training and inference. minGPT tries to be small, clean, interpretable and educational, as most of the currently available GPT model implementations can be a bit sprawling.
 
 It is an impressive piece of work and well worth looking through. More recently, Karpathy put together [microgpt](https://karpathy.github.io/2026/02/12/microgpt/) which is a pure-Python follow-up with no dependencies (including full autograd).
 
