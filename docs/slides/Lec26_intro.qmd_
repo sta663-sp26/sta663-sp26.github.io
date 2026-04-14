@@ -1,0 +1,883 @@
+---
+title: "pytorch - GPU &<br/>Transformers"
+subtitle: "Lecture 26"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    embed-resources: true
+execute: 
+  echo: true
+---
+
+```{python}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import torch
+
+import os
+
+plt.rcParams['figure.dpi'] = 200
+
+torch.set_printoptions(
+  edgeitems=30, linewidth=46,
+  precision = 4
+)
+
+np.set_printoptions(
+  edgeitems=30, linewidth=48,
+  precision = 5, suppress=True
+)
+
+pd.set_option("display.width", 130)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+```
+
+## CUDA
+
+> CUDA (or Compute Unified Device Architecture) is a parallel computing platform and application programming interface (API) that allows software to use certain types of graphics processing unit (GPU) for general purpose processing, an approach called general-purpose computing on GPUs (GPGPU). CUDA is a software layer that gives direct access to the GPU's virtual instruction set and parallel computational elements, for the execution of compute kernels.
+
+<br/>
+
+Core libraries:
+
+:::: {.columns}
+::: {.column width='33%'}
+* cuBLAS
+
+* cuSOLVER
+
+* cuSPARSE
+:::
+
+::: {.column width='33%'}
+* cuTENSOR
+
+* cuFFT
+
+* cuRAND
+:::
+
+::: {.column width='33%'}
+* Thrust
+
+* cuDNN
+:::
+::::
+
+
+
+## CUDA Kernels
+
+::: {.xsmall}
+```c
+// Kernel - Adding two matrices MatA and MatB
+__global__ void MatAdd(float MatA[N][N], float MatB[N][N], float MatC[N][N])
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    if (i < N && j < N)
+        MatC[i][j] = MatA[i][j] + MatB[i][j];
+}
+ 
+int main()
+{
+    ...
+    // Matrix addition kernel launch from host code
+    dim3 threadsPerBlock(16, 16);
+    dim3 numBlocks(
+        (N + threadsPerBlock.x -1) / threadsPerBlock.x, 
+        (N+threadsPerBlock.y -1) / threadsPerBlock.y
+    );
+    
+    MatAdd<<<numBlocks, threadsPerBlock>>>(MatA, MatB, MatC);
+    ...
+}
+```
+:::
+
+## GPU Status
+
+::: {.xsmall}
+```{bash smi}
+nvidia-smi
+```
+:::
+
+## Torch GPU Information
+
+::: {.xsmall}
+```{python has_cuda}
+torch.cuda.is_available()
+
+torch.cuda.device_count()
+
+torch.cuda.get_device_name("cuda:0")
+torch.cuda.get_device_name("cuda:1")
+
+torch.cuda.get_device_properties(0)
+```
+:::
+
+
+## GPU Tensors
+
+Usage of the GPU is governed by the location of the Tensors - to use the GPU we allocate them on the GPU device.
+
+::: {.xsmall}
+```{python tensor_devices}
+cpu = torch.device('cpu')
+cuda0 = torch.device('cuda:0')
+cuda1 = torch.device('cuda:1')
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+x = torch.linspace(0,1,5, device=cuda0); x
+y = torch.randn(5,2, device=cuda0); y
+z = torch.rand(2,3, device=cpu); z
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python tensor_mult}
+#| error: true
+x @ y
+y @ z
+y @ z.to(cuda0)
+```
+:::
+::::
+
+
+## NN Layers + GPU
+
+NN layers (parameters) also need to be assigned to the GPU to be used with GPU tensors,
+
+::: {.xxsmall}
+```{python nn1}
+#| error: true
+nn = torch.nn.Linear(5,5)
+X = torch.randn(10,5).cuda()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python nn2}
+#| error: true
+nn(X)
+```
+:::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python nn3}
+nn.cuda()(X)
+```
+:::
+
+::: {.column width='50%'}
+```{python nn4}
+nn.to(device="cuda")(X)
+```
+:::
+::::
+
+# CIFAR10
+
+<br/>
+
+::: {.xsmall}
+[homepage](https://www.cs.toronto.edu/~kriz/cifar.html)
+:::
+
+## Image Classification Benchmarks
+
+:::: {.columns .small}
+::: {.column width='33%'}
+**CIFAR-10**
+
+* 60,000 color images (32×32)
+* 10 classes (airplane, car, bird, cat, deer, dog, frog, horse, ship, truck)
+* 50k train / 10k test
+* ~170 MB
+:::
+
+::: {.column width='33%'}
+**CIFAR-100**
+
+* 60,000 color images (32×32)
+* 100 classes grouped into 20 superclasses
+* 50k train / 10k test
+* ~170 MB
+:::
+
+::: {.column width='33%'}
+**ImageNet (ILSVRC)**
+
+* ~1.2 million color images (variable, typically 224×224)
+* 1,000 classes
+* ~1.2M train / 50k val / 100k test
+* ~150 GB
+:::
+::::
+
+<br/>
+
+All three are standard benchmarks for evaluating CNN architectures — CIFAR-10/100 are common for rapid prototyping due to their small image size, while ImageNet is the large-scale challenge used to evaluate models (AlexNet, VGG, ResNet, etc.).
+
+
+## Loading the data
+
+::: {.xsmall}
+```{python}
+#| results: hide
+import torchvision
+training_data = torchvision.datasets.CIFAR10(
+    root="/data",
+    train=True,
+    download=True,
+    transform=torchvision.transforms.ToTensor()
+)
+test_data = torchvision.datasets.CIFAR10(
+    root="/data",
+    train=False,
+    download=True,
+    transform=torchvision.transforms.ToTensor()
+)
+```
+:::
+
+Downloads data to "/data/cifar-10-batches-py" which is ~178M on disk.
+
+## CIFAR10 data {.scrollable}
+
+::: {.xsmall}
+```{python}
+training_data.classes
+training_data.data.shape
+test_data.data.shape
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+training_data[0]
+```
+:::
+
+## Example data
+
+```{python echo=FALSE, out.width="85%"}
+fig, axes = plt.subplots(nrows=4, ncols=6, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    img, cls = training_data[i]
+    
+    p = ax.imshow(img.numpy().transpose((1,2,0)))
+    t = ax.set_title(f"{training_data.classes[cls]}")
+    
+plt.show()
+```
+
+## Data Loaders
+
+Torch handles large datasets and minibatches through the use of the `DataLoader` class, 
+
+::: {.xsmall}
+```{python}
+training_loader = torch.utils.data.DataLoader(
+    training_data, 
+    batch_size=100,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True
+)
+
+test_loader = torch.utils.data.DataLoader(
+    test_data, 
+    batch_size=100,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True
+)
+```
+:::
+
+## Loader as generator
+
+The resulting `DataLoader` class is iterable and "yields" the features and targets for each batch when iterated over,
+
+::: {.xsmall}
+```{python}
+training_loader
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+X, y = next(iter(training_loader))
+X.shape
+y.shape
+```
+:::
+
+## Custom Datasets
+
+::: {.small}
+In this case we got our data (`training_data` and `test_data`) directly from torchvision which gave us a `dataset` object to use with our `DataLoader`. If we do not have a `Dataset` object then we need to create a custom class for our data telling torch how to load it. 
+
+Your class must define the methods: `__init__()`, `__len__()`, and `__getitem__()`.
+:::
+
+::: {.xsmall}
+```{python}
+class data(torch.utils.data.Dataset):
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+    
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+```
+:::
+
+
+## CIFAR CNN
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|2-19|2,4,19|24-42|27-34|37-40"
+class cifar_conv_model(torch.nn.Module):
+    def __init__(self, device):
+        super().__init__()
+        self.device = torch.device(device)
+        self.epoch = 0
+        self.model = torch.nn.Sequential(
+            torch.nn.Conv2d(3, 6, kernel_size=5),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),
+            torch.nn.Conv2d(6, 16, kernel_size=5),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),
+            torch.nn.Flatten(),
+            torch.nn.Linear(16 * 5 * 5, 120),
+            torch.nn.ReLU(),
+            torch.nn.Linear(120, 84),
+            torch.nn.ReLU(),
+            torch.nn.Linear(84, 10)
+        ).to(device=self.device)
+        
+    def forward(self, X):
+        return self.model(X)
+    
+    def fit(self, loader, epochs=10, n_report=250, lr=0.001):
+        opt = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.9) 
+      
+        for j in range(epochs):
+            running_loss = 0.0
+            for i, (X, y) in enumerate(loader):
+                X, y = X.to(self.device), y.to(self.device)
+                opt.zero_grad()
+                loss = torch.nn.CrossEntropyLoss()(self(X), y)
+                loss.backward()
+                opt.step()
+    
+                # print statistics
+                running_loss += loss.item()
+                if i % n_report == (n_report-1):    # print every n_report mini-batches
+                    print(f'[Epoch {self.epoch + 1}, Minibatch {i + 1:4d}] loss: {running_loss / n_report:.3f}')
+                    running_loss = 0.0
+            
+            self.epoch += 1
+```
+:::
+
+::: {.aside}
+Based on [PyTorch cifar10 tutorial](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html)
+:::
+
+
+## CNN Performance
+
+::: {.panel-tabset}
+
+### CPU - 1 step
+
+::: {.tiny}
+```{python}
+X, y = next(iter(training_loader))
+
+m_cpu = cifar_conv_model(device="cpu")
+tmp = m_cpu(X)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cpu:
+    tmp = m_cpu(X)
+```
+
+```{python, wrap=FALSE}
+#| code-overflow: scroll
+print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### GPU - 1 step
+
+::: {.tiny}
+```{python}
+m_cuda = cifar_conv_model(device="cuda")
+Xc, yc = X.to(device="cuda"), y.to(device="cuda")
+tmp = m_cuda(Xc)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
+    tmp = m_cuda(Xc)
+```
+
+```{python, wrap=FALSE}
+print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### CPU - 1 epoch
+
+::: {.tiny}
+```{python}
+m_cpu = cifar_conv_model(device="cpu")
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cpu:
+    m_cpu.fit(loader=training_loader, epochs=1, n_report=501)
+```
+
+```{python, wrap=FALSE}
+print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### GPU - 1 epoch
+
+::: {.tiny}
+```{python}
+m_cuda = cifar_conv_model(device="cuda")
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
+    m_cuda.fit(loader=training_loader, epochs=1, n_report=501)
+```
+
+```{python, wrap=FALSE}
+print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+:::
+
+
+
+
+
+
+## Loaders & Accuracy
+
+::: {.small}
+```{python}
+def accuracy(model, loader, device):
+    total, correct = 0, 0
+    with torch.no_grad():
+        for X, y in loader:
+            X, y = X.to(device=device), y.to(device=device)
+            pred = model(X)
+            # the class with the highest energy is what we choose as prediction
+            val, idx = torch.max(pred, 1)
+            total += pred.size(0)
+            correct += (idx == y).sum().item()
+            
+    return correct / total
+```
+:::
+
+
+## Model fitting
+
+::: {.xsmall}
+```{python eval=FALSE}
+m = cifar_conv_model("cuda")
+```
+:::
+
+::: {.panel-tabset}
+
+### Round 1
+
+::: {.xsmall}
+```{python eval=FALSE}
+m.fit(training_loader, epochs=10, n_report=500, lr=0.01)
+```
+
+```
+## [Epoch 1, Minibatch  500] loss: 2.098
+## [Epoch 2, Minibatch  500] loss: 1.692
+## [Epoch 3, Minibatch  500] loss: 1.482
+## [Epoch 4, Minibatch  500] loss: 1.374
+## [Epoch 5, Minibatch  500] loss: 1.292
+## [Epoch 6, Minibatch  500] loss: 1.226
+## [Epoch 7, Minibatch  500] loss: 1.173
+## [Epoch 8, Minibatch  500] loss: 1.117
+## [Epoch 9, Minibatch  500] loss: 1.071
+## [Epoch 10, Minibatch  500] loss: 1.035
+```
+:::
+
+::: {.xsmall}
+```{python eval=FALSE}
+accuracy(m, training_loader, "cuda")
+```
+```
+## 0.63444
+```
+```{python}
+#| eval: false
+accuracy(m, test_loader, "cuda")
+```
+```
+## 0.572
+```
+:::
+
+### Round 2
+
+::: {.xsmall}
+```{python eval=FALSE}
+m.fit(training_loader, epochs=10, n_report=500)
+```
+
+```
+## [Epoch 11, Minibatch  500] loss: 0.885
+## [Epoch 12, Minibatch  500] loss: 0.853
+## [Epoch 13, Minibatch  500] loss: 0.839
+## [Epoch 14, Minibatch  500] loss: 0.828
+## [Epoch 15, Minibatch  500] loss: 0.817
+## [Epoch 16, Minibatch  500] loss: 0.806
+## [Epoch 17, Minibatch  500] loss: 0.798
+## [Epoch 18, Minibatch  500] loss: 0.787
+## [Epoch 19, Minibatch  500] loss: 0.780
+## [Epoch 20, Minibatch  500] loss: 0.773
+```
+
+```{python eval=FALSE}
+accuracy(m, training_loader, "cuda")
+```
+
+```
+## 0.73914
+```
+
+```{python}
+#| eval: false
+accuracy(m, test_loader, "cuda")
+```
+
+```
+## 0.624
+```
+:::
+
+### Round 3
+
+::: {.xsmall}
+```{python eval=FALSE}
+m.fit(training_loader, epochs=10, n_report=500)
+```
+
+```
+## [Epoch 21, Minibatch  500] loss: 0.764
+## [Epoch 22, Minibatch  500] loss: 0.756
+## [Epoch 23, Minibatch  500] loss: 0.748
+## [Epoch 24, Minibatch  500] loss: 0.739
+## [Epoch 25, Minibatch  500] loss: 0.733
+## [Epoch 26, Minibatch  500] loss: 0.726
+## [Epoch 27, Minibatch  500] loss: 0.718
+## [Epoch 28, Minibatch  500] loss: 0.710
+## [Epoch 29, Minibatch  500] loss: 0.702
+## [Epoch 30, Minibatch  500] loss: 0.698
+```
+
+```{python eval=FALSE}
+accuracy(m, training_loader, "cuda")
+```
+
+```
+## 0.76438
+```
+
+```{python}
+#| eval: false
+accuracy(m, test_loader, "cuda")
+```
+
+```
+## 0.6217
+```
+:::
+
+:::
+
+## The VGG16 model
+
+::: {.xxsmall}
+```{python}
+class VGG16(torch.nn.Module):
+    def make_layers(self):
+        cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M']
+        layers = []
+        in_channels = 3
+        for x in cfg:
+            if x == 'M':
+                layers += [torch.nn.MaxPool2d(kernel_size=2, stride=2)]
+            else:
+                layers += [torch.nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
+                           torch.nn.BatchNorm2d(x),
+                           torch.nn.ReLU(inplace=True)]
+                in_channels = x
+        layers += [
+            torch.nn.AvgPool2d(kernel_size=1, stride=1),
+            torch.nn.Flatten(),
+            torch.nn.Linear(512,10)
+        ]
+        
+        return torch.nn.Sequential(*layers).to(self.device)
+    
+    def __init__(self, device):
+        super().__init__()
+        self.device = torch.device(device)
+        self.model = self.make_layers()
+    
+    def forward(self, X):
+        return self.model(X)
+```
+:::
+
+::: {.aside}
+Based on code from [pytorch-cifar](https://github.com/kuangliu/pytorch-cifar), original [paper](https://arxiv.org/abs/1409.1556) - this was state of the art in ~2014
+:::
+
+## Model
+
+::: {.xsmall}
+```{python}
+VGG16("cpu").model
+```
+:::
+
+
+## VGG16 performance
+
+::: {.panel-tabset}
+
+### CPU - 1 forward step
+
+::: {.xsmall}
+```{python}
+X, y = next(iter(training_loader))
+m_cpu = VGG16(device="cpu")
+tmp = m_cpu(X)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cpu:
+    tmp = m_cpu(X)
+```
+
+```{python, wrap=FALSE}
+print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### GPU - 1 forward step
+
+::: {.xsmall}
+```{python}
+m_cuda = VGG16(device="cuda")
+Xc, yc = X.to(device="cuda"), y.to(device="cuda")
+tmp = m_cuda(Xc)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
+    tmp = m_cuda(Xc)
+```
+
+```{python, wrap=FALSE}
+print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+:::
+
+
+
+
+## Fitting
+
+::: {.panel-tabset}
+
+### `lr = 0.01`
+
+::: {.xsmall}
+```{python}
+#| eval: false
+m = VGG16(device="cuda")
+fit(m, training_loader, epochs=10, n_report=500, lr=0.01)
+```
+
+```
+## [Epoch 1, Minibatch  500] loss: 1.345
+## [Epoch 2, Minibatch  500] loss: 0.790
+## [Epoch 3, Minibatch  500] loss: 0.577
+## [Epoch 4, Minibatch  500] loss: 0.445
+## [Epoch 5, Minibatch  500] loss: 0.350
+## [Epoch 6, Minibatch  500] loss: 0.274
+## [Epoch 7, Minibatch  500] loss: 0.215
+## [Epoch 8, Minibatch  500] loss: 0.167
+## [Epoch 9, Minibatch  500] loss: 0.127
+## [Epoch 10, Minibatch  500] loss: 0.103
+```
+:::
+
+::: {.xsmall}
+```{python eval=FALSE}
+accuracy(model=m, loader=training_loader, device="cuda")
+```
+
+```
+## 0.97008
+```
+```{python}
+#| eval: false
+accuracy(model=m, loader=test_loader, device="cuda")
+```
+
+```
+## 0.8318
+```
+:::
+
+### `lr = 0.001`
+
+::: {.xsmall}
+```{python eval=FALSE}
+m = VGG16(device="cuda")
+fit(m, training_loader, epochs=10, n_report=500, lr=0.001)
+```
+
+```
+## [Epoch 1, Minibatch  500] loss: 1.279
+## [Epoch 2, Minibatch  500] loss: 0.827
+## [Epoch 3, Minibatch  500] loss: 0.599
+## [Epoch 4, Minibatch  500] loss: 0.428
+## [Epoch 5, Minibatch  500] loss: 0.303
+## [Epoch 6, Minibatch  500] loss: 0.210
+## [Epoch 7, Minibatch  500] loss: 0.144
+## [Epoch 8, Minibatch  500] loss: 0.108
+## [Epoch 9, Minibatch  500] loss: 0.088
+## [Epoch 10, Minibatch  500] loss: 0.063
+```
+:::
+
+::: {.xsmall}
+```{python eval=FALSE}
+accuracy(model=m, loader=training_loader, device="cuda")
+```
+
+```
+## 0.9815
+```
+
+```{python}
+#| eval: false
+accuracy(model=m, loader=test_loader, device="cuda")
+```
+
+```
+## 0.7816
+```
+:::
+
+:::
+
+## Report
+
+::: {.panel-tabset}
+
+### Code
+
+::: {.xsmall}
+```{python}
+from sklearn.metrics import classification_report
+
+def report(model, loader, device):
+    y_true, y_pred = [], []
+    with torch.no_grad():
+        for X, y in loader:
+            X = X.to(device=device)
+            y_true.append( y.cpu().numpy() )
+            y_pred.append( model(X).max(1)[1].cpu().numpy() )
+    
+    y_true = np.concatenate(y_true)
+    y_pred = np.concatenate(y_pred)
+
+    return classification_report(y_true, y_pred, target_names=loader.dataset.classes)
+```
+:::
+
+### Results
+
+::: {.xsmall}
+```{python}
+#| eval: false
+print(report(model=m, loader=test_loader, device="cuda"))
+```
+
+```
+##               precision    recall  f1-score   support
+## 
+##     airplane       0.82      0.88      0.85      1000
+##   automobile       0.95      0.89      0.92      1000
+##         bird       0.85      0.70      0.77      1000
+##          cat       0.68      0.74      0.71      1000
+##         deer       0.84      0.83      0.83      1000
+##          dog       0.81      0.73      0.77      1000
+##         frog       0.83      0.92      0.87      1000
+##        horse       0.87      0.87      0.87      1000
+##         ship       0.89      0.92      0.90      1000
+##        truck       0.86      0.93      0.89      1000
+## 
+##     accuracy                           0.84     10000
+##    macro avg       0.84      0.84      0.84     10000
+## weighted avg       0.84      0.84      0.84     10000
+```
+:::
+
+:::
