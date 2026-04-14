@@ -321,7 +321,7 @@ schedule:
 - week: 14
   day: 2
   lecture: "torch - gpu & transformers"
-  slides:
+  slides: Lec26
   screencast:
   readings:
   - text: Transformers
