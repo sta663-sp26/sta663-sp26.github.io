@@ -1,0 +1,1649 @@
+---
+title: "pytorch - GPU &<br/>Transformers"
+subtitle: "Lecture 26"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    embed-resources: true
+execute: 
+  echo: true
+---
+
+```{python}
+#| include: false
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import scipy
+
+import torch
+
+import os
+
+plt.rcParams['figure.dpi'] = 200
+
+torch.set_printoptions(
+  edgeitems=30, linewidth=46,
+  precision = 4
+)
+
+np.set_printoptions(
+  edgeitems=30, linewidth=48,
+  precision = 5, suppress=True
+)
+
+pd.set_option("display.width", 130)
+pd.set_option("display.max_columns", 10)
+pd.set_option("display.precision", 6)
+```
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+
+library(reticulate)
+```
+
+## CUDA
+
+> CUDA (or Compute Unified Device Architecture) is a parallel computing platform and application programming interface (API) that allows software to use certain types of graphics processing unit (GPU) for general purpose processing, an approach called general-purpose computing on GPUs (GPGPU). CUDA is a software layer that gives direct access to the GPU's virtual instruction set and parallel computational elements, for the execution of compute kernels.
+
+<br/>
+
+Core libraries:
+
+:::: {.columns}
+::: {.column width='33%'}
+* cuBLAS
+
+* cuSOLVER
+
+* cuSPARSE
+:::
+
+::: {.column width='33%'}
+* cuTENSOR
+
+* cuFFT
+
+* cuRAND
+:::
+
+::: {.column width='33%'}
+* Thrust
+
+* cuDNN
+:::
+::::
+
+
+
+## CUDA Kernels
+
+::: {.xsmall}
+```c
+// Kernel - Adding two matrices MatA and MatB
+__global__ void MatAdd(float MatA[N][N], float MatB[N][N], float MatC[N][N])
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    if (i < N && j < N)
+        MatC[i][j] = MatA[i][j] + MatB[i][j];
+}
+ 
+int main()
+{
+    ...
+    // Matrix addition kernel launch from host code
+    dim3 threadsPerBlock(16, 16);
+    dim3 numBlocks(
+        (N + threadsPerBlock.x -1) / threadsPerBlock.x, 
+        (N+threadsPerBlock.y -1) / threadsPerBlock.y
+    );
+    
+    MatAdd<<<numBlocks, threadsPerBlock>>>(MatA, MatB, MatC);
+    ...
+}
+```
+:::
+
+## GPU Status
+
+::: {.xsmall}
+```{bash smi}
+nvidia-smi
+```
+:::
+
+## Torch GPU Information
+
+::: {.xsmall}
+```{python has_cuda}
+torch.cuda.is_available()
+
+torch.cuda.device_count()
+
+torch.cuda.get_device_name("cuda:0")
+torch.cuda.get_device_name("cuda:1")
+
+torch.cuda.get_device_properties(0)
+```
+:::
+
+
+## GPU Tensors
+
+Usage of the GPU is governed by the location of the Tensors - to use the GPU we allocate them on the GPU device.
+
+::: {.xsmall}
+```{python tensor_devices}
+cpu = torch.device('cpu')
+cuda0 = torch.device('cuda:0')
+cuda1 = torch.device('cuda:1')
+```
+:::
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python}
+x = torch.linspace(0,1,5, device=cuda0); x
+y = torch.randn(5,2, device=cuda0); y
+z = torch.rand(2,3, device=cpu); z
+```
+:::
+
+::: {.column width='50%' .fragment}
+```{python tensor_mult}
+#| error: true
+x @ y
+y @ z
+y @ z.to(cuda0)
+```
+:::
+::::
+
+
+## NN Layers + GPU
+
+NN layers (parameters) also need to be assigned to the GPU to be used with GPU tensors,
+
+::: {.xxsmall}
+```{python nn1}
+#| error: true
+nn = torch.nn.Linear(5,5)
+X = torch.randn(10,5).cuda()
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python nn2}
+#| error: true
+nn(X)
+```
+:::
+
+. . .
+
+:::: {.columns .xsmall}
+::: {.column width='50%'}
+```{python nn3}
+nn.cuda()(X)
+```
+:::
+
+::: {.column width='50%'}
+```{python nn4}
+nn.to(device="cuda")(X)
+```
+:::
+::::
+
+# CIFAR10
+
+<br/>
+
+::: {.xsmall}
+[homepage](https://www.cs.toronto.edu/~kriz/cifar.html)
+:::
+
+## Image Classification Benchmarks
+
+:::: {.columns .small}
+::: {.column width='33%'}
+**CIFAR-10**
+
+* 60,000 color images (32×32)
+* 10 classes (airplane, car, bird, cat, deer, dog, frog, horse, ship, truck)
+* 50k train / 10k test
+* ~170 MB
+:::
+
+::: {.column width='33%'}
+**CIFAR-100**
+
+* 60,000 color images (32×32)
+* 100 classes grouped into 20 superclasses
+* 50k train / 10k test
+* ~170 MB
+:::
+
+::: {.column width='33%'}
+**ImageNet (ILSVRC)**
+
+* ~1.2 million color images (variable, typically 224×224)
+* 1,000 classes
+* ~1.2M train / 50k val / 100k test
+* ~150 GB
+:::
+::::
+
+<br/>
+
+All three are standard benchmarks for evaluating CNN architectures — CIFAR-10/100 are common for rapid prototyping due to their small image size, while ImageNet is the large-scale challenge used to evaluate models (AlexNet, VGG, ResNet, etc.).
+
+
+## Loading the data
+
+::: {.xsmall}
+```{python}
+#| results: hide
+import torchvision
+training_data = torchvision.datasets.CIFAR10(
+    root="/data",
+    train=True,
+    download=True,
+    transform=torchvision.transforms.ToTensor()
+)
+test_data = torchvision.datasets.CIFAR10(
+    root="/data",
+    train=False,
+    download=True,
+    transform=torchvision.transforms.ToTensor()
+)
+```
+:::
+
+Downloads data to "/data/cifar-10-batches-py" which is ~178M on disk.
+
+## CIFAR10 data {.scrollable}
+
+::: {.xsmall}
+```{python}
+training_data.classes
+training_data.data.shape
+test_data.data.shape
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+training_data[0]
+```
+:::
+
+## Example data
+
+```{python echo=FALSE, out.width="85%"}
+fig, axes = plt.subplots(nrows=4, ncols=6, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    img, cls = training_data[i]
+    
+    p = ax.imshow(img.numpy().transpose((1,2,0)))
+    t = ax.set_title(f"{training_data.classes[cls]}")
+    
+plt.show()
+```
+
+## Data Loaders
+
+Torch handles large datasets and minibatches through the use of the `DataLoader` class, 
+
+::: {.xsmall}
+```{python}
+training_loader = torch.utils.data.DataLoader(
+    training_data, 
+    batch_size=100,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True
+)
+
+test_loader = torch.utils.data.DataLoader(
+    test_data, 
+    batch_size=100,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True
+)
+```
+:::
+
+## Loader as generator
+
+The resulting `DataLoader` class is iterable and "yields" the features and targets for each batch when iterated over,
+
+::: {.xsmall}
+```{python}
+training_loader
+```
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+X, y = next(iter(training_loader))
+X.shape
+y.shape
+```
+:::
+
+## Custom Datasets
+
+::: {.small}
+In this case we got our data (`training_data` and `test_data`) directly from torchvision which gave us a `dataset` object to use with our `DataLoader`. If we do not have a `Dataset` object then we need to create a custom class for our data telling torch how to load it. 
+
+Your class must define the methods: `__init__()`, `__len__()`, and `__getitem__()`.
+:::
+
+::: {.xsmall}
+```{python}
+class data(torch.utils.data.Dataset):
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+    
+    def __len__(self):
+        return len(self.X)
+    
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+```
+:::
+
+
+## CIFAR CNN
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|2-19|2,4,19|24-42|27-34|37-40"
+class cifar_conv_model(torch.nn.Module):
+    def __init__(self, device):
+        super().__init__()
+        self.device = torch.device(device)
+        self.epoch = 0
+        self.model = torch.nn.Sequential(
+            torch.nn.Conv2d(3, 6, kernel_size=5),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),
+            torch.nn.Conv2d(6, 16, kernel_size=5),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2, 2),
+            torch.nn.Flatten(),
+            torch.nn.Linear(16 * 5 * 5, 120),
+            torch.nn.ReLU(),
+            torch.nn.Linear(120, 84),
+            torch.nn.ReLU(),
+            torch.nn.Linear(84, 10)
+        ).to(device=self.device)
+        
+    def forward(self, X):
+        return self.model(X)
+    
+    def fit(self, loader, epochs=10, n_report=250, lr=0.001):
+        opt = torch.optim.SGD(self.parameters(), lr=lr, momentum=0.9) 
+      
+        for j in range(epochs):
+            running_loss = 0.0
+            for i, (X, y) in enumerate(loader):
+                X, y = X.to(self.device), y.to(self.device)
+                opt.zero_grad()
+                loss = torch.nn.CrossEntropyLoss()(self(X), y)
+                loss.backward()
+                opt.step()
+    
+                # print statistics
+                running_loss += loss.item()
+                if i % n_report == (n_report-1):    # print every n_report mini-batches
+                    print(f'[Epoch {self.epoch + 1}, Minibatch {i + 1:4d}] loss: {running_loss / n_report:.3f}')
+                    running_loss = 0.0
+            
+            self.epoch += 1
+```
+:::
+
+::: {.aside}
+Based on [PyTorch cifar10 tutorial](https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html)
+:::
+
+
+## CNN Performance
+
+::: {.panel-tabset}
+
+### CPU - 1 step
+
+::: {.tiny}
+```{python}
+X, y = next(iter(training_loader))
+
+m_cpu = cifar_conv_model(device="cpu")
+tmp = m_cpu(X)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cpu:
+    tmp = m_cpu(X)
+```
+
+```{python, wrap=FALSE}
+#| code-overflow: scroll
+print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### GPU - 1 step
+
+::: {.tiny}
+```{python}
+m_cuda = cifar_conv_model(device="cuda")
+Xc, yc = X.to(device="cuda"), y.to(device="cuda")
+tmp = m_cuda(Xc)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
+    tmp = m_cuda(Xc)
+```
+
+```{python, wrap=FALSE}
+print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### CPU - 1 epoch
+
+::: {.tiny}
+```{python}
+m_cpu = cifar_conv_model(device="cpu")
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cpu:
+    m_cpu.fit(loader=training_loader, epochs=1, n_report=501)
+```
+
+```{python, wrap=FALSE}
+print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### GPU - 1 epoch
+
+::: {.tiny}
+```{python}
+m_cuda = cifar_conv_model(device="cuda")
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
+    m_cuda.fit(loader=training_loader, epochs=1, n_report=501)
+```
+
+```{python, wrap=FALSE}
+print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+:::
+
+
+
+
+
+
+## Loaders & Accuracy
+
+::: {.small}
+```{python}
+def accuracy(model, loader, device):
+    total, correct = 0, 0
+    with torch.no_grad():
+        for X, y in loader:
+            X, y = X.to(device=device), y.to(device=device)
+            pred = model(X)
+            # the class with the highest energy is what we choose as prediction
+            val, idx = torch.max(pred, 1)
+            total += pred.size(0)
+            correct += (idx == y).sum().item()
+            
+    return correct / total
+```
+:::
+
+
+## Model fitting
+
+::: {.xsmall}
+```{python eval=FALSE}
+m = cifar_conv_model("cuda")
+```
+:::
+
+::: {.panel-tabset}
+
+### Round 1
+
+::: {.xsmall}
+```{python eval=FALSE}
+m.fit(training_loader, epochs=10, n_report=500, lr=0.01)
+```
+
+```
+## [Epoch 1, Minibatch  500] loss: 2.098
+## [Epoch 2, Minibatch  500] loss: 1.692
+## [Epoch 3, Minibatch  500] loss: 1.482
+## [Epoch 4, Minibatch  500] loss: 1.374
+## [Epoch 5, Minibatch  500] loss: 1.292
+## [Epoch 6, Minibatch  500] loss: 1.226
+## [Epoch 7, Minibatch  500] loss: 1.173
+## [Epoch 8, Minibatch  500] loss: 1.117
+## [Epoch 9, Minibatch  500] loss: 1.071
+## [Epoch 10, Minibatch  500] loss: 1.035
+```
+:::
+
+::: {.xsmall}
+```{python eval=FALSE}
+accuracy(m, training_loader, "cuda")
+```
+```
+## 0.63444
+```
+```{python}
+#| eval: false
+accuracy(m, test_loader, "cuda")
+```
+```
+## 0.572
+```
+:::
+
+### Round 2
+
+::: {.xsmall}
+```{python eval=FALSE}
+m.fit(training_loader, epochs=10, n_report=500)
+```
+
+```
+## [Epoch 11, Minibatch  500] loss: 0.885
+## [Epoch 12, Minibatch  500] loss: 0.853
+## [Epoch 13, Minibatch  500] loss: 0.839
+## [Epoch 14, Minibatch  500] loss: 0.828
+## [Epoch 15, Minibatch  500] loss: 0.817
+## [Epoch 16, Minibatch  500] loss: 0.806
+## [Epoch 17, Minibatch  500] loss: 0.798
+## [Epoch 18, Minibatch  500] loss: 0.787
+## [Epoch 19, Minibatch  500] loss: 0.780
+## [Epoch 20, Minibatch  500] loss: 0.773
+```
+
+```{python eval=FALSE}
+accuracy(m, training_loader, "cuda")
+```
+
+```
+## 0.73914
+```
+
+```{python}
+#| eval: false
+accuracy(m, test_loader, "cuda")
+```
+
+```
+## 0.624
+```
+:::
+
+### Round 3
+
+::: {.xsmall}
+```{python eval=FALSE}
+m.fit(training_loader, epochs=10, n_report=500)
+```
+
+```
+## [Epoch 21, Minibatch  500] loss: 0.764
+## [Epoch 22, Minibatch  500] loss: 0.756
+## [Epoch 23, Minibatch  500] loss: 0.748
+## [Epoch 24, Minibatch  500] loss: 0.739
+## [Epoch 25, Minibatch  500] loss: 0.733
+## [Epoch 26, Minibatch  500] loss: 0.726
+## [Epoch 27, Minibatch  500] loss: 0.718
+## [Epoch 28, Minibatch  500] loss: 0.710
+## [Epoch 29, Minibatch  500] loss: 0.702
+## [Epoch 30, Minibatch  500] loss: 0.698
+```
+
+```{python eval=FALSE}
+accuracy(m, training_loader, "cuda")
+```
+
+```
+## 0.76438
+```
+
+```{python}
+#| eval: false
+accuracy(m, test_loader, "cuda")
+```
+
+```
+## 0.6217
+```
+:::
+
+:::
+
+## The VGG16 model
+
+::: {.xxsmall}
+```{python}
+class VGG16(torch.nn.Module):
+    def make_layers(self):
+        cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M']
+        layers = []
+        in_channels = 3
+        for x in cfg:
+            if x == 'M':
+                layers += [torch.nn.MaxPool2d(kernel_size=2, stride=2)]
+            else:
+                layers += [torch.nn.Conv2d(in_channels, x, kernel_size=3, padding=1),
+                           torch.nn.BatchNorm2d(x),
+                           torch.nn.ReLU(inplace=True)]
+                in_channels = x
+        layers += [
+            torch.nn.AvgPool2d(kernel_size=1, stride=1),
+            torch.nn.Flatten(),
+            torch.nn.Linear(512,10)
+        ]
+        
+        return torch.nn.Sequential(*layers).to(self.device)
+    
+    def __init__(self, device):
+        super().__init__()
+        self.device = torch.device(device)
+        self.model = self.make_layers()
+    
+    def forward(self, X):
+        return self.model(X)
+```
+:::
+
+::: {.aside}
+Based on code from [pytorch-cifar](https://github.com/kuangliu/pytorch-cifar), original [paper](https://arxiv.org/abs/1409.1556) - this was state of the art in ~2014
+:::
+
+## Model
+
+::: {.xsmall}
+```{python}
+VGG16("cpu").model
+```
+:::
+
+
+## VGG16 performance
+
+::: {.panel-tabset}
+
+### CPU - 1 forward step
+
+::: {.xsmall}
+```{python}
+X, y = next(iter(training_loader))
+m_cpu = VGG16(device="cpu")
+tmp = m_cpu(X)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cpu:
+    tmp = m_cpu(X)
+```
+
+```{python, wrap=FALSE}
+print(prof_cpu.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+### GPU - 1 forward step
+
+::: {.xsmall}
+```{python}
+m_cuda = VGG16(device="cuda")
+Xc, yc = X.to(device="cuda"), y.to(device="cuda")
+tmp = m_cuda(Xc)
+
+with torch.autograd.profiler.profile(with_stack=True) as prof_cuda:
+    tmp = m_cuda(Xc)
+```
+
+```{python, wrap=FALSE}
+print(prof_cuda.key_averages().table(sort_by='self_cpu_time_total', row_limit=10))
+```
+:::
+
+:::
+
+
+
+
+## Fitting
+
+::: {.panel-tabset}
+
+### `lr = 0.01`
+
+::: {.xsmall}
+```{python}
+#| eval: false
+m = VGG16(device="cuda")
+fit(m, training_loader, epochs=10, n_report=500, lr=0.01)
+```
+
+```
+## [Epoch 1, Minibatch  500] loss: 1.345
+## [Epoch 2, Minibatch  500] loss: 0.790
+## [Epoch 3, Minibatch  500] loss: 0.577
+## [Epoch 4, Minibatch  500] loss: 0.445
+## [Epoch 5, Minibatch  500] loss: 0.350
+## [Epoch 6, Minibatch  500] loss: 0.274
+## [Epoch 7, Minibatch  500] loss: 0.215
+## [Epoch 8, Minibatch  500] loss: 0.167
+## [Epoch 9, Minibatch  500] loss: 0.127
+## [Epoch 10, Minibatch  500] loss: 0.103
+```
+:::
+
+::: {.xsmall}
+```{python eval=FALSE}
+accuracy(model=m, loader=training_loader, device="cuda")
+```
+
+```
+## 0.97008
+```
+```{python}
+#| eval: false
+accuracy(model=m, loader=test_loader, device="cuda")
+```
+
+```
+## 0.8318
+```
+:::
+
+### `lr = 0.001`
+
+::: {.xsmall}
+```{python eval=FALSE}
+m = VGG16(device="cuda")
+fit(m, training_loader, epochs=10, n_report=500, lr=0.001)
+```
+
+```
+## [Epoch 1, Minibatch  500] loss: 1.279
+## [Epoch 2, Minibatch  500] loss: 0.827
+## [Epoch 3, Minibatch  500] loss: 0.599
+## [Epoch 4, Minibatch  500] loss: 0.428
+## [Epoch 5, Minibatch  500] loss: 0.303
+## [Epoch 6, Minibatch  500] loss: 0.210
+## [Epoch 7, Minibatch  500] loss: 0.144
+## [Epoch 8, Minibatch  500] loss: 0.108
+## [Epoch 9, Minibatch  500] loss: 0.088
+## [Epoch 10, Minibatch  500] loss: 0.063
+```
+:::
+
+::: {.xsmall}
+```{python eval=FALSE}
+accuracy(model=m, loader=training_loader, device="cuda")
+```
+
+```
+## 0.9815
+```
+
+```{python}
+#| eval: false
+accuracy(model=m, loader=test_loader, device="cuda")
+```
+
+```
+## 0.7816
+```
+:::
+
+:::
+
+## Report
+
+::: {.panel-tabset}
+
+### Code
+
+::: {.xsmall}
+```{python}
+from sklearn.metrics import classification_report
+
+def report(model, loader, device):
+    y_true, y_pred = [], []
+    with torch.no_grad():
+        for X, y in loader:
+            X = X.to(device=device)
+            y_true.append( y.cpu().numpy() )
+            y_pred.append( model(X).max(1)[1].cpu().numpy() )
+    
+    y_true = np.concatenate(y_true)
+    y_pred = np.concatenate(y_pred)
+
+    return classification_report(y_true, y_pred, target_names=loader.dataset.classes)
+```
+:::
+
+### Results
+
+::: {.xsmall}
+```{python}
+#| eval: false
+print(report(model=m, loader=test_loader, device="cuda"))
+```
+
+```
+##               precision    recall  f1-score   support
+## 
+##     airplane       0.82      0.88      0.85      1000
+##   automobile       0.95      0.89      0.92      1000
+##         bird       0.85      0.70      0.77      1000
+##          cat       0.68      0.74      0.71      1000
+##         deer       0.84      0.83      0.83      1000
+##          dog       0.81      0.73      0.77      1000
+##         frog       0.83      0.92      0.87      1000
+##        horse       0.87      0.87      0.87      1000
+##         ship       0.89      0.92      0.90      1000
+##        truck       0.86      0.93      0.89      1000
+## 
+##     accuracy                           0.84     10000
+##    macro avg       0.84      0.84      0.84     10000
+## weighted avg       0.84      0.84      0.84     10000
+```
+:::
+
+:::
+
+
+# Transformers & GPT
+
+
+## Attribution & Resources
+
+The following slides are a very brief and simplified look at a "modern" GPT model using Torch.
+
+The code comes from Andrej Karpathy's [minGPT](https://github.com/karpathy/minGPT) repo. 
+
+> A PyTorch re-implementation of GPT, both training and inference. minGPT tries to be small, clean, interpretable and educational, as most of the currently available GPT model implementations can be a bit sprawling.
+
+It is an impressive piece of work and well worth looking through. More recently, Karpathy put together [microgpt](https://karpathy.github.io/2026/02/12/microgpt/) which is a pure-Python follow-up with no dependencies (including full autograd).
+
+I would also recommend [growingswe.com/blog/microgpt](https://growingswe.com/blog/microgpt) — an excellent explainer and companion that walks through the microGPT code in detail.
+
+
+
+## Language Models
+
+A language model assigns a probability to a sequence of tokens:
+
+$$P(x_1, x_2, \ldots, x_T) = \prod_{t=1}^T P(x_t \mid x_1, \ldots, x_{t-1})$$
+
+<br/>
+
+Training objective: given the previous tokens, predict the next one.
+
+- Tokens can be words, sub-words, characters, ...
+- At each step the model sees all *prior* context (but not future tokens)
+- Loss is cross-entropy averaged over all positions
+
+
+## Transformer Architecture
+
+Introduced in [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) (Vaswani et al., 2017).
+
+:::: {.columns}
+::: {.column width='55%'}
+Key ideas:
+
+* Replace recurrence with self-attention — every token attends to every other token in a single step
+* Stack $N$ identical transformer blocks
+* Add positional encodings so the model knows token order
+* Scale to billions of parameters via the same architecture
+:::
+::: {.column width='45%'}
+GPT (decoder-only) stack:
+
+```
+Token + Position Embeddings
+         ↓
+  ┌─────────────┐
+  │ LayerNorm   │
+  │ Self-Attn   │  × N blocks
+  │ LayerNorm   │
+  │ MLP         │
+  └─────────────┘
+         ↓
+    LayerNorm
+         ↓
+   LM Head (linear)
+```
+:::
+::::
+
+
+## Causal (Masked) Self-Attention
+
+The core operation — each token produces a *query*, *key*, and *value*:
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right) V$$
+
+where $M$ is a causal mask (upper-triangle $= -\infty$) that prevents attending to future positions.
+
+<br/>
+
+With $h$ heads, each head learns a different projection:
+
+$$\text{head}_i = \text{Attention}(Q W^Q_i,\ K W^K_i,\ V W^V_i), \quad W^Q_i, W^K_i, W^V_i \in \mathbb{R}^{d_{\text{model}} \times d_k}$$
+
+outputs are concatenated and projected back:
+
+$$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\, W^O$$
+
+
+```{python}
+#| include: false
+import torch.nn as nn
+import math
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+device = "cuda" if torch.cuda.is_available() else "cpu"
+torch.manual_seed(2602)
+```
+
+## Implementation - `CausalSelfAttention`
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|2-12|14-27"
+class CausalSelfAttention(nn.Module):
+    def __init__(self, n_embd, n_head, block_size, dropout=0.1):
+        super().__init__()
+        assert n_embd % n_head == 0
+        self.n_head, self.n_embd = n_head, n_embd
+        self.c_attn  = nn.Linear(n_embd, 3 * n_embd)   # Q, K, V in one shot
+        self.c_proj  = nn.Linear(n_embd, n_embd)
+        self.attn_drop  = nn.Dropout(dropout)
+        self.resid_drop = nn.Dropout(dropout)
+        # lower-triangular causal mask  (1, 1, T, T)
+        mask = torch.tril(torch.ones(block_size, block_size)).view(1, 1, block_size, block_size)
+        self.register_buffer("mask", mask)
+
+    def forward(self, x):
+        B, T, C = x.size()
+        hs = C // self.n_head
+        q, k, v = self.c_attn(x).split(self.n_embd, dim=2)          # (B, T, C) each
+        # reshape to (B, n_head, T, head_size)
+        q = q.view(B, T, self.n_head, hs).transpose(1, 2)
+        k = k.view(B, T, self.n_head, hs).transpose(1, 2)
+        v = v.view(B, T, self.n_head, hs).transpose(1, 2)
+        # scaled dot-product attention with causal mask
+        att = (q @ k.transpose(-2, -1)) / math.sqrt(hs)
+        att = att.masked_fill(self.mask[:, :, :T, :T] == 0, float('-inf'))
+        att = self.attn_drop(F.softmax(att, dim=-1))
+        y = (att @ v).transpose(1, 2).contiguous().view(B, T, C)    # re-assemble heads
+        return self.resid_drop(self.c_proj(y))
+```
+:::
+
+
+## Implementation - `Block`
+
+Each transformer block wraps attention + a feed-forward MLP with residual connections and layer norm:
+
+::: {.small}
+```{python}
+class Block(nn.Module):
+    def __init__(self, n_embd, n_head, block_size, dropout=0.1):
+        super().__init__()
+        self.ln1  = nn.LayerNorm(n_embd)
+        self.attn = CausalSelfAttention(n_embd, n_head, block_size, dropout)
+        self.ln2  = nn.LayerNorm(n_embd)
+        self.mlp  = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.GELU(),
+            nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x):
+        x = x + self.attn(self.ln1(x))   # attention  + residual
+        x = x + self.mlp(self.ln2(x))    # feed-forward + residual
+        return x
+```
+:::
+
+
+
+## Implementation - `GPT`
+
+::: {.xsmall}
+```{python}
+#| code-line-numbers: "|2-14|22-31|33-45"
+class GPT(nn.Module):
+    def __init__(self, vocab_size, block_size, n_layer=6, n_head=6, n_embd=192, dropout=0.1):
+        super().__init__()
+        self.block_size = block_size
+        self.transformer = nn.ModuleDict(dict(
+            wte  = nn.Embedding(vocab_size, n_embd),             # token embeddings
+            wpe  = nn.Embedding(block_size, n_embd),             # position embeddings
+            drop = nn.Dropout(dropout),
+            h    = nn.ModuleList([Block(n_embd, n_head, block_size, dropout)
+                                  for _ in range(n_layer)]),
+            ln_f = nn.LayerNorm(n_embd),
+        ))
+        self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, (nn.Linear, nn.Embedding)):
+            nn.init.normal_(m.weight, std=0.02)
+            if hasattr(m, 'bias') and m.bias is not None:
+                nn.init.zeros_(m.bias)
+
+    def forward(self, idx, targets=None):
+        B, T = idx.size()
+        pos  = torch.arange(T, device=idx.device).unsqueeze(0)
+        x    = self.transformer.drop(self.transformer.wte(idx) + self.transformer.wpe(pos))
+        for block in self.transformer.h:
+            x = block(x)
+        logits = self.lm_head(self.transformer.ln_f(x))         # (B, T, vocab_size)
+        loss   = F.cross_entropy(logits.view(-1, logits.size(-1)),
+                                 targets.view(-1)) if targets is not None else None
+        return logits, loss
+
+    @torch.no_grad()
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+        self.eval()
+        for _ in range(max_new_tokens):
+            idx_cond = idx[:, -self.block_size:]
+            logits, _ = self(idx_cond)
+            logits = logits[:, -1, :] / temperature
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = float('-inf')
+            idx_next = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
+            idx = torch.cat([idx, idx_next], dim=1)
+        return idx
+```
+:::
+
+
+## Model Sizes
+
+::: {.medium}
+| Variant | Layers | Heads | Embed dim | ~Params |
+|---------|--------|-------|-----------|---------|
+| gpt-nano | 3 | 3 | 48 | 45 K |
+| gpt-micro | 4 | 4 | 128 | 660 K |
+| gpt-mini | 6 | 6 | 192 | 3 M |
+| GPT-2 small | 12 | 12 | 768 | 124 M |
+| GPT-2 medium | 24 | 16 | 1024 | 350 M |
+| GPT-2 XL | 48 | 25 | 1600 | 1.6 B |
+:::
+
+<br/>
+
+For our example use case, character-level name generation, we only need a tiny model — the vocabulary is ~27 characters and sequences are short.
+
+
+# Character-level Name Generation
+
+
+## The Names Dataset
+
+This is a common classic benchmark for character-level language models — ~32k US baby names, one per line.
+
+::: {.small}
+```{python}
+import urllib.request
+url = "https://raw.githubusercontent.com/karpathy/makemore/master/names.txt"
+names_txt = urllib.request.urlopen(url).read().decode()
+names = names_txt.strip().split('\n')
+len(names)
+names[:10]
+```
+:::
+
+```{python}
+#| include: false
+avg_name_len = sum(len(n) for n in names)/len(names)
+```
+
+* Each name is terminated by `\n` 
+
+  — the model learns `\n` -> start of a name *and* name -> `\n`
+
+* Character vocabulary - 26 letters + newline = 27 tokens
+
+* Mean name length - `r py$avg_name_len |> round(1)` characters
+
+
+## `CharDataset`
+
+Each training example is a window of `block_size` characters; the target is the same window shifted by one:
+
+::: {.small}
+```{python}
+class CharDataset(Dataset):
+    def __init__(self, text, block_size):
+        chars = sorted(set(text))
+        self.stoi = {c: i for i, c in enumerate(chars)}
+        self.itos = {i: c for i, c in enumerate(chars)}
+        self.vocab_size = len(chars)
+        self.block_size = block_size
+        self.data = torch.tensor([self.stoi[c] for c in text], dtype=torch.long)
+
+    def __len__(self):
+        return len(self.data) - self.block_size
+
+    def __getitem__(self, idx):
+        chunk = self.data[idx : idx + self.block_size + 1]
+        return chunk[:-1], chunk[1:]   # (x, y) shifted by 1
+```
+:::
+
+##
+
+::: {.xsmall}
+```{python}
+BLOCK_SIZE = 32
+dataset = CharDataset(names_txt, block_size=BLOCK_SIZE)
+```
+
+```{python}
+x, y = dataset[0]
+```
+:::
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+x
+```
+```{python}
+''.join(dataset.itos[i.item()] for i in x)
+```
+:::
+::: {.column}
+```{python}
+y
+```
+
+```{python}
+''.join(dataset.itos[i.item()] for i in y)
+```
+:::
+:::
+
+. . .
+
+::: {.xsmall}
+```{python}
+x, y = dataset[1]
+```
+:::
+
+::: {.columns .xsmall}
+::: {.column}
+```{python}
+x
+```
+```{python}
+''.join(dataset.itos[i.item()] for i in x)
+```
+:::
+::: {.column}
+```{python}
+y
+```
+
+```{python}
+''.join(dataset.itos[i.item()] for i in y)
+```
+:::
+:::
+
+
+## Training Setup
+
+::: {.xsmall}
+```{python}
+BLOCK_SIZE = 32
+dataset = CharDataset(names_txt, block_size=BLOCK_SIZE)
+loader  = DataLoader(dataset, batch_size=256, shuffle=True)
+
+model = GPT(
+    vocab_size  = dataset.vocab_size,
+    block_size  = BLOCK_SIZE,
+    n_layer     = 4,
+    n_head      = 4,
+    n_embd      = 128,
+    dropout     = 0.1,
+).to(device)
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-3, weight_decay=0.1)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=5000)
+```
+:::
+
+
+Model parameter count:
+
+::: {.xsmall}
+```{python}
+sum(p.numel() for p in model.parameters() if p.requires_grad)
+```
+:::
+
+::: {.aside}
+`CosineAnnealingLR` decays the learning rate from `lr_max` to 0 following a cosine curve over `T_max` steps — starts fast, slows near the end, avoiding the sharp drop of step-decay schedules.
+:::
+
+## Training
+
+::: {.xsmall}
+```{python}
+model.train()
+```
+:::
+
+##
+
+
+::: {.xsmall}
+```{python}
+#| output: false
+losses  = []
+data_iter = iter(loader)
+
+for step in range(5000):
+    try:
+        x, y = next(data_iter)
+    except StopIteration:
+        data_iter = iter(loader)
+        x, y = next(data_iter)
+
+    x, y = x.to(device), y.to(device)
+    logits, loss = model(x, y)
+
+    optimizer.zero_grad()
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    scheduler.step()
+    losses.append(loss.item())
+```
+:::
+
+
+## Training Loss
+
+::: {.panel-tabset}
+
+### Actual
+
+```{python}
+#| echo: false
+fig, ax = plt.subplots(figsize=(8, 5))
+p = ax.plot(losses, alpha=0.5, color="steelblue", linewidth=0.5)
+p = ax.set_xlabel("Step")
+p = ax.set_ylabel("Cross-entropy loss")
+p = ax.set_title("Training loss — character-level name model")
+plt.tight_layout()
+plt.show()
+```
+
+### Smoothed
+
+```{python}
+#| echo: false
+window = 50
+smoothed = pd.Series(losses).rolling(window).mean()
+fig, ax = plt.subplots(figsize=(8, 5))
+p = ax.plot(smoothed, color="steelblue", linewidth=1.5, label=f"{window}-step rolling mean")
+p = ax.set_xlabel("Step")
+p = ax.set_ylabel("Cross-entropy loss")
+p = ax.set_title("Training loss — character-level name model")
+p = ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+:::
+
+
+## Generating Names
+
+::: {.xsmall}
+```{python}
+def sample_names(model, dataset, n=10, temperature=0.8, top_k=10):
+    newline_idx = dataset.stoi['\n']
+    start = torch.tensor([[newline_idx]], dtype=torch.long, device=device)
+    names_out = []
+    for _ in range(n):
+        out = model.generate(start, max_new_tokens=20, temperature=temperature, top_k=top_k)
+        tokens = out[0].tolist()
+        # collect characters up to the next newline (after the seed)
+        name = ''
+        for t in tokens[1:]:
+            c = dataset.itos[t]
+            if c == '\n':
+                break
+            name += c
+        if name:
+            names_out.append(name)
+    return names_out
+
+sample_names(model, dataset)
+```
+:::
+
+
+## Temperature & Sampling
+
+`temperature=0.5` (more conservative):
+
+::: {.xsmall}
+```{python}
+sample_names(model, dataset, n=10, temperature=0.5)
+```
+:::
+
+`temperature=1.0` (default):
+
+::: {.xsmall}
+```{python}
+sample_names(model, dataset, n=10, temperature=1.0)
+```
+:::
+
+`temperature=1.5` (more creative / noisy):
+
+::: {.xsmall}
+```{python}
+sample_names(model, dataset, n=10, temperature=1.5)
+```
+:::
+
+::: {.aside}
+Lower temperature sharpens the distribution (more likely completions); higher temperature flattens it (more diverse but less coherent outputs).
+:::
+
+# Some "state-of-the-art"<br/>models
+
+## Hugging Face
+
+This is an online community and platform for sharing machine learning models (architectures and weights), data, and related artifacts. They also maintain a number of packages and related training materials that help with building, training, and deploying ML models.
+
+Some notable resources,
+
+* [`transformers`](https://huggingface.co/docs/transformers/index) - APIs and tools to easily download and train state-of-the-art (pretrained) transformer based models 
+
+* [`diffusers`](https://huggingface.co/docs/diffusers/index) - provides pretrained vision and audio diffusion models, and serves as a modular toolbox for inference and training
+
+
+## Stable Diffusion
+
+::: {.xsmall}
+```{python}
+from huggingface_hub import snapshot_download, login
+```
+```{python}
+model_id = "/data/stable-diffusion-2-1"
+```
+
+```{python}
+#| eval: false
+snapshot_download(
+    repo_id="sd2-community/stable-diffusion-2-1",
+    local_dir=model_id,
+    ignore_patterns=["*.ckpt", "*.safetensors.index.json"],
+    token="..." # or use login() ahead of time
+)
+```
+:::
+
+::: {.aside}
+`sd2-community/stable-diffusion-2-1` is a gated repo — you must accept the model license on [huggingface.co](https://huggingface.co/sd2-community/stable-diffusion-2-1) and be logged in. This only needs to be run once to cache the weights locally.
+:::
+
+. . .
+
+
+::: {.xsmall}
+```{python}
+#| warning: false
+#| message: false
+#| results: hide
+import torch
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+pipe = pipe.to("cuda")
+```
+:::
+
+## Inference
+
+
+::: {.panel-tabset}
+
+### Code
+
+::: {.xsmall}
+```{python sd1-1}
+#| results: hide
+prompt = "a picture of thomas bayes with a cat on his lap"
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompt, generator=generator, num_inference_steps=20, num_images_per_prompt=6)
+```
+:::
+
+::: {.xsmall}
+```{python sd1-2}
+fit.images
+```
+
+```{python}
+#| eval: false
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+:::
+
+
+
+
+### Images
+
+```{python sd1-plot}
+#| echo: false
+#| out-width: 75%
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+
+:::
+
+::: {.aside}
+[Thomas Bayes GIS](https://www.google.com/search?q=thomas+bayes&source=lnms&tbm=isch&sa=X&biw=1280&bih=590&dpr=2)
+:::
+
+
+## Customizing prompts
+
+::: {.panel-tabset}
+
+### Code
+
+::: {.xsmall}
+```{python sd2-0}
+#| results: hide
+prompt = "a picture of thomas bayes with a cat on his lap"
+prompts = [
+  prompt + t for t in 
+  ["in the style of a japanese wood block print",
+   "as a hipster with facial hair and glasses",
+   "as a simpsons character, cartoon, yellow",
+   "in the style of a vincent van gogh painting",
+   "in the style of a picasso painting",
+   "with flowery wall paper"
+  ]
+]
+```
+
+```{python sd2}
+#| results: hide
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompts, generator=generator, num_inference_steps=20, num_images_per_prompt=1)
+```
+:::
+
+### Images
+
+```{python sd2-plot}
+#| echo: false
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+
+:::
+
+
+## Increasing inference steps
+
+::: {.xsmall}
+```{python sd2-more}
+#| results: hide
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompts, generator=generator, num_inference_steps=50, num_images_per_prompt=1)
+```
+:::
+
+```{python sd2-more-plot}
+#| echo: false
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+
+
+## A more current model
+
+::: {.small}
+This model is larger than the available GPU memory - so we adjust the weight types to make it fit.
+:::
+
+```{python}
+#| eval: false
+#| include: false
+login()  # prompts for your HF token, or pass token= directly below
+
+snapshot_download(
+    repo_id="stabilityai/stable-diffusion-3.5-medium",
+    local_dir="/data/stable-diffusion-3-5-medium",
+    token = "..."
+)
+```
+
+
+::: {.xsmall}
+```{python}
+#| output: false
+from diffusers import BitsAndBytesConfig, SD3Transformer2DModel
+from diffusers import StableDiffusion3Pipeline
+import torch
+
+model_id = "/data/stable-diffusion-3-5-medium"
+
+nf4_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16
+)
+model_nf4 = SD3Transformer2DModel.from_pretrained(
+    model_id,
+    subfolder="transformer",
+    quantization_config=nf4_config,
+    torch_dtype=torch.bfloat16
+)
+pipe = StableDiffusion3Pipeline.from_pretrained(
+    model_id, 
+    transformer=model_nf4,
+    torch_dtype=torch.bfloat16
+)
+pipe.enable_model_cpu_offload()
+```
+:::
+
+## Images
+
+::: {.xsmall}
+```{python sd35}
+#| results: hide
+generator = [torch.Generator(device="cuda").manual_seed(i) for i in range(6)]
+fit = pipe(prompts, generator=generator, num_inference_steps=30, num_images_per_prompt=1)
+```
+:::
+
+```{python sd35-plot}
+#| echo: false
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(10, 6), layout="constrained")
+
+for i, ax in enumerate([ax for row in axes for ax in row]):
+    ax.set_axis_off()
+    p = ax.imshow(fit.images[i])
+    
+plt.show()
+```
+

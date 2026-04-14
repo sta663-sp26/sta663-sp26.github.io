@@ -1,0 +1,42 @@
+---
+title: "GPT / Transformers"
+subtitle: "Lecture 26 (supplement)"
+author: "Dr. Colin Rundel"
+footer: "Sta 663 - Spring 2026"
+format:
+  revealjs:
+    theme: slides.scss
+    transition: fade
+    slide-number: true
+    embed-resources: true
+execute:
+  echo: true
+---
+
+```{python}
+#| include: false
+import math
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+import torch
+import torch.nn as nn
+from torch.nn import functional as F
+from torch.utils.data import Dataset, DataLoader
+
+plt.rcParams['figure.dpi'] = 200
+
+torch.set_printoptions(edgeitems=30, linewidth=46, precision=4)
+np.set_printoptions(edgeitems=30, linewidth=48, precision=5, suppress=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+torch.manual_seed(2602)
+```
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+{{< include _setup.R >}}
+library(reticulate)
+```
+
+

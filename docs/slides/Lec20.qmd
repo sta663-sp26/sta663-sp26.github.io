@@ -57,6 +57,15 @@ pd.set_option("display.precision", 6)
 ```
 
 
+## `.pytensorrc` setup
+
+On the departmental server, to avoid missing BLAS library warnings with PyMC / PyTensor, create `~/.pytensorrc` with the following contents:
+
+``` ini
+[blas]
+ldflags = -lflexiblas
+```
+
 # Example - Gaussian Process
 
 ## Data
@@ -139,7 +148,7 @@ pprint(gp_map)
 ::: {.xsmall}
 ```{python}
 with model:
-  post_nuts = pm.sample()
+  post_nuts = pm.sample(cores=2)
 ```
 :::
 

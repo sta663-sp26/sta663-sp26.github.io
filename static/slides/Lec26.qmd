@@ -1282,6 +1282,7 @@ model.train()
 
 ::: {.xsmall}
 ```{python}
+#| output: false
 losses  = []
 data_iter = iter(loader)
 
@@ -1531,7 +1532,6 @@ prompts = [
   ]
 ]
 ```
-:::
 
 ```{python sd2}
 #| results: hide
